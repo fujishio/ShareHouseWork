@@ -5,7 +5,6 @@ import {
   CONTRIBUTION_DATA,
   CURRENT_USER,
   MY_RANK,
-  RECENT_COMPLETIONS,
   EXPENSE_SUMMARY,
   RECENT_NOTICES,
 } from "@/lib/mock-data";
@@ -30,7 +29,6 @@ export default function HomePage() {
         data={CONTRIBUTION_DATA}
         myPoints={myContribution?.totalPoints ?? 0}
         myRank={MY_RANK}
-        recentCompletions={RECENT_COMPLETIONS}
       />
 
       {/* Expense widget */}
