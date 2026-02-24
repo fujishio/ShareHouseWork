@@ -37,8 +37,8 @@ export default function HomePage() {
     <div className="space-y-4">
       {/* Greeting */}
       <div className="pt-1">
-        <p className="text-gray-400 text-sm">{formatDate()}</p>
-        <h2 className="text-xl font-bold text-gray-800 mt-0.5">
+        <p className="text-stone-400 text-sm">{formatDate()}</p>
+        <h2 className="text-xl font-bold text-stone-800 mt-0.5">
           {getGreeting()}、{CURRENT_USER.name}さん
         </h2>
       </div>

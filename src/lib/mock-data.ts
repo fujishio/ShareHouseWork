@@ -7,10 +7,10 @@ import type {
 } from "@/types";
 
 export const MEMBERS: Member[] = [
-  { id: 1, name: "家主", color: "#10b981" },
-  { id: 2, name: "パートナー", color: "#3b82f6" },
-  { id: 3, name: "友達１", color: "#f59e0b" },
-  { id: 4, name: "友達２", color: "#ec4899" },
+  { id: 1, name: "家主", color: "#d97706" },
+  { id: 2, name: "パートナー", color: "#57534e" },
+  { id: 3, name: "友達１", color: "#059669" },
+  { id: 4, name: "友達２", color: "#db2777" },
 ];
 
 const now = new Date("2026-02-24T12:00:00");

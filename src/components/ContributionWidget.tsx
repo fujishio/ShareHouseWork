@@ -59,12 +59,12 @@ export default function ContributionWidget({ data, myPoints, myRank, currentUser
   const totalPoints = data.reduce((sum, d) => sum + d.totalPoints, 0);
 
   return (
-    <div className="bg-gradient-to-br from-white to-emerald-50/40 rounded-2xl shadow-sm border border-emerald-100/60 p-4">
+    <div className="bg-gradient-to-br from-white to-stone-100/60 rounded-2xl shadow-sm border border-stone-200/60 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-gray-800">家事貢献度</h2>
+        <h2 className="font-bold text-stone-800">家事貢献度</h2>
         <Link
           href="/tasks"
-          className="text-xs text-emerald-600 hover:underline font-medium"
+          className="text-xs text-amber-600 hover:underline font-medium"
         >
           詳細を見る →
         </Link>
@@ -81,7 +81,7 @@ export default function ContributionWidget({ data, myPoints, myRank, currentUser
               outerRadius={120}
               dataKey="value"
               strokeWidth={3}
-              stroke="#fff"
+              stroke="#fafaf9"
               labelLine={false}
               label={renderLabel}
             >
@@ -94,20 +94,20 @@ export default function ContributionWidget({ data, myPoints, myRank, currentUser
         {/* Center label overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <p className="text-xs text-gray-400">合計</p>
-            <p className="text-xl font-bold text-gray-800">{totalPoints}pt</p>
+            <p className="text-xs text-stone-400">合計</p>
+            <p className="text-xl font-bold text-stone-800">{totalPoints}pt</p>
           </div>
         </div>
       </div>
 
       {/* My score */}
       <div className="mt-1 py-2.5 px-3 bg-white/70 rounded-xl flex items-center gap-2">
-        <Trophy size={16} className="text-emerald-500 flex-shrink-0" />
-        <p className="text-sm text-emerald-700">
+        <Trophy size={16} className="text-amber-500 flex-shrink-0" />
+        <p className="text-sm text-stone-700">
           <span className="font-bold">あなた: {myPoints}pt</span>
-          <span className="mx-1.5 text-emerald-300">|</span>
+          <span className="mx-1.5 text-stone-300">|</span>
           <span className="font-semibold">{myRank}位</span>
-          <span className="text-emerald-500/70 text-xs ml-1">（過去30日間）</span>
+          <span className="text-stone-400 text-xs ml-1">（過去30日間）</span>
         </p>
       </div>
     </div>

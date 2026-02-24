@@ -21,19 +21,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" className={notoSansJP.className}>
-      <body className="bg-gray-50 text-gray-900">
+      <body className="bg-stone-50 text-stone-900">
         <div className="min-h-screen flex flex-col">
-          <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-10">
+          <header className="bg-white/80 backdrop-blur-md border-b border-stone-200/60 sticky top-0 z-10">
             <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-emerald-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">S</span>
+                <div className="w-7 h-7 bg-stone-800 rounded-lg flex items-center justify-center">
+                  <span className="text-amber-400 text-xs font-bold">S</span>
                 </div>
-                <h1 className="text-lg font-bold text-gray-800">
-                  Share<span className="text-emerald-600">House</span>
+                <h1 className="text-lg font-bold text-stone-800">
+                  Share<span className="text-amber-600">House</span>
                 </h1>
               </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-sm font-medium text-white shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center text-sm font-medium text-amber-300 shadow-sm">
                 家
               </div>
             </div>
