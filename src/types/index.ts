@@ -16,7 +16,6 @@ export type TaskCompletion = {
 export type ContributionData = {
   member: Member;
   totalPoints: number;
-  percentage: number;
 };
 
 export type ExpenseSummary = {

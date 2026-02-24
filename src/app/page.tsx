@@ -1,13 +1,32 @@
 import ContributionWidget from "@/components/ContributionWidget";
 import ExpenseWidget from "@/components/ExpenseWidget";
 import NoticesWidget from "@/components/NoticesWidget";
+import RecentTasksWidget from "@/components/RecentTasksWidget";
 import {
   CONTRIBUTION_DATA,
   CURRENT_USER,
   MY_RANK,
   EXPENSE_SUMMARY,
   RECENT_NOTICES,
+  RECENT_COMPLETIONS,
 } from "@/lib/mock-data";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "おはようございます";
+  if (hour < 18) return "こんにちは";
+  return "おつかれさまです";
+}
+
+function formatDate(): string {
+  const days = ["日", "月", "火", "水", "木", "金", "土"];
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const day = days[now.getDay()];
+  return `${y}年${m}月${d}日 (${day})`;
+}
 
 export default function HomePage() {
   const myContribution = CONTRIBUTION_DATA.find(
@@ -18,9 +37,9 @@ export default function HomePage() {
     <div className="space-y-4">
       {/* Greeting */}
       <div className="pt-1">
-        <p className="text-gray-400 text-sm">2026年2月24日 (火)</p>
+        <p className="text-gray-400 text-sm">{formatDate()}</p>
         <h2 className="text-xl font-bold text-gray-800 mt-0.5">
-          こんにちは、家主さん 👋
+          {getGreeting()}、{CURRENT_USER.name}さん
         </h2>
       </div>
 
@@ -31,6 +50,9 @@ export default function HomePage() {
         myRank={MY_RANK}
         currentUserId={CURRENT_USER.id}
       />
+
+      {/* Recent tasks */}
+      <RecentTasksWidget completions={RECENT_COMPLETIONS} />
 
       {/* Expense widget */}
       <ExpenseWidget summary={EXPENSE_SUMMARY} />

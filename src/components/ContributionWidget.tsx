@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { Trophy } from "lucide-react";
 import type { ContributionData } from "@/types";
 
 const RADIAN = Math.PI / 180;
@@ -12,8 +14,17 @@ type Props = {
   currentUserId: number;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderLabel(props: any) {
+type LabelProps = {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  innerRadius: number;
+  outerRadius: number;
+  name: string;
+  percent: number;
+};
+
+function renderLabel(props: LabelProps) {
   const { cx, cy, midAngle, innerRadius, outerRadius, name, percent } = props;
   const pct = Math.round(percent * 100);
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -28,10 +39,10 @@ function renderLabel(props: any) {
       dominantBaseline="central"
       fill="white"
     >
-      <tspan x={x} dy="-0.65em" fontSize={12} fontWeight="500">
+      <tspan x={x} dy="-0.65em" fontSize={11} fontWeight="500">
         {name}
       </tspan>
-      <tspan x={x} dy="1.4em" fontSize={15} fontWeight="700">
+      <tspan x={x} dy="1.4em" fontSize={14} fontWeight="700">
         {pct}%
       </tspan>
     </text>
@@ -45,48 +56,58 @@ export default function ContributionWidget({ data, myPoints, myRank, currentUser
     color: d.member.color,
   }));
 
+  const totalPoints = data.reduce((sum, d) => sum + d.totalPoints, 0);
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+    <div className="bg-gradient-to-br from-white to-emerald-50/40 rounded-2xl shadow-sm border border-emerald-100/60 p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-bold text-gray-800">家事貢献度</h2>
-        <a
+        <Link
           href="/tasks"
           className="text-xs text-emerald-600 hover:underline font-medium"
         >
           詳細を見る →
-        </a>
+        </Link>
       </div>
 
-      <div className="h-72">
+      <div className="h-64 relative">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
-              innerRadius={70}
-              outerRadius={130}
+              innerRadius={60}
+              outerRadius={120}
               dataKey="value"
               strokeWidth={3}
               stroke="#fff"
               labelLine={false}
               label={renderLabel}
             >
-              {chartData.map((entry, index) => (
-                <Cell key={index} fill={entry.color} />
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
+        {/* Center label overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">合計</p>
+            <p className="text-xl font-bold text-gray-800">{totalPoints}pt</p>
+          </div>
+        </div>
       </div>
 
       {/* My score */}
-      <div className="mt-1 py-2.5 px-3 bg-emerald-50 rounded-xl">
+      <div className="mt-1 py-2.5 px-3 bg-white/70 rounded-xl flex items-center gap-2">
+        <Trophy size={16} className="text-emerald-500 flex-shrink-0" />
         <p className="text-sm text-emerald-700">
           <span className="font-bold">あなた: {myPoints}pt</span>
-          <span className="mx-1 text-emerald-400">/</span>
-          <span className="font-medium">{myRank}位</span>
-          <span className="text-emerald-500 text-xs ml-1">（過去30日間）</span>
+          <span className="mx-1.5 text-emerald-300">|</span>
+          <span className="font-semibold">{myRank}位</span>
+          <span className="text-emerald-500/70 text-xs ml-1">（過去30日間）</span>
         </p>
       </div>
     </div>

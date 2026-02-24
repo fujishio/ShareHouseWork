@@ -54,10 +54,10 @@ export const RECENT_COMPLETIONS: TaskCompletion[] = [
 ];
 
 export const CONTRIBUTION_DATA: ContributionData[] = [
-  { member: MEMBERS[0], totalPoints: 42, percentage: 35 },
-  { member: MEMBERS[1], totalPoints: 36, percentage: 30 },
-  { member: MEMBERS[2], totalPoints: 26, percentage: 22 },
-  { member: MEMBERS[3], totalPoints: 16, percentage: 13 },
+  { member: MEMBERS[0], totalPoints: 42 },
+  { member: MEMBERS[1], totalPoints: 36 },
+  { member: MEMBERS[2], totalPoints: 26 },
+  { member: MEMBERS[3], totalPoints: 16 },
 ];
 
 // Current user is member[0] (家主)
