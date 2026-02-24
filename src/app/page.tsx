@@ -1,7 +1,6 @@
 import ContributionWidget from "@/components/ContributionWidget";
 import ExpenseWidget from "@/components/ExpenseWidget";
 import NoticesWidget from "@/components/NoticesWidget";
-import ScheduleWidget from "@/components/ScheduleWidget";
 import {
   CONTRIBUTION_DATA,
   CURRENT_USER,
@@ -9,11 +8,9 @@ import {
   RECENT_COMPLETIONS,
   EXPENSE_SUMMARY,
   RECENT_NOTICES,
-  THIS_WEEK_EVENTS,
 } from "@/lib/mock-data";
 
 export default function HomePage() {
-  const today = new Date("2026-02-24");
   const myContribution = CONTRIBUTION_DATA.find(
     (d) => d.member.id === CURRENT_USER.id
   );
@@ -38,9 +35,6 @@ export default function HomePage() {
 
       {/* Expense widget */}
       <ExpenseWidget summary={EXPENSE_SUMMARY} />
-
-      {/* Schedule widget */}
-      <ScheduleWidget events={THIS_WEEK_EVENTS} today={today} />
 
       {/* Notices widget */}
       <NoticesWidget notices={RECENT_NOTICES} />

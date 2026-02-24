@@ -32,12 +32,3 @@ export type Notice = {
   postedBy: string;
   postedAt: Date;
 };
-
-export type ScheduleEvent = {
-  id: number;
-  memberName: string;
-  memberColor: string;
-  label: string;
-  startDate: Date;
-  endDate: Date;
-};

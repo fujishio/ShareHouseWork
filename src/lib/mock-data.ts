@@ -4,7 +4,6 @@ import type {
   ContributionData,
   ExpenseSummary,
   Notice,
-  ScheduleEvent,
 } from "@/types";
 
 export const MEMBERS: Member[] = [
@@ -84,24 +83,5 @@ export const RECENT_NOTICES: Notice[] = [
     title: "トイレットペーパーが残り少ないです",
     postedBy: "友達１",
     postedAt: daysAgo(2),
-  },
-];
-
-export const THIS_WEEK_EVENTS: ScheduleEvent[] = [
-  {
-    id: 1,
-    memberName: "友達２",
-    memberColor: "#ec4899",
-    label: "旅行",
-    startDate: new Date("2026-02-25"),
-    endDate: new Date("2026-02-27"),
-  },
-  {
-    id: 2,
-    memberName: "友達１",
-    memberColor: "#f59e0b",
-    label: "来客",
-    startDate: new Date("2026-02-26"),
-    endDate: new Date("2026-02-26"),
   },
 ];
