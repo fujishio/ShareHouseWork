@@ -1,0 +1,173 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { Check, X, Plus, Star, ChevronLeft } from "lucide-react";
+import { TASKS } from "@/lib/tasks";
+
+export default function TaskCompleteFAB() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
+
+  const categories = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const task of TASKS) {
+      map.set(task.category, (map.get(task.category) ?? 0) + 1);
+    }
+    return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
+  }, []);
+
+  const filteredTasks = useMemo(
+    () => TASKS.filter((t) => t.category === selectedCategory),
+    [selectedCategory]
+  );
+
+  const handleComplete = (taskId: number, taskName: string, points: number) => {
+    setCompletedTaskId(taskId);
+    // TODO: Replace with actual API call
+    console.log(`Task completed: ${taskName} (+${points}pt)`);
+    setTimeout(() => {
+      setCompletedTaskId(null);
+      setSelectedCategory(null);
+      setIsOpen(false);
+    }, 1200);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setSelectedCategory(null);
+    setCompletedTaskId(null);
+  };
+
+  return (
+    <>
+      {/* FAB Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed right-4 bottom-20 z-20 w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-lg shadow-amber-500/30 flex items-center justify-center transition-all active:scale-95"
+        style={{ marginBottom: "var(--safe-area-bottom)" }}
+        aria-label="家事完了報告"
+      >
+        <Plus size={28} strokeWidth={2.5} />
+      </button>
+
+      {/* Modal Overlay */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={handleClose}
+          />
+
+          {/* Modal - bottom-right quarter */}
+          <div
+            className="absolute right-0 bottom-0 w-1/2 h-1/2 p-3"
+            style={{ paddingBottom: "calc(0.75rem + var(--safe-area-bottom))" }}
+          >
+            <div className="w-full h-full bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden animate-slide-up">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 shrink-0">
+                <div className="flex items-center gap-1">
+                  {selectedCategory && (
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="w-6 h-6 rounded-full hover:bg-stone-100 flex items-center justify-center transition-colors"
+                      aria-label="戻る"
+                    >
+                      <ChevronLeft size={16} className="text-stone-500" />
+                    </button>
+                  )}
+                  <h2 className="text-sm font-bold text-stone-800">
+                    {selectedCategory ?? "ジャンル選択"}
+                  </h2>
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="w-6 h-6 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition-colors"
+                  aria-label="閉じる"
+                >
+                  <X size={14} className="text-stone-500" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-3 py-2">
+                {!selectedCategory ? (
+                  /* Category List */
+                  <div className="space-y-1.5">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.name}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-stone-50 border border-stone-200/60 hover:bg-stone-100 active:bg-stone-200 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-stone-700">
+                          {cat.name}
+                        </span>
+                        <span className="text-xs text-stone-400">
+                          {cat.count}件
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  /* Task List */
+                  <div className="space-y-1.5">
+                    {filteredTasks.map((task) => {
+                      const isCompleted = completedTaskId === task.id;
+                      return (
+                        <button
+                          key={task.id}
+                          onClick={() =>
+                            !completedTaskId &&
+                            handleComplete(task.id, task.name, task.points)
+                          }
+                          disabled={!!completedTaskId}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
+                            isCompleted
+                              ? "bg-amber-50 border-amber-300"
+                              : "bg-stone-50 border-stone-200/60 hover:bg-stone-100 active:bg-stone-200"
+                          } ${completedTaskId && !isCompleted ? "opacity-40" : ""}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                isCompleted
+                                  ? "bg-amber-500 text-white scale-110"
+                                  : "bg-stone-200 text-stone-400"
+                              }`}
+                            >
+                              <Check size={12} strokeWidth={2.5} />
+                            </div>
+                            <span
+                              className={`text-xs font-medium ${
+                                isCompleted ? "text-amber-700" : "text-stone-700"
+                              }`}
+                            >
+                              {task.name}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 ${
+                              isCompleted
+                                ? "bg-amber-200 text-amber-800"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            <Star size={8} fill="currentColor" />
+                            +{task.points}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

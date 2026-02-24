@@ -31,3 +31,21 @@ export type Notice = {
   postedBy: string;
   postedAt: Date;
 };
+
+export type TaskCategory =
+  | "浴室"
+  | "トイレ"
+  | "キッチン"
+  | "リビング"
+  | "洗面所"
+  | "玄関"
+  | "ゴミ"
+  | "買い出し"
+  | "季節・不定期";
+
+export type Task = {
+  id: number;
+  name: string;
+  points: number; // 1–5
+  category: TaskCategory;
+};

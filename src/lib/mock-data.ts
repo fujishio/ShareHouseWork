@@ -22,14 +22,14 @@ export const RECENT_COMPLETIONS: TaskCompletion[] = [
   {
     id: 1,
     taskName: "浴室掃除（床・浴槽）",
-    points: 3,
+    points: 4,
     completedBy: "あなた",
     completedAt: hoursAgo(2),
     source: "app",
   },
   {
     id: 2,
-    taskName: "ゴミ出し",
+    taskName: "ゴミ出し（可燃）",
     points: 1,
     completedBy: "パートナー",
     completedAt: hoursAgo(5),

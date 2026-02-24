@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import TaskCompleteFAB from "@/components/TaskCompleteFAB";
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ["latin"],
@@ -41,6 +42,7 @@ export default function RootLayout({
           <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 pb-24">
             {children}
           </main>
+          <TaskCompleteFAB />
           <BottomNav />
         </div>
       </body>
