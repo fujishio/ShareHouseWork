@@ -7,7 +7,7 @@ import type {
 } from "@/types";
 
 export const MEMBERS: Member[] = [
-  { id: 1, name: "あなた（家主）", color: "#10b981" },
+  { id: 1, name: "家主", color: "#10b981" },
   { id: 2, name: "パートナー", color: "#3b82f6" },
   { id: 3, name: "友達１", color: "#f59e0b" },
   { id: 4, name: "友達２", color: "#ec4899" },

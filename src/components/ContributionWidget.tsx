@@ -9,9 +9,8 @@ type Props = {
   data: ContributionData[];
   myPoints: number;
   myRank: number;
+  currentUserId: number;
 };
-
-const shortName = (name: string) => name.replace("あなた（家主）", "あなた");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function renderLabel(props: any) {
@@ -30,7 +29,7 @@ function renderLabel(props: any) {
       fill="white"
     >
       <tspan x={x} dy="-0.65em" fontSize={12} fontWeight="500">
-        {shortName(name)}
+        {name}
       </tspan>
       <tspan x={x} dy="1.4em" fontSize={15} fontWeight="700">
         {pct}%
@@ -39,9 +38,9 @@ function renderLabel(props: any) {
   );
 }
 
-export default function ContributionWidget({ data, myPoints, myRank }: Props) {
+export default function ContributionWidget({ data, myPoints, myRank, currentUserId }: Props) {
   const chartData = data.map((d) => ({
-    name: d.member.name,
+    name: d.member.id === currentUserId ? "あなた" : d.member.name,
     value: d.totalPoints,
     color: d.member.color,
   }));

@@ -29,6 +29,7 @@ export default function HomePage() {
         data={CONTRIBUTION_DATA}
         myPoints={myContribution?.totalPoints ?? 0}
         myRank={MY_RANK}
+        currentUserId={CURRENT_USER.id}
       />
 
       {/* Expense widget */}
