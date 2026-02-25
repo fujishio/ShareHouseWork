@@ -149,6 +149,39 @@ export type ContributionSettings = {
   memberCount: number;
 };
 
+export type ContributionSettingsHistoryRecord = ContributionSettings & {
+  effectiveMonth: string; // YYYY-MM
+};
+
+export type ShoppingItem = {
+  id: number;
+  name: string;
+  quantity: string;
+  memo: string;
+  addedBy: string;
+  addedAt: IsoDateString;
+  checkedBy?: string;
+  checkedAt?: IsoDateString;
+  canceledAt?: IsoDateString;
+  canceledBy?: string;
+};
+
+export type CreateShoppingItemInput = {
+  name: string;
+  quantity: string;
+  memo: string;
+  addedBy: string;
+  addedAt: IsoDateString;
+};
+
+export type CheckShoppingItemInput = {
+  checkedBy: string;
+};
+
+export type ShoppingItemListResponse = ApiSuccessResponse<ShoppingItem[]>;
+export type ShoppingItemCreateResponse = ApiSuccessResponse<ShoppingItem>;
+export type ShoppingItemCheckResponse = ApiSuccessResponse<ShoppingItem>;
+
 export type ExpenseListResponse = ApiSuccessResponse<ExpenseRecord[]>;
 export type ExpenseCreateResponse = ApiSuccessResponse<ExpenseRecord>;
 export type ExpenseCancelResponse = ApiSuccessResponse<ExpenseRecord>;

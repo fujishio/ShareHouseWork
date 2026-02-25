@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "卵",
+    "quantity": "1パック",
+    "memo": "",
+    "addedBy": "家主",
+    "addedAt": "2026-02-25T11:30:41.583Z",
+    "checkedBy": "家主",
+    "checkedAt": "2026-02-25"
+  },
+  {
+    "id": 2,
+    "name": "トイレットペーパー",
+    "quantity": "1パック",
+    "memo": "",
+    "addedBy": "家主",
+    "addedAt": "2026-02-25T11:33:39.152Z",
+    "canceledAt": "2026-02-25T11:33:42.959Z",
+    "canceledBy": "家主"
+  },
+  {
+    "id": 3,
+    "name": "化粧水",
+    "quantity": "1個",
+    "memo": "",
+    "addedBy": "家主",
+    "addedAt": "2026-02-25T11:33:50.365Z",
+    "checkedBy": "家主",
+    "checkedAt": "2026-02-25T11:33:52.241Z"
+  }
+]

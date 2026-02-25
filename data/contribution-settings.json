@@ -1,4 +1,7 @@
-{
-  "monthlyAmountPerPerson": 15000,
-  "memberCount": 4
-}
+[
+  {
+    "effectiveMonth": "2000-01",
+    "monthlyAmountPerPerson": 15000,
+    "memberCount": 4
+  }
+]

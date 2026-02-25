@@ -181,6 +181,7 @@ export default function SettingsPage() {
         </div>
         <p className="mt-1 text-xs text-stone-500 mb-3">
           月次拠出合計 = 1人あたり金額 × 人数 で算出されます。
+          保存した設定は当月から適用されます。
         </p>
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
