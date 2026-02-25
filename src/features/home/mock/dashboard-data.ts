@@ -111,15 +111,17 @@ export const RECENT_NOTICES: Notice[] = [
   {
     id: 1,
     title: "来週、水道工事があります（2/27 AM）",
+    body: "",
     postedBy: "家主",
-    postedAt: daysAgo(1),
+    postedAt: daysAgo(1).toISOString(),
     isImportant: true,
   },
   {
     id: 2,
     title: "トイレットペーパーが残り少ないです",
+    body: "",
     postedBy: "友達１",
-    postedAt: daysAgo(2),
+    postedAt: daysAgo(2).toISOString(),
     isImportant: false,
   },
 ];

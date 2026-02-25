@@ -190,10 +190,25 @@ export type ContributionSettingsResponse = ApiSuccessResponse<ContributionSettin
 export type Notice = {
   id: number;
   title: string;
+  body: string;
   postedBy: string;
-  postedAt: Date;
+  postedAt: IsoDateString;
+  isImportant: boolean;
+  deletedAt?: IsoDateString;
+  deletedBy?: string;
+};
+
+export type CreateNoticeInput = {
+  title: string;
+  body: string;
+  postedBy: string;
+  postedAt: IsoDateString;
   isImportant: boolean;
 };
+
+export type NoticeListResponse = ApiSuccessResponse<Notice[]>;
+export type NoticeCreateResponse = ApiSuccessResponse<Notice>;
+export type NoticeDeleteResponse = ApiSuccessResponse<Notice>;
 
 export type NotificationSettings = {
   enabled: boolean;

@@ -54,7 +54,7 @@ export default function NoticesWidget({ notices }: Props) {
                       重要
                     </span>
                   )}
-                  {notice.postedBy} · {formatRelativeTime(notice.postedAt)}
+                  {notice.postedBy} · {formatRelativeTime(new Date(notice.postedAt))}
                 </p>
               </div>
             </li>
