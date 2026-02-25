@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import type { Notice } from "@/types";
-import { formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime } from "@/shared/lib/time";
 
 type Props = {
   notices: Notice[];

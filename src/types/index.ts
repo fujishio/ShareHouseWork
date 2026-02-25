@@ -43,7 +43,7 @@ export type TaskCategory =
 export type Task = {
   id: number;
   name: string;
-  points: number; // 1–5
+  points: number; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
   frequencyDays: number; // ideal interval between completions
 };

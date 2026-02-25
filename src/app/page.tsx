@@ -5,28 +5,12 @@ import RecentTasksWidget from "@/components/RecentTasksWidget";
 import {
   CONTRIBUTION_DATA,
   CURRENT_USER,
-  MY_RANK,
   EXPENSE_SUMMARY,
-  RECENT_NOTICES,
+  MY_RANK,
   PRIORITY_TASKS,
-} from "@/lib/mock-data";
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "おはようございます";
-  if (hour < 18) return "こんにちは";
-  return "おつかれさまです";
-}
-
-function formatDate(): string {
-  const days = ["日", "月", "火", "水", "木", "金", "土"];
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  const d = now.getDate();
-  const day = days[now.getDay()];
-  return `${y}年${m}月${d}日 (${day})`;
-}
+  RECENT_NOTICES,
+} from "@/features/home/mock/dashboard-data";
+import { formatJpDate, getGreeting } from "@/shared/lib/time";
 
 export default function HomePage() {
   const myContribution = CONTRIBUTION_DATA.find(
@@ -37,7 +21,7 @@ export default function HomePage() {
     <div className="space-y-4">
       {/* Greeting */}
       <div className="pt-1">
-        <p className="text-stone-400 text-sm">{formatDate()}</p>
+        <p className="text-stone-400 text-sm">{formatJpDate()}</p>
         <h2 className="text-xl font-bold text-stone-800 mt-0.5">
           {getGreeting()}、{CURRENT_USER.name}さん
         </h2>

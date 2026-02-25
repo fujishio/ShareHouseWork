@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Check, X, Plus, Star, ChevronLeft } from "lucide-react";
-import { TASKS } from "@/lib/tasks";
+import { TASKS } from "@/domain/tasks";
 
 export default function TaskCompleteFAB() {
   const [isOpen, setIsOpen] = useState(false);
