@@ -161,7 +161,7 @@ export default function TaskCompleteFAB() {
         onClick={() => setIsOpen(true)}
         className="fixed right-4 bottom-20 z-20 w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-lg shadow-amber-500/30 flex items-center justify-center transition-all active:scale-95"
         style={{ marginBottom: "var(--safe-area-bottom)" }}
-        aria-label="家事完了報告"
+        aria-label="タスク完了報告"
       >
         <Plus size={28} strokeWidth={2.5} />
       </button>
@@ -182,7 +182,7 @@ export default function TaskCompleteFAB() {
             style={{ paddingBottom: "calc(0.75rem + var(--safe-area-bottom))" }}
             role="dialog"
             aria-modal="true"
-            aria-label="家事完了報告モーダル"
+            aria-label="タスク完了報告モーダル"
           >
             <div className="w-full h-full bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden animate-slide-up">
               {/* Header */}

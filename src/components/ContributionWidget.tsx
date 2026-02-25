@@ -61,7 +61,7 @@ export default function ContributionWidget({ data, myPoints, myRank, currentUser
   return (
     <div className="bg-gradient-to-br from-white to-stone-100/60 rounded-2xl shadow-sm border border-stone-200/60 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-stone-800">家事貢献度</h2>
+        <h2 className="font-bold text-stone-800">タスク貢献度</h2>
         <Link
           href="/tasks"
           className="text-xs text-amber-600 hover:underline font-medium"

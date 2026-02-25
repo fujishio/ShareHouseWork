@@ -28,6 +28,9 @@ export type TaskCompletionRecord = {
   completedBy: string;
   completedAt: IsoDateString;
   source: TaskCompletionSource;
+  canceledAt?: IsoDateString;
+  canceledBy?: string;
+  cancelReason?: string;
 };
 
 export type CreateTaskCompletionInput = {
@@ -47,9 +50,11 @@ export type ApiSuccessResponse<T> = {
 
 export type TaskCompletionsListResponse = ApiSuccessResponse<TaskCompletionRecord[]>;
 export type TaskCompletionCreateResponse = ApiSuccessResponse<TaskCompletionRecord>;
+export type TaskCompletionCancelResponse = ApiSuccessResponse<TaskCompletionRecord>;
 
 export type AuditAction =
   | "task_completion_created"
+  | "task_completion_canceled"
   | "line_webhook_received"
   | "line_notification_queued";
 

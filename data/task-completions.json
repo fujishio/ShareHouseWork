@@ -6,6 +6,9 @@
     "points": 20,
     "completedBy": "あなた",
     "completedAt": "2026-02-25T09:46:17.766Z",
-    "source": "app"
+    "source": "app",
+    "canceledAt": "2026-02-25T10:43:25.539Z",
+    "canceledBy": "あなた",
+    "cancelReason": "登録間違い"
   }
 ]

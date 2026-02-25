@@ -47,3 +47,33 @@ export async function appendTaskCompletion(
   await writeTaskCompletions([...records, created]);
   return created;
 }
+
+export async function cancelTaskCompletion(
+  completionId: number,
+  canceledBy: string,
+  cancelReason: string,
+  canceledAt: string
+): Promise<TaskCompletionRecord | null> {
+  const records = await readTaskCompletions();
+  const index = records.findIndex((record) => record.id === completionId);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const target = records[index];
+  if (target.canceledAt) {
+    return target;
+  }
+
+  const updated: TaskCompletionRecord = {
+    ...target,
+    canceledAt,
+    canceledBy,
+    cancelReason,
+  };
+
+  records[index] = updated;
+  await writeTaskCompletions(records);
+  return updated;
+}

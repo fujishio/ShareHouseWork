@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "action": "task_completion_canceled",
+    "actor": "あなた",
+    "source": "app",
+    "createdAt": "2026-02-25T10:43:25.539Z",
+    "details": {
+      "completionId": 1,
+      "taskId": 1,
+      "taskName": "【料理】共有の食事",
+      "reason": "登録間違い"
+    }
+  }
+]

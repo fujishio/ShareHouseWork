@@ -13,7 +13,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/", label: "ホーム", icon: Home },
-  { href: "/tasks", label: "家事", icon: ClipboardCheck },
+  { href: "/tasks", label: "タスク", icon: ClipboardCheck },
   { href: "/expenses", label: "費用", icon: Wallet },
   { href: "/shopping", label: "買い物", icon: ShoppingCart },
   { href: "/notices", label: "お知らせ", icon: Bell },
