@@ -271,6 +271,32 @@ ShareHouseWork は、4人暮らしのシェアハウス向け生活管理アプ�
 6. Issue 6
 7. Issue 7
 
+### Phase 1 完了レポート（2026-02-25）
+
+#### チェックリスト
+- [x] 完了報告API（POST/GET）が実装され、`taskId` 検証と `4xx` エラー応答がある
+- [x] 完了報告FABがAPI連携され、送信中状態・二重送信防止・失敗時再試行が可能
+- [x] 優先度計算ロジックが境界日を考慮し、同率時に決定的な並び順を持つ
+- [x] 費用使用率が `0除算回避` と `0-100クランプ` を満たす
+- [x] ユニットテスト（優先度/費用/時刻境界）が追加され、`npm test` で全件成功
+- [x] API入出力・金額・ポイント・日時の意味型が `src/types` に集約されている
+
+#### 実装済みAPI
+- `POST /api/task-completions`
+- `GET /api/task-completions?from=&to=&limit=`
+- 永続化先: `data/task-completions.json`（暫定ファイルストア）
+
+#### 既知制約
+- 永続化はDBではなくローカルJSONファイルのため、同時書き込み耐性と運用耐久性が限定的
+- `npm run build` はネットワーク制限下で Google Fonts 取得に失敗する場合がある
+- `npm test` は成功するが、Node実行時に `MODULE_TYPELESS_PACKAGE_JSON` 警告が出る
+
+#### Phase 2 以降への持ち越し
+- 永続化基盤を Prisma + PostgreSQL へ移行し、競合制御を導入
+- FABをモバイル最適の全幅ボトムシートへ刷新
+- 通知設定UI（重要通知のみ/ON-OFF）とアクセシビリティ強化を実装
+- テストをCI実行へ組み込み、ビルド・テスト品質ゲートを自動化
+
 ---
 
 ## 10. KPI（運用開始後に計測）

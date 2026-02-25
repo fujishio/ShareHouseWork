@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { ExpenseSummary } from "@/types";
+import { calculateUsageRate } from "@/domain/expenses/calculate-usage-rate";
 
 type Props = {
   summary: ExpenseSummary;
 };
 
 export default function ExpenseWidget({ summary }: Props) {
-  const usageRate = Math.round((summary.totalSpent / summary.totalContributed) * 100);
+  const usageRate = calculateUsageRate(summary.totalContributed, summary.totalSpent);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">

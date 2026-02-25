@@ -1,5 +1,5 @@
-import type { PrioritizedTask } from "@/types";
-import { TASKS } from "@/domain/tasks/task-definitions";
+import type { PrioritizedTask } from "../../types/index.ts";
+import { TASKS } from "./task-definitions.ts";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -15,16 +15,28 @@ export function getPrioritizedTasks(
     let overdueDays: number;
 
     if (lastCompletedAt === null) {
-      urgencyRatio = 1.0;
-      overdueDays = 0;
+      // No completion record means the task should surface first.
+      urgencyRatio = Number.POSITIVE_INFINITY;
+      overdueDays = task.frequencyDays;
     } else {
       const daysSince = (now.getTime() - lastCompletedAt.getTime()) / MS_PER_DAY;
       urgencyRatio = daysSince / task.frequencyDays;
-      overdueDays = Math.round(daysSince - task.frequencyDays);
+      overdueDays = Math.floor(daysSince) - task.frequencyDays;
     }
 
     return { ...task, lastCompletedAt, overdueDays, urgencyRatio };
   })
-    .sort((a, b) => b.urgencyRatio - a.urgencyRatio)
+    .sort((a, b) => {
+      if (b.urgencyRatio !== a.urgencyRatio) {
+        return b.urgencyRatio - a.urgencyRatio;
+      }
+      if (b.overdueDays !== a.overdueDays) {
+        return b.overdueDays - a.overdueDays;
+      }
+      if (a.frequencyDays !== b.frequencyDays) {
+        return a.frequencyDays - b.frequencyDays;
+      }
+      return a.id - b.id;
+    })
     .slice(0, limit);
 }

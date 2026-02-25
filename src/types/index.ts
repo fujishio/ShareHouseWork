@@ -1,3 +1,7 @@
+export type IsoDateString = string;
+export type MoneyYen = number;
+export type HousePoints = number;
+
 export type Member = {
   id: number;
   name: string;
@@ -8,7 +12,7 @@ export type TaskCompletion = {
   id: number;
   taskId?: number;
   taskName: string;
-  points: number;
+  points: HousePoints;
   completedBy: string;
   completedAt: Date;
   source: "app" | "line";
@@ -20,29 +24,40 @@ export type TaskCompletionRecord = {
   id: number;
   taskId: number;
   taskName: string;
-  points: number;
+  points: HousePoints;
   completedBy: string;
-  completedAt: string;
+  completedAt: IsoDateString;
   source: TaskCompletionSource;
 };
 
 export type CreateTaskCompletionInput = {
   taskId: number;
   completedBy: string;
-  completedAt: string;
+  completedAt: IsoDateString;
   source: TaskCompletionSource;
 };
 
+export type ApiErrorResponse = {
+  error: string;
+};
+
+export type ApiSuccessResponse<T> = {
+  data: T;
+};
+
+export type TaskCompletionsListResponse = ApiSuccessResponse<TaskCompletionRecord[]>;
+export type TaskCompletionCreateResponse = ApiSuccessResponse<TaskCompletionRecord>;
+
 export type ContributionData = {
   member: Member;
-  totalPoints: number;
+  totalPoints: HousePoints;
 };
 
 export type ExpenseSummary = {
   month: string;
-  totalContributed: number;
-  totalSpent: number;
-  balance: number;
+  totalContributed: MoneyYen;
+  totalSpent: MoneyYen;
+  balance: MoneyYen;
 };
 
 export type Notice = {
@@ -63,7 +78,7 @@ export type TaskCategory =
 export type Task = {
   id: number;
   name: string;
-  points: number; // configurable house points (current mock uses 10-50)
+  points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
   frequencyDays: number; // ideal interval between completions
 };

@@ -3,6 +3,11 @@
 import { useState, useMemo } from "react";
 import { Check, X, Plus, Star, ChevronLeft } from "lucide-react";
 import { TASKS } from "@/domain/tasks";
+import type {
+  ApiErrorResponse,
+  CreateTaskCompletionInput,
+  TaskCompletionCreateResponse,
+} from "@/types";
 
 export default function TaskCompleteFAB() {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,14 +51,18 @@ export default function TaskCompleteFAB() {
           completedBy: "あなた",
           completedAt: new Date().toISOString(),
           source: "app",
-        }),
+        } satisfies CreateTaskCompletionInput),
       });
 
+      const result = (await response.json().catch(() => null)) as
+        | TaskCompletionCreateResponse
+        | ApiErrorResponse
+        | null;
+
       if (!response.ok) {
-        const result = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(result?.error ?? "完了報告の保存に失敗しました");
+        throw new Error(
+          result && "error" in result ? result.error : "完了報告の保存に失敗しました"
+        );
       }
 
       setFeedback({ type: "success", message: "完了報告を保存しました" });

@@ -1,4 +1,4 @@
-import type { Task, TaskCategory } from "@/types";
+import type { Task, TaskCategory } from "../../types/index.ts";
 
 export const TASK_DEFINITIONS: Record<
   TaskCategory,

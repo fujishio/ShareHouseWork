@@ -4,7 +4,13 @@ import {
   appendTaskCompletion,
   readTaskCompletions,
 } from "@/server/task-completions-store";
-import type { CreateTaskCompletionInput, TaskCompletionSource } from "@/types";
+import type {
+  ApiErrorResponse,
+  CreateTaskCompletionInput,
+  TaskCompletionCreateResponse,
+  TaskCompletionsListResponse,
+  TaskCompletionSource,
+} from "@/types";
 
 export const runtime = "nodejs";
 
@@ -61,14 +67,14 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: "Invalid from query. Use ISO date string." },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   if (searchParams.get("to") && !to) {
     return NextResponse.json(
       { error: "Invalid to query. Use ISO date string." },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   const records = await readTaskCompletions();
@@ -96,7 +102,7 @@ export async function GET(request: Request) {
     )
     .slice(0, limit);
 
-  return NextResponse.json({ data: filtered }, { status: 200 });
+  return NextResponse.json({ data: filtered }, { status: 200 }) as NextResponse<TaskCompletionsListResponse>;
 }
 
 export async function POST(request: Request) {
@@ -109,17 +115,17 @@ export async function POST(request: Request) {
           "Invalid payload. Required: taskId(number), completedBy(string), completedAt(ISO string), source(app|line)",
       },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   const payload = rawPayload;
 
   if (!Number.isInteger(payload.taskId) || payload.taskId <= 0) {
-    return NextResponse.json({ error: "taskId must be a positive integer." }, { status: 400 });
+    return NextResponse.json({ error: "taskId must be a positive integer." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
   if (!payload.completedBy.trim()) {
-    return NextResponse.json({ error: "completedBy is required." }, { status: 400 });
+    return NextResponse.json({ error: "completedBy is required." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
   const completedAt = new Date(payload.completedAt);
@@ -127,16 +133,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "completedAt must be a valid ISO date string." },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   if (!VALID_SOURCES.includes(payload.source)) {
-    return NextResponse.json({ error: "source must be app or line." }, { status: 400 });
+    return NextResponse.json({ error: "source must be app or line." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
   const task = TASKS.find((item) => item.id === payload.taskId);
   if (!task) {
-    return NextResponse.json({ error: "taskId does not exist." }, { status: 404 });
+    return NextResponse.json({ error: "taskId does not exist." }, { status: 404 }) as NextResponse<ApiErrorResponse>;
   }
 
   const created = await appendTaskCompletion({
@@ -148,5 +154,5 @@ export async function POST(request: Request) {
     source: payload.source,
   });
 
-  return NextResponse.json({ data: created }, { status: 201 });
+  return NextResponse.json({ data: created }, { status: 201 }) as NextResponse<TaskCompletionCreateResponse>;
 }
