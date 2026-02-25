@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ClipboardCheck, Wallet, ShoppingCart, Bell } from "lucide-react";
+import {
+  Home,
+  ClipboardCheck,
+  Wallet,
+  ShoppingCart,
+  Bell,
+  Settings,
+} from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "ホーム", icon: Home },
@@ -10,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/expenses", label: "費用", icon: Wallet },
   { href: "/shopping", label: "買い物", icon: ShoppingCart },
   { href: "/notices", label: "お知らせ", icon: Bell },
+  { href: "/settings", label: "設定", icon: Settings },
 ] as const;
 
 export default function BottomNav() {

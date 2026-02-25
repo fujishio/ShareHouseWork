@@ -113,11 +113,13 @@ export const RECENT_NOTICES: Notice[] = [
     title: "来週、水道工事があります（2/27 AM）",
     postedBy: "家主",
     postedAt: daysAgo(1),
+    isImportant: true,
   },
   {
     id: 2,
     title: "トイレットペーパーが残り少ないです",
     postedBy: "友達１",
     postedAt: daysAgo(2),
+    isImportant: false,
   },
 ];

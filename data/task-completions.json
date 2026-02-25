@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": 1,
+    "taskId": 1,
+    "taskName": "【料理】共有の食事",
+    "points": 20,
+    "completedBy": "あなた",
+    "completedAt": "2026-02-25T09:46:17.766Z",
+    "source": "app"
+  }
+]

@@ -65,6 +65,12 @@ export type Notice = {
   title: string;
   postedBy: string;
   postedAt: Date;
+  isImportant: boolean;
+};
+
+export type NotificationSettings = {
+  enabled: boolean;
+  importantOnly: boolean;
 };
 
 export type TaskCategory =

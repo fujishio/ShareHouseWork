@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Check, X, Plus, Star, ChevronLeft } from "lucide-react";
 import { TASKS } from "@/domain/tasks";
 import type {
@@ -17,6 +17,8 @@ export default function TaskCompleteFAB() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -83,13 +85,74 @@ export default function TaskCompleteFAB() {
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsOpen(false);
     setSelectedCategory(null);
     setCompletedTaskId(null);
     setFeedback(null);
     setIsSubmitting(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (previousFocusRef.current) {
+        previousFocusRef.current.focus();
+        previousFocusRef.current = null;
+      }
+      return;
+    }
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    const modal = modalRef.current;
+    if (!modal) {
+      return;
+    }
+
+    const getFocusable = () =>
+      Array.from(
+        modal.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+
+    const focusable = getFocusable();
+    focusable[0]?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const elements = getFocusable();
+      if (elements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen, handleClose]);
 
   return (
     <>
@@ -114,8 +177,12 @@ export default function TaskCompleteFAB() {
 
           {/* Modal - bottom-right quarter */}
           <div
+            ref={modalRef}
             className="absolute right-0 bottom-0 w-1/2 h-1/2 p-3"
             style={{ paddingBottom: "calc(0.75rem + var(--safe-area-bottom))" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="家事完了報告モーダル"
           >
             <div className="w-full h-full bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden animate-slide-up">
               {/* Header */}
