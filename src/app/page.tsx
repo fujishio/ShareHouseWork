@@ -8,7 +8,7 @@ import {
   MY_RANK,
   EXPENSE_SUMMARY,
   RECENT_NOTICES,
-  RECENT_COMPLETIONS,
+  PRIORITY_TASKS,
 } from "@/lib/mock-data";
 
 function getGreeting(): string {
@@ -51,8 +51,8 @@ export default function HomePage() {
         currentUserId={CURRENT_USER.id}
       />
 
-      {/* Recent tasks */}
-      <RecentTasksWidget completions={RECENT_COMPLETIONS} />
+      {/* Priority tasks */}
+      <RecentTasksWidget tasks={PRIORITY_TASKS} />
 
       {/* Expense widget */}
       <ExpenseWidget summary={EXPENSE_SUMMARY} />

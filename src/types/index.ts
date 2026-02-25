@@ -45,4 +45,11 @@ export type Task = {
   name: string;
   points: number; // 1–5
   category: TaskCategory;
+  frequencyDays: number; // ideal interval between completions
+};
+
+export type PrioritizedTask = Task & {
+  lastCompletedAt: Date | null;
+  overdueDays: number; // positive = overdue, negative = days remaining, 0 = due today
+  urgencyRatio: number; // daysSince / frequencyDays, higher = more urgent
 };
