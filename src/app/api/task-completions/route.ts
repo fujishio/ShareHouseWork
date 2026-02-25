@@ -4,6 +4,7 @@ import {
   appendTaskCompletion,
   readTaskCompletions,
 } from "@/server/task-completions-store";
+import { appendAuditLog } from "@/server/audit-log-store";
 import type {
   ApiErrorResponse,
   CreateTaskCompletionInput,
@@ -152,6 +153,18 @@ export async function POST(request: Request) {
     completedBy: payload.completedBy.trim(),
     completedAt: completedAt.toISOString(),
     source: payload.source,
+  });
+
+  await appendAuditLog({
+    action: "task_completion_created",
+    actor: created.completedBy,
+    source: created.source,
+    createdAt: new Date().toISOString(),
+    details: {
+      taskId: created.taskId,
+      taskName: created.taskName,
+      completionId: created.id,
+    },
   });
 
   return NextResponse.json({ data: created }, { status: 201 }) as NextResponse<TaskCompletionCreateResponse>;

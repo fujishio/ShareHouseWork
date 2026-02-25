@@ -53,6 +53,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<NotificationSettings>(
     DEFAULT_NOTIFICATION_SETTINGS
   );
+  const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -127,6 +128,28 @@ export default function SettingsPage() {
       >
         通知設定を初期値に戻す
       </button>
+
+      <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
+        <h3 className="text-sm font-bold text-stone-800">月次データエクスポート</h3>
+        <p className="mt-1 text-xs text-stone-500">
+          運用実績をCSVでダウンロードできます。
+        </p>
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="month"
+            value={exportMonth}
+            onChange={(event) => setExportMonth(event.target.value)}
+            className="h-10 flex-1 rounded-lg border border-stone-300 px-3 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            aria-label="エクスポート対象月"
+          />
+          <a
+            href={`/api/exports/monthly.csv?month=${encodeURIComponent(exportMonth)}`}
+            className="inline-flex h-10 items-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-white hover:bg-amber-600"
+          >
+            CSV出力
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

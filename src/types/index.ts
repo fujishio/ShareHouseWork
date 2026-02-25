@@ -48,6 +48,53 @@ export type ApiSuccessResponse<T> = {
 export type TaskCompletionsListResponse = ApiSuccessResponse<TaskCompletionRecord[]>;
 export type TaskCompletionCreateResponse = ApiSuccessResponse<TaskCompletionRecord>;
 
+export type AuditAction =
+  | "task_completion_created"
+  | "line_webhook_received"
+  | "line_notification_queued";
+
+export type AuditLogRecord = {
+  id: number;
+  action: AuditAction;
+  actor: string;
+  source: "app" | "line" | "system";
+  createdAt: IsoDateString;
+  details: Record<string, string | number | boolean | null>;
+};
+
+export type AuditLogsListResponse = ApiSuccessResponse<AuditLogRecord[]>;
+
+export type LineWebhookTaskCompletedEvent = {
+  type: "task.completed";
+  taskId: number;
+  completedBy: string;
+  completedAt?: IsoDateString;
+};
+
+export type LineWebhookPayload = {
+  events: LineWebhookTaskCompletedEvent[];
+};
+
+export type LineWebhookResult = {
+  processed: number;
+  created: number;
+  errors: string[];
+};
+
+export type LineWebhookResponse = ApiSuccessResponse<LineWebhookResult>;
+
+export type LineNotifyInput = {
+  message: string;
+  level?: "normal" | "important";
+};
+
+export type LineNotifyResult = {
+  queued: boolean;
+  queuedAt: IsoDateString;
+};
+
+export type LineNotifyResponse = ApiSuccessResponse<LineNotifyResult>;
+
 export type ContributionData = {
   member: Member;
   totalPoints: HousePoints;
