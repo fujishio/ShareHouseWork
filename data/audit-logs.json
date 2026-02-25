@@ -11,5 +11,41 @@
       "taskName": "【料理】共有の食事",
       "reason": "登録間違い"
     }
+  },
+  {
+    "id": 2,
+    "action": "task_completion_created",
+    "actor": "あなた",
+    "source": "app",
+    "createdAt": "2026-02-25T10:48:07.443Z",
+    "details": {
+      "taskId": 16,
+      "taskName": "コンロ周りの掃除",
+      "completionId": 2
+    }
+  },
+  {
+    "id": 3,
+    "action": "task_completion_created",
+    "actor": "あなた",
+    "source": "app",
+    "createdAt": "2026-02-25T11:02:06.388Z",
+    "details": {
+      "taskId": 16,
+      "taskName": "【キッチン】コンロ周りの掃除",
+      "completionId": 3
+    }
+  },
+  {
+    "id": 4,
+    "action": "task_completion_created",
+    "actor": "あなた",
+    "source": "app",
+    "createdAt": "2026-02-25T11:02:15.287Z",
+    "details": {
+      "taskId": 8,
+      "taskName": "【風呂】浴槽の掃除",
+      "completionId": 4
+    }
   }
 ]

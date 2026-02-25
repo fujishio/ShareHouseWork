@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   ApiErrorResponse,
   TaskCompletionCancelResponse,
@@ -30,6 +30,10 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
   const [draft, setDraft] = useState<CancelDraft>(DEFAULT_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRecords(initialRecords);
+  }, [initialRecords]);
 
   const sortedRecords = useMemo(
     () =>

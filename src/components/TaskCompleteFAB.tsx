@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Check, X, Plus, Star, ChevronLeft } from "lucide-react";
 import { TASKS } from "@/domain/tasks";
 import type {
@@ -10,6 +11,7 @@ import type {
 } from "@/types";
 
 export default function TaskCompleteFAB() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
@@ -67,6 +69,7 @@ export default function TaskCompleteFAB() {
         );
       }
 
+      router.refresh();
       setFeedback({ type: "success", message: "完了報告を保存しました" });
       setTimeout(() => {
         setCompletedTaskId(null);

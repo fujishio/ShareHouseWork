@@ -76,7 +76,7 @@ export default async function TasksPage() {
   const validCompletions = completions.filter((record) => !record.canceledAt);
 
   const latestByTask = getLatestCompletionByTask(completions);
-  const priorityTasks = getPrioritizedTasks(latestByTask, now, 6);
+  const priorityTasks = getPrioritizedTasks(latestByTask, now, TASKS.length);
 
   const recentCompletions = [...completions]
     .filter((record) => !Number.isNaN(new Date(record.completedAt).getTime()))
@@ -120,7 +120,7 @@ export default async function TasksPage() {
       <section className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="font-bold text-stone-800">急ぎのタスク</h3>
         <p className="mt-1 text-xs text-stone-500">優先度が高い順に表示しています。</p>
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 max-h-[55vh] space-y-2 overflow-y-auto pr-1">
           {priorityTasks.map((task) => (
             <li
               key={task.id}
