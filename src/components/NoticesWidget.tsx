@@ -2,36 +2,15 @@
 
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import type { Notice, NotificationSettings } from "@/types";
+import type { Notice } from "@/types";
 import { formatRelativeTime } from "@/shared/lib/time";
-import { useEffect, useMemo, useState } from "react";
-import {
-  DEFAULT_NOTIFICATION_SETTINGS,
-  loadNotificationSettings,
-} from "@/shared/lib/notification-settings";
 
 type Props = {
   notices: Notice[];
 };
 
 export default function NoticesWidget({ notices }: Props) {
-  const [settings, setSettings] = useState<NotificationSettings>(
-    DEFAULT_NOTIFICATION_SETTINGS
-  );
-
-  useEffect(() => {
-    setSettings(loadNotificationSettings());
-  }, []);
-
-  const filteredNotices = useMemo(() => {
-    if (!settings.enabled) {
-      return [];
-    }
-    if (settings.importantOnly) {
-      return notices.filter((notice) => notice.isImportant);
-    }
-    return notices;
-  }, [notices, settings.enabled, settings.importantOnly]);
+  const filteredNotices = notices;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">
@@ -53,13 +32,9 @@ export default function NoticesWidget({ notices }: Props) {
         </div>
       </div>
 
-      {!settings.enabled ? (
+      {filteredNotices.length === 0 ? (
         <p className="text-sm text-stone-400 py-2 text-center">
-          通知はオフになっています
-        </p>
-      ) : filteredNotices.length === 0 ? (
-        <p className="text-sm text-stone-400 py-2 text-center">
-          {settings.importantOnly ? "重要なお知らせはありません" : "お知らせはありません"}
+          お知らせはありません
         </p>
       ) : (
         <ul className="space-y-1">

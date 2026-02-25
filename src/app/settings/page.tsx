@@ -82,18 +82,18 @@ export default function SettingsPage() {
           ) : (
             <BellOff size={18} className="text-stone-400" />
           )}
-          <h2 className="font-bold text-stone-800">通知設定</h2>
+          <h2 className="font-bold text-stone-800">LINE通知設定</h2>
         </div>
         <p className="mt-2 text-sm text-stone-500">
-          受け取りたい通知の粒度を選択できます。
+          LINEで受け取りたい通知の粒度を選択できます。
         </p>
         <p className="mt-1 text-xs text-stone-400">{statusMessage}</p>
       </div>
 
       <div className="space-y-2">
         <SettingsToggle
-          title="通知を受け取る"
-          description="アプリ内のお知らせ通知をON/OFFします。"
+          title="LINEで通知を受け取る"
+          description="LINEへの通知送信をON/OFFします。"
           checked={settings.enabled}
           onChange={(enabled) =>
             updateSettings({
@@ -105,7 +105,7 @@ export default function SettingsPage() {
         />
         <SettingsToggle
           title="重要なお知らせのみ"
-          description="重要フラグが付いた通知だけを表示します。"
+          description="重要フラグが付いた通知だけをLINEに送信します。"
           checked={settings.importantOnly}
           disabled={!settings.enabled}
           onChange={(importantOnly) =>
