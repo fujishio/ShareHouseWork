@@ -8,6 +8,10 @@ export default function TaskCompleteFAB() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -22,21 +26,60 @@ export default function TaskCompleteFAB() {
     [selectedCategory]
   );
 
-  const handleComplete = (taskId: number, taskName: string, points: number) => {
+  const handleComplete = async (taskId: number) => {
+    if (isSubmitting) {
+      return;
+    }
+
     setCompletedTaskId(taskId);
-    // TODO: Replace with actual API call
-    console.log(`Task completed: ${taskName} (+${points}pt)`);
-    setTimeout(() => {
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/task-completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId,
+          completedBy: "あなた",
+          completedAt: new Date().toISOString(),
+          source: "app",
+        }),
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(result?.error ?? "完了報告の保存に失敗しました");
+      }
+
+      setFeedback({ type: "success", message: "完了報告を保存しました" });
+      setTimeout(() => {
+        setCompletedTaskId(null);
+        setSelectedCategory(null);
+        setIsOpen(false);
+        setFeedback(null);
+      }, 1000);
+    } catch (error) {
       setCompletedTaskId(null);
-      setSelectedCategory(null);
-      setIsOpen(false);
-    }, 1200);
+      setFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "通信エラーが発生しました",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
     setIsOpen(false);
     setSelectedCategory(null);
     setCompletedTaskId(null);
+    setFeedback(null);
+    setIsSubmitting(false);
   };
 
   return (
@@ -93,6 +136,18 @@ export default function TaskCompleteFAB() {
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto px-3 py-2">
+                {feedback && (
+                  <div
+                    className={`mb-2 rounded-lg px-3 py-2 text-xs font-medium ${
+                      feedback.type === "success"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {feedback.message}
+                  </div>
+                )}
                 {!selectedCategory ? (
                   /* Category List */
                   <div className="space-y-1.5">
@@ -121,14 +176,14 @@ export default function TaskCompleteFAB() {
                           key={task.id}
                           onClick={() =>
                             !completedTaskId &&
-                            handleComplete(task.id, task.name, task.points)
+                            handleComplete(task.id)
                           }
-                          disabled={!!completedTaskId}
+                          disabled={!!completedTaskId || isSubmitting}
                           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
                             isCompleted
                               ? "bg-amber-50 border-amber-300"
                               : "bg-stone-50 border-stone-200/60 hover:bg-stone-100 active:bg-stone-200"
-                          } ${completedTaskId && !isCompleted ? "opacity-40" : ""}`}
+                          } ${isSubmitting && !isCompleted ? "opacity-40" : ""}`}
                         >
                           <div className="flex items-center gap-2">
                             <div
@@ -145,7 +200,7 @@ export default function TaskCompleteFAB() {
                                 isCompleted ? "text-amber-700" : "text-stone-700"
                               }`}
                             >
-                              {task.name}
+                              {isCompleted && isSubmitting ? "保存中..." : task.name}
                             </span>
                           </div>
                           <span

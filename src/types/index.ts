@@ -6,11 +6,31 @@ export type Member = {
 
 export type TaskCompletion = {
   id: number;
+  taskId?: number;
   taskName: string;
   points: number;
   completedBy: string;
   completedAt: Date;
   source: "app" | "line";
+};
+
+export type TaskCompletionSource = "app" | "line";
+
+export type TaskCompletionRecord = {
+  id: number;
+  taskId: number;
+  taskName: string;
+  points: number;
+  completedBy: string;
+  completedAt: string;
+  source: TaskCompletionSource;
+};
+
+export type CreateTaskCompletionInput = {
+  taskId: number;
+  completedBy: string;
+  completedAt: string;
+  source: TaskCompletionSource;
 };
 
 export type ContributionData = {
