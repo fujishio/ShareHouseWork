@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Wallet } from "lucide-react";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   saveNotificationSettings,
   loadNotificationSettings,
 } from "@/shared/lib/notification-settings";
-import type { NotificationSettings } from "@/types";
+import type { ContributionSettings, NotificationSettings } from "@/types";
 
 function SettingsToggle({
   title,
@@ -49,6 +49,11 @@ function SettingsToggle({
   );
 }
 
+const DEFAULT_CONTRIBUTION: ContributionSettings = {
+  monthlyAmountPerPerson: 15000,
+  memberCount: 4,
+};
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<NotificationSettings>(
     DEFAULT_NOTIFICATION_SETTINGS
@@ -56,9 +61,48 @@ export default function SettingsPage() {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [savedAt, setSavedAt] = useState<Date | null>(null);
 
+  const [contributionAmount, setContributionAmount] = useState(
+    String(DEFAULT_CONTRIBUTION.monthlyAmountPerPerson)
+  );
+  const [contributionMemberCount, setContributionMemberCount] = useState(
+    String(DEFAULT_CONTRIBUTION.memberCount)
+  );
+  const [contributionSaving, setContributionSaving] = useState(false);
+  const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
+
   useEffect(() => {
     setSettings(loadNotificationSettings());
+
+    fetch("/api/settings/contribution")
+      .then((res) => res.json())
+      .then((json: { data: ContributionSettings }) => {
+        setContributionAmount(String(json.data.monthlyAmountPerPerson));
+        setContributionMemberCount(String(json.data.memberCount));
+      })
+      .catch(() => {});
   }, []);
+
+  async function saveContributionSettings() {
+    const amount = Number(contributionAmount);
+    const memberCount = Number(contributionMemberCount);
+
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!Number.isInteger(memberCount) || memberCount < 1) return;
+
+    setContributionSaving(true);
+    try {
+      const response = await fetch("/api/settings/contribution", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthlyAmountPerPerson: amount, memberCount }),
+      });
+      if (response.ok) {
+        setContributionSavedAt(new Date());
+      }
+    } finally {
+      setContributionSaving(false);
+    }
+  }
 
   const statusMessage = useMemo(() => {
     if (!savedAt) {
@@ -128,6 +172,71 @@ export default function SettingsPage() {
       >
         通知設定を初期値に戻す
       </button>
+
+      {/* Contribution settings */}
+      <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Wallet size={18} className="text-amber-500" />
+          <h3 className="text-sm font-bold text-stone-800">共益費設定</h3>
+        </div>
+        <p className="mt-1 text-xs text-stone-500 mb-3">
+          月次拠出合計 = 1人あたり金額 × 人数 で算出されます。
+        </p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label
+              htmlFor="contribution-amount"
+              className="mb-1 block text-xs font-medium text-stone-600"
+            >
+              1人あたり（円/月）
+            </label>
+            <input
+              id="contribution-amount"
+              type="number"
+              min={1}
+              value={contributionAmount}
+              onChange={(e) => setContributionAmount(e.target.value)}
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="contribution-members"
+              className="mb-1 block text-xs font-medium text-stone-600"
+            >
+              人数
+            </label>
+            <input
+              id="contribution-members"
+              type="number"
+              min={1}
+              max={20}
+              value={contributionMemberCount}
+              onChange={(e) => setContributionMemberCount(e.target.value)}
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            />
+          </div>
+        </div>
+        <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          月次拠出合計:{" "}
+          <span className="font-bold">
+            ¥{(Number(contributionAmount) * Number(contributionMemberCount) || 0).toLocaleString()}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={saveContributionSettings}
+          disabled={contributionSaving}
+          className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
+        >
+          {contributionSaving ? "保存中…" : "保存する"}
+        </button>
+        {contributionSavedAt && (
+          <p className="mt-2 text-center text-xs text-stone-400">
+            {contributionSavedAt.toLocaleTimeString("ja-JP")} に保存しました
+          </p>
+        )}
+      </div>
 
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
         <h3 className="text-sm font-bold text-stone-800">月次データエクスポート</h3>

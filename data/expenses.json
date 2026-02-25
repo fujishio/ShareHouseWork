@@ -1,0 +1,21 @@
+[
+  {
+    "id": 1,
+    "title": "スーパー",
+    "amount": 2200,
+    "category": "食費",
+    "purchasedBy": "家主",
+    "purchasedAt": "2026-02-25",
+    "canceledAt": "2026-02-25T11:25:43.188Z",
+    "canceledBy": "あなた",
+    "cancelReason": "登録間違い"
+  },
+  {
+    "id": 2,
+    "title": "電気",
+    "amount": 10000,
+    "category": "水道・光熱費",
+    "purchasedBy": "パートナー",
+    "purchasedAt": "2026-02-25"
+  }
+]

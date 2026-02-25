@@ -112,6 +112,48 @@ export type ExpenseSummary = {
   balance: MoneyYen;
 };
 
+export type ExpenseCategory =
+  | "水道・光熱費"
+  | "食費"
+  | "消耗品"
+  | "日用品"
+  | "その他";
+
+export type ExpenseRecord = {
+  id: number;
+  title: string;
+  amount: MoneyYen;
+  category: ExpenseCategory;
+  purchasedBy: string;
+  purchasedAt: IsoDateString;
+  canceledAt?: IsoDateString;
+  canceledBy?: string;
+  cancelReason?: string;
+};
+
+export type CreateExpenseInput = {
+  title: string;
+  amount: MoneyYen;
+  category: ExpenseCategory;
+  purchasedBy: string;
+  purchasedAt: IsoDateString;
+};
+
+export type CancelExpenseInput = {
+  canceledBy: string;
+  cancelReason: string;
+};
+
+export type ContributionSettings = {
+  monthlyAmountPerPerson: MoneyYen;
+  memberCount: number;
+};
+
+export type ExpenseListResponse = ApiSuccessResponse<ExpenseRecord[]>;
+export type ExpenseCreateResponse = ApiSuccessResponse<ExpenseRecord>;
+export type ExpenseCancelResponse = ApiSuccessResponse<ExpenseRecord>;
+export type ContributionSettingsResponse = ApiSuccessResponse<ContributionSettings>;
+
 export type Notice = {
   id: number;
   title: string;
