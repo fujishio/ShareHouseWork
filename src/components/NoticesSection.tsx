@@ -1,20 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Bell, AlertCircle, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { Notice } from "@/types";
 import { formatRelativeTime } from "@/shared/lib/time";
 
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
 const CURRENT_ACTOR = "あなた";
 
 type Props = {
   initialNotices: Notice[];
 };
-
-function toIsoString(date: Date = new Date()): string {
-  return date.toISOString();
-}
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -25,13 +20,7 @@ function isOld(postedAt: string): boolean {
 export default function NoticesSection({ initialNotices }: Props) {
   const [notices, setNotices] = useState<Notice[]>(initialNotices);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [oldExpanded, setOldExpanded] = useState(false);
-
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [postedBy, setPostedBy] = useState<string>(MEMBERS[0]);
-  const [isImportant, setIsImportant] = useState(false);
 
   async function handleDelete(notice: Notice) {
     setDeletingId(notice.id);
@@ -45,34 +34,6 @@ export default function NoticesSection({ initialNotices }: Props) {
       setNotices((prev) => prev.filter((n) => n.id !== notice.id));
     } finally {
       setDeletingId(null);
-    }
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!title.trim()) return;
-
-    setSubmitting(true);
-    try {
-      const response = await fetch("/api/notices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          body: body.trim(),
-          postedBy,
-          postedAt: toIsoString(),
-          isImportant,
-        }),
-      });
-      if (!response.ok) return;
-      const json = (await response.json()) as { data: Notice };
-      setNotices((prev) => [json.data, ...prev]);
-      setTitle("");
-      setBody("");
-      setIsImportant(false);
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -168,85 +129,6 @@ export default function NoticesSection({ initialNotices }: Props) {
           )}
         </div>
       )}
-
-      {/* Post form */}
-      <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
-        <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white">
-            <Plus size={16} />
-          </div>
-          <h2 className="font-bold text-stone-800">投稿する</h2>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-4 py-4 space-y-3">
-          <div>
-            <label htmlFor="notice-title" className="mb-1 block text-xs font-medium text-stone-600">
-              タイトル
-            </label>
-            <input
-              id="notice-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="例: 来週、水道工事があります"
-              required
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="notice-body" className="mb-1 block text-xs font-medium text-stone-600">
-              詳細（任意）
-            </label>
-            <textarea
-              id="notice-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="詳しい内容があれば記入してください"
-              rows={3}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label htmlFor="notice-postedby" className="mb-1 block text-xs font-medium text-stone-600">
-                投稿者
-              </label>
-              <select
-                id="notice-postedby"
-                value={postedBy}
-                onChange={(e) => setPostedBy(e.target.value)}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-              >
-                {MEMBERS.map((member) => (
-                  <option key={member} value={member}>{member}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2 cursor-pointer select-none rounded-lg border border-stone-300 px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={isImportant}
-                  onChange={(e) => setIsImportant(e.target.checked)}
-                  className="w-4 h-4 rounded accent-red-500"
-                />
-                <span className="text-sm text-stone-700">重要</span>
-              </label>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting || !title.trim()}
-            className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
-          >
-            {submitting ? "投稿中…" : "投稿する"}
-          </button>
-        </form>
-      </div>
     </div>
   );
 }

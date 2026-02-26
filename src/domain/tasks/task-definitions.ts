@@ -40,6 +40,8 @@ export const TASK_DEFINITIONS: Record<
   "ゴミ捨て": [
     { name: "【ゴミ出し】可燃", points: 20, frequencyDays: 7 },
     { name: "【ゴミ出し】資源・不燃", points: 20, frequencyDays: 14 },
+    { name: "【掃除機】ダストカップ掃除", points: 20, frequencyDays: 7 },
+    { name: "【掃除機】フィルター掃除", points: 20, frequencyDays: 14 },
   ],
   "買い出し": [
     { name: "【買い出し】スーパー", points: 30, frequencyDays: 7 },
