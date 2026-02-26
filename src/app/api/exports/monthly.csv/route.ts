@@ -1,4 +1,6 @@
 import { readTaskCompletions } from "@/server/task-completions-store";
+import { readExpenses } from "@/server/expense-store";
+import { readShoppingItems } from "@/server/shopping-store";
 import { buildMonthlyOperationsCsv } from "@/server/monthly-export";
 import { NextResponse } from "next/server";
 
@@ -17,8 +19,12 @@ export async function GET(request: Request) {
 
   let csv: string;
   try {
-    const records = await readTaskCompletions();
-    csv = buildMonthlyOperationsCsv(records, month);
+    const [taskCompletions, expenses, shoppingItems] = await Promise.all([
+      readTaskCompletions(),
+      readExpenses(),
+      readShoppingItems(),
+    ]);
+    csv = buildMonthlyOperationsCsv({ month, taskCompletions, expenses, shoppingItems });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "failed to build monthly csv";

@@ -14,6 +14,8 @@ type Props = {
   currentMonth: string; // "YYYY-MM"
 };
 
+const RECENT_PURCHASED_MONTHS = 2;
+
 function formatDate(value: string): string {
   const datePart = value.slice(0, 10);
   const [monthLike, dayLike] = datePart.split("-").slice(1);
@@ -23,17 +25,47 @@ function formatDate(value: string): string {
   return `${Number(monthLike)}/${Number(dayLike)}`;
 }
 
+function subtractMonths(monthKey: string, months: number): string {
+  const [yearText, monthText] = monthKey.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!Number.isInteger(year) || !Number.isInteger(month)) {
+    return monthKey;
+  }
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  date.setUTCMonth(date.getUTCMonth() - months);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function isRecentPurchased(checkedAt: string, currentMonth: string): boolean {
+  if (checkedAt.length < 7) {
+    return false;
+  }
+  const checkedMonth = checkedAt.slice(0, 7);
+  const thresholdMonth = subtractMonths(currentMonth, RECENT_PURCHASED_MONTHS - 1);
+  return checkedMonth >= thresholdMonth;
+}
+
 export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const [items, setItems] = useState<ShoppingItem[]>(initialItems);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [showPurchasedItems, setShowPurchasedItems] = useState(true);
+  const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
+
   const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
-  const thisMonthCheckedItems = items.filter(
-    (item) =>
-      !item.canceledAt &&
-      item.checkedAt &&
-      item.checkedAt.startsWith(currentMonth)
+  const checkedItems = items
+    .filter((item) => !item.canceledAt && item.checkedAt)
+    .sort((a, b) => (b.checkedAt ?? "").localeCompare(a.checkedAt ?? ""));
+  const recentCheckedItems = checkedItems.filter(
+    (item) => item.checkedAt && isRecentPurchased(item.checkedAt, currentMonth)
   );
+  const archivedCheckedItems = checkedItems.filter(
+    (item) => item.checkedAt && !isRecentPurchased(item.checkedAt, currentMonth)
+  );
+  const thisMonthCheckedCount = checkedItems.filter(
+    (item) => item.checkedAt?.startsWith(currentMonth)
+  ).length;
 
   async function handleCheck(item: ShoppingItem) {
     setCheckingId(item.id);
@@ -118,11 +150,20 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
 
       {/* Shopping list */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
-        <div className="px-4 pt-4 pb-3 border-b border-stone-100">
-          <h2 className="font-bold text-stone-800">買うものリスト</h2>
-          <p className="mt-0.5 text-xs text-stone-400">
-            {activeItems.length === 0 ? "買うものはありません" : `${activeItems.length}件`}
-          </p>
+        <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-start justify-between gap-2">
+          <div>
+            <h2 className="font-bold text-stone-800">買うものリスト</h2>
+            <p className="mt-0.5 text-xs text-stone-400">
+              {activeItems.length === 0 ? "買うものはありません" : `${activeItems.length}件`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPurchasedItems((prev) => !prev)}
+            className="rounded-lg border border-stone-200 px-2.5 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors"
+          >
+            {showPurchasedItems ? "購入済みを隠す" : "購入済みを表示"}
+          </button>
         </div>
 
         {activeItems.length === 0 ? (
@@ -169,19 +210,19 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         )}
       </div>
 
-      {/* This month's purchased items */}
-      {thisMonthCheckedItems.length > 0 && (
+      {/* Purchased items */}
+      {showPurchasedItems && checkedItems.length > 0 && (
         <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
           <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-center gap-2">
             <Check size={16} className="text-emerald-500" />
-            <h2 className="font-bold text-stone-800">今月の購入済み</h2>
+            <h2 className="font-bold text-stone-800">購入済み</h2>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-              {thisMonthCheckedItems.length}件
+              今月 {thisMonthCheckedCount}件
             </span>
           </div>
 
           <ul className="divide-y divide-stone-100">
-            {thisMonthCheckedItems.map((item) => (
+            {recentCheckedItems.map((item) => (
               <li key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-400 flex items-center justify-center">
                   <Check size={13} className="text-white" strokeWidth={3} />
@@ -209,6 +250,52 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
               </li>
             ))}
           </ul>
+
+          {archivedCheckedItems.length > 0 && (
+            <div className="border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setShowArchivedPurchasedItems((prev) => !prev)}
+                className="w-full px-4 py-2 text-left text-xs font-medium text-stone-500 hover:bg-stone-50 transition-colors"
+              >
+                {showArchivedPurchasedItems
+                  ? `アーカイブを隠す（${archivedCheckedItems.length}件）`
+                  : `アーカイブを表示（${archivedCheckedItems.length}件）`}
+              </button>
+
+              {showArchivedPurchasedItems && (
+                <ul className="divide-y divide-stone-100 bg-stone-50/40">
+                  {archivedCheckedItems.map((item) => (
+                    <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-stone-300 flex items-center justify-center">
+                        <Check size={13} className="text-white" strokeWidth={3} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-sm font-medium text-stone-400">{item.name}</p>
+                          {item.quantity && item.quantity !== "1" && (
+                            <span className="text-xs text-stone-300">{item.quantity}</span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-stone-400">
+                          {item.checkedBy} · {item.checkedAt ? formatDate(item.checkedAt) : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="未購入に戻す"
+                        disabled={checkingId === item.id}
+                        onClick={() => handleUncheck(item)}
+                        className="flex-shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 transition-colors disabled:opacity-40"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
