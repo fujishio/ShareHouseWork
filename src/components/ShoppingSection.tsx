@@ -50,7 +50,6 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const [items, setItems] = useState<ShoppingItem[]>(initialItems);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
-  const [showPurchasedItems, setShowPurchasedItems] = useState(true);
   const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
 
   const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
@@ -150,20 +149,13 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
 
       {/* Shopping list */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
-        <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-start justify-between gap-2">
+        <div className="px-4 pt-4 pb-3 border-b border-stone-100">
           <div>
             <h2 className="font-bold text-stone-800">買うものリスト</h2>
             <p className="mt-0.5 text-xs text-stone-400">
               {activeItems.length === 0 ? "買うものはありません" : `${activeItems.length}件`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPurchasedItems((prev) => !prev)}
-            className="rounded-lg border border-stone-200 px-2.5 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors"
-          >
-            {showPurchasedItems ? "購入済みを隠す" : "購入済みを表示"}
-          </button>
         </div>
 
         {activeItems.length === 0 ? (
@@ -211,7 +203,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
       </div>
 
       {/* Purchased items */}
-      {showPurchasedItems && checkedItems.length > 0 && (
+      {checkedItems.length > 0 && (
         <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
           <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-center gap-2">
             <Check size={16} className="text-emerald-500" />

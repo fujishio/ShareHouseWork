@@ -27,7 +27,7 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.className}>
       <body className="bg-stone-50 text-stone-900">
         <div className="min-h-screen flex flex-col">
-          <header className="bg-white/80 backdrop-blur-md border-b border-stone-200/60 sticky top-0 z-10">
+          <header className="bg-white/80 backdrop-blur-md border-b border-stone-200/60 fixed inset-x-0 top-0 z-30">
             <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-stone-800 rounded-lg flex items-center justify-center">
@@ -52,7 +52,7 @@ export default function RootLayout({
               </div>
             </div>
           </header>
-          <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 pb-24">
+          <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-[4.5rem] pb-24">
             {children}
           </main>
           <ToastViewport />
