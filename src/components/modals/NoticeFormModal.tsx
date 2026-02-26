@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ErrorNotice } from "@/components/RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
 
@@ -16,12 +19,14 @@ export default function NoticeFormModal({ onClose }: Props) {
   const [postedBy, setPostedBy] = useState<string>(MEMBERS[0]);
   const [isImportant, setIsImportant] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!title.trim()) return;
 
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const response = await fetch("/api/notices", {
         method: "POST",
@@ -34,9 +39,19 @@ export default function NoticeFormModal({ onClose }: Props) {
           isImportant,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        const message = await getApiErrorMessage(response, "お知らせ投稿に失敗しました");
+        setErrorMessage(message);
+        showToast({ level: "error", message });
+        return;
+      }
       router.refresh();
+      showToast({ level: "success", message: "お知らせを投稿しました" });
       onClose();
+    } catch {
+      const message = "通信エラーが発生しました";
+      setErrorMessage(message);
+      showToast({ level: "error", message });
     } finally {
       setSubmitting(false);
     }
@@ -51,6 +66,7 @@ export default function NoticeFormModal({ onClose }: Props) {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {errorMessage && <ErrorNotice message={errorMessage} />}
         <div>
           <label htmlFor="modal-notice-title" className="mb-1 block text-xs font-medium text-stone-600">
             タイトル

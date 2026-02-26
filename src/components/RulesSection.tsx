@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Trash2, Pencil, ChevronDown, ChevronUp, BookOpen, Clock, Check } from "lucide-react";
 import type { Rule, RuleCategory } from "@/types";
 import { useRouter } from "next/navigation";
+import { LoadingNotice } from "./RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const CURRENT_ACTOR = "あなた";
 const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
@@ -76,9 +79,18 @@ export default function RulesSection({ initialRules }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ acknowledgedBy: memberName }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "確認処理に失敗しました"),
+        });
+        return;
+      }
       const { data } = await response.json();
       setRules((prev) => prev.map((r) => (r.id === rule.id ? data : r)));
+      showToast({ level: "success", message: "確認済みに更新しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setAcknowledgingId(null);
     }
@@ -92,8 +104,17 @@ export default function RulesSection({ initialRules }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deletedBy: CURRENT_ACTOR }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "削除に失敗しました"),
+        });
+        return;
+      }
       setRules((prev) => prev.filter((r) => r.id !== rule.id));
+      showToast({ level: "success", message: "ルールを削除しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setDeletingId(null);
     }
@@ -125,13 +146,22 @@ export default function RulesSection({ initialRules }: Props) {
           category: editCategory,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "保存に失敗しました"),
+        });
+        return;
+      }
       const { data } = await response.json();
       setRules((prev) =>
         prev.map((r) => (r.id === editingRule.id ? data : r))
       );
       setEditingRule(null);
       router.refresh();
+      showToast({ level: "success", message: "ルールを更新しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setSaving(false);
     }
@@ -158,6 +188,10 @@ export default function RulesSection({ initialRules }: Props) {
 
   return (
     <div className="space-y-3">
+      {(deletingId !== null || acknowledgingId !== null || saving) && (
+        <LoadingNotice message="ルールを更新中..." />
+      )}
+
       <div className="px-1">
         <h2 className="font-bold text-stone-800">ハウスルール</h2>
         <p className="mt-0.5 text-xs text-stone-400">

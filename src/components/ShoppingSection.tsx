@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Check, Trash2, RotateCcw } from "lucide-react";
 import type { ShoppingItem } from "@/types";
+import { LoadingNotice } from "./RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const CURRENT_ACTOR = "あなた";
 
@@ -40,9 +43,18 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checkedBy: CURRENT_ACTOR }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "購入済み更新に失敗しました"),
+        });
+        return;
+      }
       const json = (await response.json()) as { data: ShoppingItem };
       setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
+      showToast({ level: "success", message: "購入済みにしました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setCheckingId(null);
     }
@@ -56,9 +68,18 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uncheck: true }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "未購入への戻しに失敗しました"),
+        });
+        return;
+      }
       const json = (await response.json()) as { data: ShoppingItem };
       setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
+      showToast({ level: "success", message: "未購入に戻しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setCheckingId(null);
     }
@@ -72,9 +93,18 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ canceledBy: CURRENT_ACTOR }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "削除に失敗しました"),
+        });
+        return;
+      }
       const json = (await response.json()) as { data: ShoppingItem };
       setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
+      showToast({ level: "success", message: "項目を削除しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setCancelingId(null);
     }
@@ -82,6 +112,10 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
 
   return (
     <div className="space-y-4">
+      {(checkingId !== null || cancelingId !== null) && (
+        <LoadingNotice message="買い物リストを更新中..." />
+      )}
+
       {/* Shopping list */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
         <div className="px-4 pt-4 pb-3 border-b border-stone-100">

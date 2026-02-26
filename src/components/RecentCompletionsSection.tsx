@@ -7,6 +7,8 @@ import type {
   TaskCompletionRecord,
 } from "@/types";
 import { formatRelativeTime } from "@/shared/lib/time";
+import { ErrorNotice, LoadingNotice } from "./RequestStatus";
+import { showToast } from "@/shared/lib/toast";
 
 const CANCELED_BY = "あなた";
 
@@ -96,10 +98,12 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
       );
       setTargetId(null);
       setDraft(DEFAULT_DRAFT);
+      showToast({ level: "success", message: "完了履歴を取り消しました" });
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "通信エラーが発生しました"
-      );
+      const message =
+        error instanceof Error ? error.message : "通信エラーが発生しました";
+      setErrorMessage(message);
+      showToast({ level: "error", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -108,6 +112,7 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
   return (
     <section className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
       <h3 className="font-bold text-stone-800">最近の完了履歴</h3>
+      {isSubmitting && <div className="mt-2"><LoadingNotice message="取り消しを処理中..." /></div>}
       {sortedRecords.length === 0 ? (
         <p className="mt-2 text-sm text-stone-500">完了履歴はまだありません。</p>
       ) : (
@@ -223,7 +228,7 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
                       )}
                     </div>
                     {errorMessage && (
-                      <p className="text-xs font-medium text-red-600">{errorMessage}</p>
+                      <ErrorNotice message={errorMessage} />
                     )}
                     <div className="flex justify-end gap-2">
                       <button

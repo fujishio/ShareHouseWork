@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RuleCategory } from "@/types";
+import { ErrorNotice } from "@/components/RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
 
@@ -25,12 +28,14 @@ export default function RuleFormModal({ onClose }: Props) {
   const [category, setCategory] = useState<RuleCategory>("その他");
   const [createdBy, setCreatedBy] = useState<string>(MEMBERS[0]);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!title.trim()) return;
 
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const response = await fetch("/api/rules", {
         method: "POST",
@@ -43,9 +48,19 @@ export default function RuleFormModal({ onClose }: Props) {
           createdAt: new Date().toISOString(),
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        const message = await getApiErrorMessage(response, "ルール追加に失敗しました");
+        setErrorMessage(message);
+        showToast({ level: "error", message });
+        return;
+      }
       router.refresh();
+      showToast({ level: "success", message: "ルールを追加しました" });
       onClose();
+    } catch {
+      const message = "通信エラーが発生しました";
+      setErrorMessage(message);
+      showToast({ level: "error", message });
     } finally {
       setSubmitting(false);
     }
@@ -60,6 +75,7 @@ export default function RuleFormModal({ onClose }: Props) {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {errorMessage && <ErrorNotice message={errorMessage} />}
         <div>
           <label htmlFor="modal-rule-title" className="mb-1 block text-xs font-medium text-stone-600">
             タイトル

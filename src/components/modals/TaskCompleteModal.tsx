@@ -9,6 +9,8 @@ import type {
   CreateTaskCompletionInput,
   TaskCompletionCreateResponse,
 } from "@/types";
+import { LoadingNotice } from "@/components/RequestStatus";
+import { showToast } from "@/shared/lib/toast";
 
 type Props = {
   onClose: () => void;
@@ -69,6 +71,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
 
       router.refresh();
       setFeedback({ type: "success", message: "完了報告を保存しました" });
+      showToast({ level: "success", message: "完了報告を保存しました" });
       setTimeout(() => {
         onClose();
       }, 1000);
@@ -76,6 +79,10 @@ export default function TaskCompleteModal({ onClose }: Props) {
       setCompletedTaskId(null);
       setFeedback({
         type: "error",
+        message: error instanceof Error ? error.message : "通信エラーが発生しました",
+      });
+      showToast({
+        level: "error",
         message: error instanceof Error ? error.message : "通信エラーが発生しました",
       });
     } finally {
@@ -105,6 +112,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
+        {isSubmitting && <div className="mb-2"><LoadingNotice message="完了報告を保存中..." /></div>}
         {feedback && (
           <div
             className={`mb-2 rounded-lg px-3 py-2 text-xs font-medium ${

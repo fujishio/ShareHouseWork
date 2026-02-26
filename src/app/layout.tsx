@@ -5,6 +5,7 @@ import { BookOpen } from "lucide-react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ContextualFAB from "@/components/ContextualFAB";
+import ToastViewport from "@/components/ToastViewport";
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ["latin"],
@@ -54,6 +55,7 @@ export default function RootLayout({
           <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 pb-24">
             {children}
           </main>
+          <ToastViewport />
           <ContextualFAB />
           <BottomNav />
         </div>

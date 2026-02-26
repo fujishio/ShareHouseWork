@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory } from "@/types";
+import { ErrorNotice } from "@/components/RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
 
@@ -24,6 +27,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
   const [purchasedBy, setPurchasedBy] = useState<string>(MEMBERS[0]);
   const [purchasedAt, setPurchasedAt] = useState(toLocalDateInputValue);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -34,6 +38,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
     }
 
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const response = await fetch("/api/expenses", {
         method: "POST",
@@ -46,9 +51,19 @@ export default function ExpenseFormModal({ onClose }: Props) {
           purchasedAt,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        const message = await getApiErrorMessage(response, "支出の登録に失敗しました");
+        setErrorMessage(message);
+        showToast({ level: "error", message });
+        return;
+      }
       router.refresh();
+      showToast({ level: "success", message: "支出を登録しました" });
       onClose();
+    } catch {
+      const message = "通信エラーが発生しました";
+      setErrorMessage(message);
+      showToast({ level: "error", message });
     } finally {
       setSubmitting(false);
     }
@@ -63,6 +78,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {errorMessage && <ErrorNotice message={errorMessage} />}
         <div>
           <label htmlFor="modal-expense-title" className="mb-1 block text-xs font-medium text-stone-600">
             品目

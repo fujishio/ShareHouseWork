@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Bell, AlertCircle, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { Notice } from "@/types";
 import { formatRelativeTime } from "@/shared/lib/time";
+import { LoadingNotice } from "./RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 const CURRENT_ACTOR = "あなた";
 
@@ -30,8 +33,17 @@ export default function NoticesSection({ initialNotices }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ deletedBy: CURRENT_ACTOR }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "お知らせ削除に失敗しました"),
+        });
+        return;
+      }
       setNotices((prev) => prev.filter((n) => n.id !== notice.id));
+      showToast({ level: "success", message: "お知らせを削除しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setDeletingId(null);
     }
@@ -45,6 +57,8 @@ export default function NoticesSection({ initialNotices }: Props) {
 
   return (
     <div className="space-y-4">
+      {deletingId !== null && <LoadingNotice message="お知らせを更新中..." />}
+
       {/* Important notices */}
       {importantNotices.length > 0 && (
         <div className="rounded-2xl border border-red-200/60 bg-red-50/50 shadow-sm">

@@ -9,6 +9,9 @@ import {
   loadNotificationSettings,
 } from "@/shared/lib/notification-settings";
 import type { ContributionSettings, NotificationSettings } from "@/types";
+import { ErrorNotice, LoadingNotice } from "@/components/RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 function SettingsToggle({
   title,
@@ -70,6 +73,7 @@ export default function SettingsPage() {
   );
   const [contributionSaving, setContributionSaving] = useState(false);
   const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
+  const [contributionError, setContributionError] = useState<string | null>(null);
   const currentUserName = (HOUSE_MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? HOUSE_MEMBERS[0]).name;
   const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
@@ -82,7 +86,9 @@ export default function SettingsPage() {
         setContributionAmount(String(json.data.monthlyAmountPerPerson));
         setContributionMemberCount(String(json.data.memberCount));
       })
-      .catch(() => {});
+      .catch(() => {
+        showToast({ level: "error", message: "共益費設定の取得に失敗しました" });
+      });
   }, []);
 
   async function saveContributionSettings() {
@@ -95,6 +101,7 @@ export default function SettingsPage() {
     if (!Number.isInteger(memberCount) || memberCount < 1) return;
 
     setContributionSaving(true);
+    setContributionError(null);
     try {
       const response = await fetch("/api/settings/contribution", {
         method: "POST",
@@ -106,7 +113,16 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         setContributionSavedAt(new Date());
+        showToast({ level: "success", message: "共益費設定を保存しました" });
+      } else {
+        const message = await getApiErrorMessage(response, "共益費設定の保存に失敗しました");
+        setContributionError(message);
+        showToast({ level: "error", message });
       }
+    } catch {
+      const message = "通信エラーが発生しました";
+      setContributionError(message);
+      showToast({ level: "error", message });
     } finally {
       setContributionSaving(false);
     }
@@ -127,6 +143,8 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
+      {contributionSaving && <LoadingNotice message="設定を保存中..." />}
+
       <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">
         <div className="flex items-center gap-2">
           {settings.enabled ? (
@@ -247,6 +265,11 @@ export default function SettingsPage() {
         >
           {contributionSaving ? "保存中…" : "保存する"}
         </button>
+        {contributionError && (
+          <div className="mt-2">
+            <ErrorNotice message={contributionError} />
+          </div>
+        )}
         {contributionSavedAt && (
           <p className="mt-2 text-center text-xs text-stone-400">
             保存しました

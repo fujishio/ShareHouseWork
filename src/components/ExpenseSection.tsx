@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { ExpenseRecord } from "@/types";
 import ExpenseCategoryChart from "./ExpenseCategoryChart";
+import { LoadingNotice } from "./RequestStatus";
+import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { showToast } from "@/shared/lib/toast";
 
 type Props = {
   initialExpenses: ExpenseRecord[];
@@ -51,6 +54,10 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
       });
 
       if (!response.ok) {
+        showToast({
+          level: "error",
+          message: await getApiErrorMessage(response, "支出の取消に失敗しました"),
+        });
         return;
       }
 
@@ -58,6 +65,9 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
       setExpenses((prev) =>
         prev.map((e) => (e.id === expense.id ? json.data : e))
       );
+      showToast({ level: "success", message: "支出を取り消しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setCancelingId(null);
     }
@@ -65,6 +75,8 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
 
   return (
     <div className="space-y-4">
+      {cancelingId !== null && <LoadingNotice message="支出を更新中..." />}
+
       {/* Category chart */}
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">カテゴリ別内訳</h3>
