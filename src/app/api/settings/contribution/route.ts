@@ -3,6 +3,7 @@ import {
   readContributionSettings,
   writeContributionSettings,
 } from "@/server/contribution-settings-store";
+import { OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import type { ContributionSettings } from "@/types";
 
 export async function GET() {
@@ -11,6 +12,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const actor = request.headers.get("x-sharehouse-actor")?.trim();
+  if (actor !== OWNER_MEMBER_NAME) {
+    return NextResponse.json(
+      { error: "Only the house owner can update contribution settings" },
+      { status: 403 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

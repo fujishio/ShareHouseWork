@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { Plus, ShoppingCart, Bell, Wallet, X } from "lucide-react";
+import { Plus, ShoppingCart, Bell, Wallet, BookOpen, X } from "lucide-react";
 import TaskCompleteModal from "./modals/TaskCompleteModal";
 import ShoppingFormModal from "./modals/ShoppingFormModal";
 import NoticeFormModal from "./modals/NoticeFormModal";
 import ExpenseFormModal from "./modals/ExpenseFormModal";
+import RuleFormModal from "./modals/RuleFormModal";
 
 type FABConfig = {
   icon: React.ReactNode;
@@ -41,6 +42,13 @@ function getFABConfig(pathname: string): FABConfig | null {
       icon: <Wallet size={24} strokeWidth={2} />,
       label: "支出を記録",
       modalTitle: "支出を記録",
+    };
+  }
+  if (pathname === "/rules") {
+    return {
+      icon: <BookOpen size={24} strokeWidth={2} />,
+      label: "ルールを追加",
+      modalTitle: "ルールを追加",
     };
   }
   return null;
@@ -135,6 +143,9 @@ export default function ContextualFAB() {
     }
     if (pathname === "/expenses") {
       return <ExpenseFormModal onClose={handleClose} />;
+    }
+    if (pathname === "/rules") {
+      return <RuleFormModal onClose={handleClose} />;
     }
     return null;
   };

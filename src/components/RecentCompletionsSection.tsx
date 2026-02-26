@@ -65,8 +65,8 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`/api/task-completions/${completionId}/cancel`, {
-        method: "POST",
+      const response = await fetch(`/api/task-completions/${completionId}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },

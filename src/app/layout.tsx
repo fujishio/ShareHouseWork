@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import Link from "next/link";
+import { BookOpen } from "lucide-react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ContextualFAB from "@/components/ContextualFAB";
@@ -34,8 +36,18 @@ export default function RootLayout({
                   Share<span className="text-amber-600">House</span>
                 </h1>
               </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center text-sm font-medium text-amber-300 shadow-sm">
-                家
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/rules"
+                  aria-label="ハウスルール"
+                  className="flex flex-col items-center justify-center text-stone-400 hover:text-amber-600 transition-colors"
+                >
+                  <BookOpen size={16} strokeWidth={1.5} />
+                  <span className="text-[9px] font-medium leading-tight mt-0.5">ルール</span>
+                </Link>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center text-sm font-medium text-amber-300 shadow-sm">
+                  家
+                </div>
               </div>
             </div>
           </header>

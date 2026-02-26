@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, Wallet } from "lucide-react";
+import { HOUSE_MEMBERS, CURRENT_USER_ID, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   saveNotificationSettings,
@@ -39,10 +40,10 @@ function SettingsToggle({
         aria-label={title}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-7 w-12 rounded-full transition-colors ${checked ? "bg-amber-500" : "bg-stone-300"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition-colors ${checked ? "bg-amber-500" : "bg-stone-300"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`}
+          className={`h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`}
         />
       </button>
     </label>
@@ -69,6 +70,8 @@ export default function SettingsPage() {
   );
   const [contributionSaving, setContributionSaving] = useState(false);
   const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
+  const currentUserName = (HOUSE_MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? HOUSE_MEMBERS[0]).name;
+  const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
   useEffect(() => {
     setSettings(loadNotificationSettings());
@@ -83,6 +86,8 @@ export default function SettingsPage() {
   }, []);
 
   async function saveContributionSettings() {
+    if (!canEditContributionSettings) return;
+
     const amount = Number(contributionAmount);
     const memberCount = Number(contributionMemberCount);
 
@@ -93,7 +98,10 @@ export default function SettingsPage() {
     try {
       const response = await fetch("/api/settings/contribution", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-sharehouse-actor": currentUserName,
+        },
         body: JSON.stringify({ monthlyAmountPerPerson: amount, memberCount }),
       });
       if (response.ok) {
@@ -108,7 +116,7 @@ export default function SettingsPage() {
     if (!savedAt) {
       return "設定は自動保存されます";
     }
-    return `${savedAt.toLocaleTimeString("ja-JP")} に保存しました`;
+    return "保存しました";
   }, [savedAt]);
 
   const updateSettings = (next: NotificationSettings) => {
@@ -183,6 +191,11 @@ export default function SettingsPage() {
           月次拠出合計 = 1人あたり金額 × 人数 で算出されます。
           保存した設定は当月から適用されます。
         </p>
+        {!canEditContributionSettings && (
+          <p className="mb-3 rounded-xl bg-stone-100 px-3 py-2 text-xs text-stone-600">
+            共益費設定は家主のみ変更できます。
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2 mb-3">
           <div>
             <label
@@ -197,6 +210,7 @@ export default function SettingsPage() {
               min={1}
               value={contributionAmount}
               onChange={(e) => setContributionAmount(e.target.value)}
+              disabled={!canEditContributionSettings}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             />
           </div>
@@ -214,6 +228,7 @@ export default function SettingsPage() {
               max={20}
               value={contributionMemberCount}
               onChange={(e) => setContributionMemberCount(e.target.value)}
+              disabled={!canEditContributionSettings}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             />
           </div>
@@ -227,14 +242,14 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={saveContributionSettings}
-          disabled={contributionSaving}
+          disabled={contributionSaving || !canEditContributionSettings}
           className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
         >
           {contributionSaving ? "保存中…" : "保存する"}
         </button>
         {contributionSavedAt && (
           <p className="mt-2 text-center text-xs text-stone-400">
-            {contributionSavedAt.toLocaleTimeString("ja-JP")} に保存しました
+            保存しました
           </p>
         )}
       </div>

@@ -210,6 +210,46 @@ export type NoticeListResponse = ApiSuccessResponse<Notice[]>;
 export type NoticeCreateResponse = ApiSuccessResponse<Notice>;
 export type NoticeDeleteResponse = ApiSuccessResponse<Notice>;
 
+export type RuleCategory =
+  | "ゴミ捨て"
+  | "騒音"
+  | "共用部"
+  | "来客"
+  | "その他";
+
+export type Rule = {
+  id: number;
+  title: string;
+  body: string;
+  category: RuleCategory;
+  createdBy: string;
+  createdAt: IsoDateString;
+  updatedAt?: IsoDateString;
+  acknowledgedBy?: string[];
+  deletedAt?: IsoDateString;
+  deletedBy?: string;
+};
+
+export type CreateRuleInput = {
+  title: string;
+  body: string;
+  category: RuleCategory;
+  createdBy: string;
+  createdAt: IsoDateString;
+};
+
+export type UpdateRuleInput = {
+  title: string;
+  body: string;
+  category: RuleCategory;
+  updatedAt: IsoDateString;
+};
+
+export type RuleListResponse = ApiSuccessResponse<Rule[]>;
+export type RuleCreateResponse = ApiSuccessResponse<Rule>;
+export type RuleUpdateResponse = ApiSuccessResponse<Rule>;
+export type RuleDeleteResponse = ApiSuccessResponse<Rule>;
+
 export type NotificationSettings = {
   enabled: boolean;
   importantOnly: boolean;

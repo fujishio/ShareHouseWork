@@ -25,7 +25,7 @@ function isCancelPayload(value: unknown): value is CancelPayload {
   );
 }
 
-export async function POST(
+export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
