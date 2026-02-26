@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, Wallet } from "lucide-react";
 import { HOUSE_MEMBERS, CURRENT_USER_ID, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import {
@@ -9,7 +9,7 @@ import {
   loadNotificationSettings,
 } from "@/shared/lib/notification-settings";
 import type { ContributionSettings, NotificationSettings } from "@/types";
-import { ErrorNotice, LoadingNotice } from "@/components/RequestStatus";
+import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 
@@ -74,22 +74,38 @@ export default function SettingsPage() {
   const [contributionSaving, setContributionSaving] = useState(false);
   const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
   const [contributionError, setContributionError] = useState<string | null>(null);
+  const [contributionLoading, setContributionLoading] = useState(false);
+  const [contributionLoadError, setContributionLoadError] = useState<string | null>(null);
   const currentUserName = (HOUSE_MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? HOUSE_MEMBERS[0]).name;
   const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
+  const loadContributionSettings = useCallback(async () => {
+    setContributionLoading(true);
+    setContributionLoadError(null);
+    try {
+      const response = await fetch("/api/settings/contribution");
+      if (!response.ok) {
+        const message = await getApiErrorMessage(response, "共益費設定の取得に失敗しました");
+        setContributionLoadError(message);
+        showToast({ level: "error", message });
+        return;
+      }
+      const json = (await response.json()) as { data: ContributionSettings };
+      setContributionAmount(String(json.data.monthlyAmountPerPerson));
+      setContributionMemberCount(String(json.data.memberCount));
+    } catch {
+      const message = "通信エラーが発生しました";
+      setContributionLoadError(message);
+      showToast({ level: "error", message });
+    } finally {
+      setContributionLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setSettings(loadNotificationSettings());
-
-    fetch("/api/settings/contribution")
-      .then((res) => res.json())
-      .then((json: { data: ContributionSettings }) => {
-        setContributionAmount(String(json.data.monthlyAmountPerPerson));
-        setContributionMemberCount(String(json.data.memberCount));
-      })
-      .catch(() => {
-        showToast({ level: "error", message: "共益費設定の取得に失敗しました" });
-      });
-  }, []);
+    void loadContributionSettings();
+  }, [loadContributionSettings]);
 
   async function saveContributionSettings() {
     if (!canEditContributionSettings) return;
@@ -205,6 +221,23 @@ export default function SettingsPage() {
           <Wallet size={18} className="text-amber-500" />
           <h3 className="text-sm font-bold text-stone-800">共益費設定</h3>
         </div>
+        {contributionLoading && (
+          <div className="mb-3">
+            <LoadingNotice message="共益費設定を読み込み中..." />
+          </div>
+        )}
+        {contributionLoadError && (
+          <div className="mb-3">
+            <RetryNotice
+              message={contributionLoadError}
+              actionLabel="再取得"
+              onRetry={() => {
+                void loadContributionSettings();
+              }}
+              disabled={contributionLoading}
+            />
+          </div>
+        )}
         <p className="mt-1 text-xs text-stone-500 mb-3">
           月次拠出合計 = 1人あたり金額 × 人数 で算出されます。
           保存した設定は当月から適用されます。

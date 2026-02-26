@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { ExpenseRecord } from "@/types";
-import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
@@ -16,18 +15,6 @@ type Props = {
 
 function toMonthPrefix(month: string): string {
   return month.slice(0, 7);
-}
-
-function subtractMonths(monthKey: string, months: number): string {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (!Number.isInteger(year) || !Number.isInteger(month)) {
-    return monthKey;
-  }
-  const date = new Date(Date.UTC(year, month - 1, 1));
-  date.setUTCMonth(date.getUTCMonth() - months);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatPurchaseDateLabel(purchasedAt: string): string {
@@ -47,46 +34,6 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
   const monthPrefix = toMonthPrefix(currentMonth);
   const currentMonthExpenses = expenses.filter(
     (e) => e.purchasedAt.startsWith(monthPrefix) && !e.canceledAt
-  );
-  const previousMonthPrefix = subtractMonths(monthPrefix, 1);
-  const trendMonths = Array.from({ length: 6 }, (_, index) =>
-    subtractMonths(monthPrefix, 5 - index)
-  );
-  const trendByCategory = EXPENSE_CATEGORIES.map((category) => {
-    const monthlyValues = trendMonths.map((month) =>
-      expenses
-        .filter(
-          (e) =>
-            !e.canceledAt &&
-            e.category === category &&
-            e.purchasedAt.startsWith(month)
-        )
-        .reduce((sum, e) => sum + e.amount, 0)
-    );
-
-    const currentAmount = monthlyValues[monthlyValues.length - 1] ?? 0;
-    const prevAmount =
-      expenses
-        .filter(
-          (e) =>
-            !e.canceledAt &&
-            e.category === category &&
-            e.purchasedAt.startsWith(previousMonthPrefix)
-        )
-        .reduce((sum, e) => sum + e.amount, 0) ?? 0;
-    const diff = currentAmount - prevAmount;
-
-    return {
-      category,
-      monthlyValues,
-      currentAmount,
-      prevAmount,
-      diff,
-    };
-  });
-  const maxTrendValue = Math.max(
-    1,
-    ...trendByCategory.flatMap((item) => item.monthlyValues)
   );
 
   const allExpenses = [...expenses].sort(
@@ -134,58 +81,6 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">カテゴリ別内訳</h3>
         <ExpenseCategoryChart expenses={currentMonthExpenses} />
-      </div>
-
-      <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
-        <h3 className="mb-1 text-sm font-bold text-stone-800">カテゴリ別6か月推移</h3>
-        <p className="mb-3 text-xs text-stone-500">
-          当月と前月を比較しつつ、半年の推移を確認できます。
-        </p>
-        <div className="space-y-3">
-          {trendByCategory.map((item) => (
-            <div key={item.category} className="rounded-xl bg-stone-50 px-3 py-2.5">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-stone-700">{item.category}</p>
-                <p className="text-xs text-stone-500">
-                  当月 ¥{item.currentAmount.toLocaleString()} / 前月 ¥
-                  {item.prevAmount.toLocaleString()}
-                  <span
-                    className={`ml-1 font-medium ${
-                      item.diff > 0
-                        ? "text-red-500"
-                        : item.diff < 0
-                          ? "text-emerald-600"
-                          : "text-stone-400"
-                    }`}
-                  >
-                    ({item.diff > 0 ? "+" : ""}
-                    {item.diff.toLocaleString()})
-                  </span>
-                </p>
-              </div>
-              <div className="grid grid-cols-6 gap-1">
-                {item.monthlyValues.map((value, index) => (
-                  <div key={`${item.category}-${trendMonths[index]}`} className="space-y-1">
-                    <div className="h-8 rounded bg-stone-100 p-0.5">
-                      <div
-                        className="h-full rounded bg-amber-400/80"
-                        style={{
-                          width:
-                            value === 0
-                              ? "0%"
-                              : `${Math.max(8, (value / maxTrendValue) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="truncate text-[10px] text-stone-400">
-                      {trendMonths[index].slice(5)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Expense history */}
