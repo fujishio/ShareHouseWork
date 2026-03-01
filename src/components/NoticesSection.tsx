@@ -7,8 +7,7 @@ import { formatRelativeTime } from "@/shared/lib/time";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-
-const CURRENT_ACTOR = "あなた";
+import { CURRENT_ACTOR } from "@/shared/constants/house";
 
 type Props = {
   initialNotices: Notice[];

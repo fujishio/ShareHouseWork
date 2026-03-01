@@ -7,13 +7,8 @@ import type { ExpenseCategory } from "@/types";
 import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
-
-function toLocalDateInputValue(date: Date = new Date()): string {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
-}
+import { MEMBER_NAMES } from "@/shared/constants/house";
+import { toLocalDateInputValue } from "@/shared/lib/time";
 
 type Props = {
   onClose: () => void;
@@ -24,7 +19,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("消耗品");
-  const [purchasedBy, setPurchasedBy] = useState<string>(MEMBERS[0]);
+  const [purchasedBy, setPurchasedBy] = useState<string>(MEMBER_NAMES[0]);
   const [purchasedAt, setPurchasedAt] = useState(toLocalDateInputValue);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -154,7 +149,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
               onChange={(e) => setPurchasedBy(e.target.value)}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             >
-              {MEMBERS.map((member) => (
+              {MEMBER_NAMES.map((member) => (
                 <option key={member} value={member}>{member}</option>
               ))}
             </select>

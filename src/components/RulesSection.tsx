@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-
-const CURRENT_ACTOR = "あなた";
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
+import { CURRENT_ACTOR, MEMBER_NAMES } from "@/shared/constants/house";
 
 const CATEGORY_ORDER: RuleCategory[] = [
   "ゴミ捨て",
@@ -28,8 +26,11 @@ const CATEGORY_EMOJI: Record<RuleCategory, string> = {
 };
 
 function isRuleConfirmed(rule: Rule): boolean {
+  // acknowledgedBy が未定義 = 確認フローなし（古いルール）→ 確認済み扱い
+  // acknowledgedBy が空配列 = 確認フローあり・未確認 → 未確認
   if (!rule.acknowledgedBy) return true;
-  const requiredMembers = MEMBERS.filter((m) => m !== rule.createdBy);
+  if (rule.acknowledgedBy.length === 0) return false;
+  const requiredMembers = MEMBER_NAMES.filter((m) => m !== rule.createdBy);
   return requiredMembers.every((m) => rule.acknowledgedBy!.includes(m));
 }
 
@@ -331,7 +332,7 @@ type PendingRuleItemProps = {
 
 function PendingRuleItem({ rule, acknowledgingId, onAcknowledge }: PendingRuleItemProps) {
   const acknowledged = rule.acknowledgedBy ?? [];
-  const requiredMembers = MEMBERS.filter((m) => m !== rule.createdBy);
+  const requiredMembers = MEMBER_NAMES.filter((m) => m !== rule.createdBy);
   const remaining = requiredMembers.filter((m) => !acknowledged.includes(m));
 
   return (

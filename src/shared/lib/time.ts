@@ -41,6 +41,11 @@ export function formatJpDate(now: Date = new Date()): string {
   return `${y}年${m}月${d}日 (${day})`;
 }
 
+export function toLocalDateInputValue(date: Date = new Date()): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);

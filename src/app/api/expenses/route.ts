@@ -6,6 +6,7 @@ import {
   normalizePurchasedAt,
 } from "@/domain/expenses/expense-api-validation";
 import type { CreateExpenseInput, ExpenseCategory } from "@/types";
+import { isValidMemberName } from "@/shared/constants/house";
 
 export async function GET() {
   const expenses = await readExpenses();
@@ -38,8 +39,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  if (!isTrimmedNonEmpty(input.purchasedBy)) {
-    return NextResponse.json({ error: "purchasedBy is required" }, { status: 400 });
+  if (!isTrimmedNonEmpty(input.purchasedBy) || !isValidMemberName(input.purchasedBy.trim())) {
+    return NextResponse.json({ error: "purchasedBy must be a valid member name" }, { status: 400 });
   }
 
   if (input.amount <= 0 || !Number.isFinite(input.amount)) {

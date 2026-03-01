@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readNotices, appendNotice } from "@/server/notice-store";
+import { appendAuditLog } from "@/server/audit-log-store";
 import type { CreateNoticeInput } from "@/types";
+import { isValidMemberName } from "@/shared/constants/house";
 
 export async function GET() {
   const notices = await readNotices();
@@ -28,8 +30,8 @@ export async function POST(request: Request) {
   }
 
   const postedBy = typeof raw.postedBy === "string" ? raw.postedBy.trim() : "";
-  if (!postedBy) {
-    return NextResponse.json({ error: "postedBy is required" }, { status: 400 });
+  if (!postedBy || !isValidMemberName(postedBy)) {
+    return NextResponse.json({ error: "postedBy must be a valid member name" }, { status: 400 });
   }
 
   const postedAt =
@@ -46,5 +48,14 @@ export async function POST(request: Request) {
   };
 
   const created = await appendNotice(input);
+
+  await appendAuditLog({
+    action: "notice_created",
+    actor: postedBy,
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: { noticeId: created.id, title: created.title, isImportant: created.isImportant },
+  });
+
   return NextResponse.json({ data: created }, { status: 201 });
 }

@@ -7,6 +7,7 @@ import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
+import { CURRENT_ACTOR } from "@/shared/constants/house";
 
 type Props = {
   initialExpenses: ExpenseRecord[];
@@ -48,7 +49,7 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          canceledBy: "あなた",
+          canceledBy: CURRENT_ACTOR,
           cancelReason: "登録間違い",
         }),
       });

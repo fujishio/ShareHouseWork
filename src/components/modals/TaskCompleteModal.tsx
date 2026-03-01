@@ -12,6 +12,7 @@ import type {
 } from "@/types";
 import { LoadingNotice } from "@/components/RequestStatus";
 import { showToast } from "@/shared/lib/toast";
+import { CURRENT_ACTOR } from "@/shared/constants/house";
 
 type Props = {
   onClose: () => void;
@@ -70,7 +71,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
-          completedBy: "あなた",
+          completedBy: CURRENT_ACTOR,
           completedAt: new Date().toISOString(),
           source: "app",
         } satisfies CreateTaskCompletionInput),

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { updateRule, deleteRule, acknowledgeRule } from "@/server/rule-store";
-import { HOUSE_MEMBERS } from "@/shared/constants/house";
+import { appendAuditLog } from "@/server/audit-log-store";
+import { isValidMemberName } from "@/shared/constants/house";
 import type { RuleCategory, UpdateRuleInput } from "@/types";
-
-const VALID_MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
 
 const VALID_CATEGORIES: RuleCategory[] = [
   "ゴミ捨て",
@@ -61,6 +60,14 @@ export async function PUT(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  await appendAuditLog({
+    action: "rule_updated",
+    actor: "app",
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: { ruleId, title: updated.title, category },
+  });
+
   return NextResponse.json({ data: updated });
 }
 
@@ -89,7 +96,7 @@ export async function PATCH(
   const memberName =
     typeof raw.acknowledgedBy === "string" ? raw.acknowledgedBy.trim() : "";
 
-  if (!memberName || !VALID_MEMBER_NAMES.includes(memberName)) {
+  if (!memberName || !isValidMemberName(memberName)) {
     return NextResponse.json(
       { error: "Invalid member name" },
       { status: 400 }
@@ -100,6 +107,14 @@ export async function PATCH(
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await appendAuditLog({
+    action: "rule_acknowledged",
+    actor: memberName,
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: { ruleId, title: updated.title },
+  });
 
   return NextResponse.json({ data: updated });
 }
@@ -122,10 +137,11 @@ export async function DELETE(
   }
 
   const raw = (body ?? {}) as Record<string, unknown>;
-  const deletedBy =
-    typeof raw.deletedBy === "string" && raw.deletedBy.trim()
-      ? raw.deletedBy.trim()
-      : "不明";
+  const rawDeletedBy = typeof raw.deletedBy === "string" ? raw.deletedBy.trim() : "";
+  if (!rawDeletedBy || !isValidMemberName(rawDeletedBy)) {
+    return NextResponse.json({ error: "deletedBy must be a valid member name" }, { status: 400 });
+  }
+  const deletedBy = rawDeletedBy;
 
   const deletedAt = new Date().toISOString();
   const updated = await deleteRule(ruleId, deletedBy, deletedAt);
@@ -133,6 +149,14 @@ export async function DELETE(
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await appendAuditLog({
+    action: "rule_deleted",
+    actor: deletedBy,
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: { ruleId, title: updated.title },
+  });
 
   return NextResponse.json({ data: updated });
 }

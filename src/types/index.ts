@@ -10,12 +10,12 @@ export type Member = {
 
 export type TaskCompletion = {
   id: number;
-  taskId?: number;
+  taskId: number;
   taskName: string;
   points: HousePoints;
   completedBy: string;
-  completedAt: Date;
-  source: "app" | "line";
+  completedAt: IsoDateString;
+  source: TaskCompletionSource;
 };
 
 export type TaskCompletionSource = "app" | "line";
@@ -55,6 +55,12 @@ export type TaskCompletionCancelResponse = ApiSuccessResponse<TaskCompletionReco
 export type AuditAction =
   | "task_completion_created"
   | "task_completion_canceled"
+  | "rule_created"
+  | "rule_updated"
+  | "rule_acknowledged"
+  | "rule_deleted"
+  | "notice_created"
+  | "notice_deleted"
   | "line_webhook_received"
   | "line_notification_queued";
 

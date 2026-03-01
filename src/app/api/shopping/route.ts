@@ -7,6 +7,7 @@ import {
 } from "@/domain/shopping/shopping-api-validation";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { CreateShoppingItemInput, ExpenseCategory } from "@/types";
+import { isValidMemberName } from "@/shared/constants/house";
 
 export async function GET() {
   const items = await readShoppingItems();
@@ -43,8 +44,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid addedAt date" }, { status: 400 });
   }
 
-  if (typeof raw.addedBy !== "string" || !isTrimmedNonEmpty(raw.addedBy)) {
-    return NextResponse.json({ error: "addedBy is required" }, { status: 400 });
+  if (typeof raw.addedBy !== "string" || !isTrimmedNonEmpty(raw.addedBy) || !isValidMemberName(raw.addedBy.trim())) {
+    return NextResponse.json({ error: "addedBy must be a valid member name" }, { status: 400 });
   }
   const normalizedAddedBy = raw.addedBy.trim();
 

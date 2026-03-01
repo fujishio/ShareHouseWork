@@ -7,13 +7,8 @@ import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory } from "@/types";
-
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
-
-function toLocalDateString(date: Date = new Date()): string {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
-}
+import { MEMBER_NAMES } from "@/shared/constants/house";
+import { toLocalDateInputValue } from "@/shared/lib/time";
 
 type Props = {
   onClose: () => void;
@@ -25,7 +20,7 @@ export default function ShoppingFormModal({ onClose }: Props) {
   const [quantity, setQuantity] = useState("");
   const [memo, setMemo] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("消耗品");
-  const [addedBy, setAddedBy] = useState<string>(MEMBERS[0]);
+  const [addedBy, setAddedBy] = useState<string>(MEMBER_NAMES[0]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -45,7 +40,7 @@ export default function ShoppingFormModal({ onClose }: Props) {
           memo: memo.trim(),
           category,
           addedBy,
-          addedAt: toLocalDateString(),
+          addedAt: toLocalDateInputValue(),
         }),
       });
       if (!response.ok) {
@@ -117,7 +112,7 @@ export default function ShoppingFormModal({ onClose }: Props) {
               onChange={(e) => setAddedBy(e.target.value)}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             >
-              {MEMBERS.map((member) => (
+              {MEMBER_NAMES.map((member) => (
                 <option key={member} value={member}>{member}</option>
               ))}
             </select>

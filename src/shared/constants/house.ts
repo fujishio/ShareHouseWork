@@ -9,5 +9,14 @@ export const HOUSE_MEMBERS: Member[] = [
   { id: 4, name: "友達２", color: "#db2777" },
 ];
 
+export const MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
+
+export function isValidMemberName(name: string): boolean {
+  return MEMBER_NAMES.includes(name);
+}
+
 // Placeholder until NextAuth is implemented
 export const CURRENT_USER_ID = 1;
+
+// Placeholder until NextAuth is implemented — will be replaced by useSession().user.name
+export const CURRENT_ACTOR = "あなた";

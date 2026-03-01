@@ -9,8 +9,7 @@ import type {
 import { formatRelativeTime } from "@/shared/lib/time";
 import { ErrorNotice, LoadingNotice } from "./RequestStatus";
 import { showToast } from "@/shared/lib/toast";
-
-const CANCELED_BY = "あなた";
+import { CURRENT_ACTOR } from "@/shared/constants/house";
 
 type CancelDraft = {
   cancelReasonType: "wrong_entry" | "incomplete" | "other";
@@ -73,7 +72,7 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          canceledBy: CANCELED_BY,
+          canceledBy: CURRENT_ACTOR,
           cancelReason: selectedReason,
         }),
       });

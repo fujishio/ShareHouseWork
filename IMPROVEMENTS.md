@@ -1,6 +1,6 @@
 # ShareHouseWork 改善案
 
-最終更新: 2026-02-26
+最終更新: 2026-03-01
 ※ コードベース実装と `npm test` 実行結果をもとに更新しています。
 
 ---
@@ -11,18 +11,174 @@
 |------|------|
 | DB移行（JSON → PostgreSQL + Prisma） | 未着手 |
 | 認証（NextAuth + LINE Login） | 未着手 |
+| テスト失敗 | **1件 fail**（shopping-api-validation、パスエイリアス問題） |
+| メンバーリスト重複 | 7ファイルにハードコード（HOUSE_MEMBERS未使用） |
+| 日付/タイムゾーン重複ロジック | 3ファイルに分散（shared/lib/time.ts 未活用箇所あり） |
+| "あなた" ハードコード | 6コンポーネントに散在（認証実装で全て要置換） |
 | APIバリデーション統一（zod） | 未完了 |
+| APIメンバー検証 | 一部のみ（task-completions は検証済、expenses/shopping は未検証） |
+| 監査ログ | 一部の操作のみ（rules/notices の作成・更新は未記録） |
 | レートリミット | 未着手 |
-| Next.js設定活用 | 未着手 |
-| テスト + CI | 部分完了（27件 pass、API/コンポーネントテストは未整備） |
-| CSVエクスポート | 部分完了（タスク完了のみ。支出・買い物は未対応） |
-| 買い物の長期アーカイブ | 部分完了（購入済み表示/未購入戻しあり。長期アーカイブは未実装） |
-| UX共通化（再試行導線） | 部分完了（Toast・Loadingは対応済み。再試行UIが残） |
-| ダッシュボードのモック除去 | 完了 |
-| APIのHTTPメソッド設計 | 完了 |
-| ルール画面 `/rules` | 完了 |
+| テスト + CI | 部分完了（22件 pass / 1件 fail） |
 | ローディング状態の統一 | 完了 |
 | エラーハンドリングUI | 完了 |
+
+---
+
+## 今すぐ対応可能な整理・バグ修正（認証/DB移行の準備）
+
+### P0. テスト失敗の修正
+
+**問題**
+- `src/domain/shopping/shopping-api-validation.test.ts` が失敗（1件）
+- 原因: `shopping-api-validation.ts` が `@/shared/lib/time` のパスエイリアスで re-export しており、Node.js テストランナーが `@/` を解決できない
+
+**対応**
+- テストファイルで `@/` エイリアスを使わないようにするか、テスト用のパス解決設定を追加する
+- 例: re-export を相対パスに変更、または `--import` でエイリアス解決を登録
+
+**影響範囲**
+- `src/domain/shopping/shopping-api-validation.ts`（1行目）
+
+---
+
+### P1. メンバーリストの一元化（DRY違反の修正）
+
+**問題**
+- `HOUSE_MEMBERS`（`src/shared/constants/house.ts`）が正式な定義元だが、以下7ファイルで同じ名前リストをハードコードしている:
+  - `src/components/modals/ExpenseFormModal.tsx:11`
+  - `src/components/modals/NoticeFormModal.tsx:9`
+  - `src/components/modals/RuleFormModal.tsx:10`
+  - `src/components/modals/ShoppingFormModal.tsx:11`
+  - `src/components/ShoppingSection.tsx:12`
+  - `src/components/RulesSection.tsx:12`
+  - `src/app/settings/page.tsx:410-413`（`memberCount: 4` のハードコード）
+
+**対応**
+- `HOUSE_MEMBERS.map(m => m.name)` を共有ユーティリティとしてエクスポート
+- 全ファイルからハードコード配列を削除し、共通定義を使用する
+- `DEFAULT_CONTRIBUTION.memberCount` を `HOUSE_MEMBERS.length` に変更
+
+**効果**
+- 認証実装時にメンバー情報をDBから取得する際、変更箇所が1箇所に集約される
+
+---
+
+### P2. "あなた" ハードコードの整理
+
+**問題**
+- 現在のユーザーを表す文字列 `"あなた"` が以下6コンポーネントにハードコードされている:
+  - `src/components/modals/TaskCompleteModal.tsx:73` — `completedBy: "あなた"`
+  - `src/components/ExpenseSection.tsx:51` — `canceledBy: "あなた"`
+  - `src/components/ShoppingSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
+  - `src/components/RulesSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
+  - `src/components/NoticesSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
+  - `src/components/RecentCompletionsSection.tsx:13` — `CANCELED_BY = "あなた"`
+
+**対応**
+- `CURRENT_ACTOR` を `src/shared/constants/house.ts` に集約し、全コンポーネントから import する
+- 認証実装時はこの1箇所を `useSession().user.name` に切り替えるだけで済むようにする
+
+---
+
+### P3. 日付/タイムゾーン重複ロジックの集約
+
+**問題**
+- `src/shared/lib/time.ts` に JST ユーティリティがあるのに、以下のファイルで重複実装している:
+  - `src/app/shopping/page.tsx:4-15` — `getJstMonthKey()` の再実装
+  - `src/components/modals/ExpenseFormModal.tsx:13-16` — `toLocalDateInputValue()`（タイムゾーンオフセット計算）
+  - `src/components/modals/ShoppingFormModal.tsx:13-16` — `toLocalDateString()`（同様の重複）
+
+**対応**
+- `shopping/page.tsx` の `getJstMonthKey` を `shared/lib/time.ts` の `toJstMonthKey` に置き換える
+- `toLocalDateInputValue` / `toLocalDateString` を `shared/lib/time.ts` に集約する
+
+---
+
+### P4. isRuleConfirmed ロジックバグの修正
+
+**問題**
+- `src/components/RulesSection.tsx:30-31`:
+  ```typescript
+  function isRuleConfirmed(rule: Rule): boolean {
+    if (!rule.acknowledgedBy) return true; // ← 未確認なのに true を返す
+  ```
+- `acknowledgedBy` が未定義（誰も確認していない）場合に `true`（確認済み）を返してしまう
+- 意図としては「確認フローが不要なルール」を想定している可能性があるが、ロジックとして紛らわしい
+
+**対応**
+- ルールが確認フローを持つかどうかを明示的に判定する（例: `acknowledgedBy === undefined` は「確認不要」、`[]` は「未確認」）
+- または、意図を明確にするコメントを追加する
+
+---
+
+### P5. APIメンバー名バリデーションの統一
+
+**問題**
+- `task-completions` API は `completedBy` を `HOUSE_MEMBERS` で検証している（正しい）
+- 以下の API はメンバー名を検証していない:
+  - `expenses` — `paidBy` が任意の文字列を受け入れる
+  - `shopping` — `addedBy` が任意の文字列を受け入れる
+  - `notices` — `postedBy` が検証なし
+  - `rules/[id]` DELETE — `deletedBy` のデフォルトが `"不明"` で検証なし
+
+**対応**
+- 全 API で `HOUSE_MEMBERS.map(m => m.name)` によるメンバー名バリデーションを追加する
+- 共通の `isValidMemberName()` ヘルパーを作成する
+
+---
+
+### P6. 型定義の整理（Prisma移行準備）
+
+**問題**
+- `src/types/index.ts` にいくつかの型の不整合がある:
+  - `TaskCompletion.completedAt` が `Date` 型だが、`TaskCompletionRecord.completedAt` は `IsoDateString`（混在）
+  - `TaskCompletion.taskId` が optional（`taskId?: number`）だが、必須であるべき
+  - `ShoppingItem.checkedBy` / `checkedAt` がペアで使われるべきだが個別に optional
+  - `canceledAt` / `canceledBy` / `cancelReason` がグループ化されていない
+  - `AuditLogRecord.details` が `Record<string, string | number | boolean | null>` で広すぎる
+
+**対応**
+- Prisma スキーマ設計を見据えて型を整理する
+- 必須フィールドの optional を修正する
+- 日付型を `IsoDateString` に統一する
+
+---
+
+### P7. 監査ログの欠落を補完
+
+**問題**
+- 以下の操作で監査ログが記録されていない:
+  - ルール作成（POST `/api/rules`）
+  - ルール更新（PUT `/api/rules/[id]`）
+  - ルール確認（PATCH `/api/rules/[id]`）
+  - お知らせ作成（POST `/api/notices`）
+
+**対応**
+- 全 CUD 操作に監査ログを追加する
+- 共通の `logAuditEvent()` ヘルパーの導入を検討する
+
+---
+
+### P8. `src/lib/` 空ディレクトリの削除
+
+**問題**
+- `src/lib/` ディレクトリが空のまま残っている
+
+**対応**
+- 不要なら削除する
+
+---
+
+### P9. `package.json` に `"type": "module"` を追加
+
+**問題**
+- テスト実行時に毎回 `MODULE_TYPELESS_PACKAGE_JSON` 警告が出る
+- Node.js が CommonJS として解析→ES Module として再解析するオーバーヘッドが発生
+
+**対応**
+- `package.json` に `"type": "module"` を追加する
+- 既存のビルド・テストが壊れないか確認する
 
 ---
 
@@ -34,6 +190,7 @@
 - `/data/*.json` へのファイル書き込みで永続化している
 - Vercel（サーバーレス）ではデプロイ後にデータが消失する
 - 同時書き込みで競合・データ破損のリスクがある
+- ID生成（`nextId()`）が同時リクエストで衝突する可能性がある
 
 **対応**
 - Prisma + Supabase（または Neon）へ移行する
@@ -43,8 +200,8 @@
 - 既存 `data/*.json` から移行スクリプトを作成する
 
 **影響範囲**
-- `src/server/` 配下の全ストアファイル（6ファイル）
-- 全APIルート（`src/app/api/`）
+- `src/server/` 配下の全ストアファイル（9ファイル）
+- 全APIルート（`src/app/api/`、17ファイル）
 - `data/` ディレクトリの廃止
 
 ---
@@ -54,12 +211,14 @@
 **問題**
 - 全ページが認証なしでアクセス可能
 - ユーザー識別が「あなた」固定で、監査・権限・通知制御が実運用レベルに達していない
+- `x-sharehouse-actor` ヘッダーがクライアントから偽装可能
 
 **対応**
 - NextAuth.js + LINE Provider を実装する
 - 未認証時はログイン画面へリダイレクトする
 - APIでセッション検証を必須化する
 - `completedBy / purchasedBy / postedBy` を実際のログインユーザーで自動設定する
+- `x-sharehouse-actor` ヘッダーを廃止し、セッションベースに切り替える
 
 **影響範囲**
 - `src/app/layout.tsx`（SessionProvider 追加）
@@ -72,10 +231,13 @@
 
 **問題**
 - ルートごとに手書きバリデーションで、漏れや整合崩れが起きやすい
+- テキストフィールドに最大長制限がない（巨大な文字列を受け入れてしまう）
+- エラーレスポンス型の適用が不統一
 
 **対応**
 - zod スキーマを `domain` または `shared` に集約する
 - エラー形式を `{ error, code, details }` に統一する
+- テキストフィールドに最大長バリデーションを追加する
 
 ---
 
@@ -95,7 +257,7 @@
 ### E. テスト対象の拡張
 
 **現状**
-- ドメイン / ユーティリティ / CSV生成はテストあり（27件 pass）
+- ドメイン / ユーティリティ / CSV生成はテストあり（22件 pass / 1件 fail）
 - API統合テスト・コンポーネントテスト・カバレッジ計測が未整備
 
 **対応**
@@ -177,7 +339,8 @@
 | CSVエクスポート（基本） | `/api/exports/monthly.csv` と設定画面ボタンを接続済み |
 | ローディング状態の統一 | `Loading.tsx` / `PageSkeleton` / `loading.tsx` を追加済み |
 | エラーハンドリングUI | `error.tsx` / `RetryNotice` / 再取得ボタンを追加済み |
-| テスト + CI（基本） | 27件 pass、`.github/workflows/ci.yml` で test / build を自動実行 |
+| テスト + CI（基本） | `.github/workflows/ci.yml` で test / build を自動実行 |
+| コード重複リファクタリング | JST集約・nextId()共通化・getLatestCompletionByTask集約（2026-03-01） |
 
 ---
 
@@ -185,20 +348,21 @@
 
 | 順 | 項目 | 理由 |
 |:--:|------|------|
-| 1 | A. DB移行 | Vercelデプロイに必須。全機能の基盤 |
-| 2 | B. 認証実装 | ユーザー識別なしでは実運用不可 |
-| 3 | C. APIバリデーション統一 | DB移行と同時に整備すると効率的 |
-| 4 | D. レートリミット導入 | 認証後すぐに対応 |
-| 5 | F. CSVエクスポート拡張 | 支出・買い物データを追加 |
-| 6 | E. テスト拡張 + カバレッジ | 機能追加前に品質ゲートを確立 |
-| 7 | G. 買い物の長期アーカイブ | 運用上の使い勝手を改善 |
-| 8 | H. 再試行導線の標準化 | UX品質の底上げ |
+| 1 | P0〜P3 | テスト修正・DRY違反・バグ修正。認証/DB前にコード品質を確保 |
+| 2 | P4〜P9 | バリデーション統一・型整理・監査ログ補完。移行時の手戻りを減らす |
+| 3 | A. DB移行 | Vercelデプロイに必須。全機能の基盤 |
+| 4 | B. 認証実装 | ユーザー識別なしでは実運用不可 |
+| 5 | C. APIバリデーション統一 | DB移行と同時に整備すると効率的 |
+| 6 | D. レートリミット導入 | 認証後すぐに対応 |
+| 7 | E. テスト拡張 | 機能追加前に品質ゲートを確立 |
+| 8 | F〜H | CSVエクスポート拡張・アーカイブ・再試行導線 |
 | 9 | I〜M | 運用安定化・保守改善（順不同） |
 
 ---
 
 ## 直近の確認ログ
 
-- `npm test`: **27 pass / 0 fail**
+- `npm test`: **22 pass / 1 fail**（shopping-api-validation: `@/` パスエイリアス未解決）
+- `npx tsc --noEmit`: **エラーなし**（型チェック通過）
 - CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行
 - 既知の軽微課題: Node 実行時に `MODULE_TYPELESS_PACKAGE_JSON` 警告あり

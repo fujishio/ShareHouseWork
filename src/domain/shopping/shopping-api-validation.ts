@@ -1,4 +1,4 @@
-export { getJstDateString } from "@/shared/lib/time";
+export { getJstDateString } from "../../shared/lib/time.ts";
 
 export function isTrimmedNonEmpty(value: string): boolean {
   return value.trim().length > 0;

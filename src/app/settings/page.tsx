@@ -409,7 +409,7 @@ function TaskInlineForm({
 
 const DEFAULT_CONTRIBUTION: ContributionSettings = {
   monthlyAmountPerPerson: 15000,
-  memberCount: 4,
+  memberCount: HOUSE_MEMBERS.length,
 };
 
 export default function SettingsPage() {

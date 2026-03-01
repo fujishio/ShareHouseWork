@@ -6,8 +6,7 @@ import type { RuleCategory } from "@/types";
 import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
+import { MEMBER_NAMES } from "@/shared/constants/house";
 
 const CATEGORIES: { value: RuleCategory; label: string }[] = [
   { value: "ゴミ捨て", label: "🗑 ゴミ捨て" },
@@ -26,7 +25,7 @@ export default function RuleFormModal({ onClose }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [category, setCategory] = useState<RuleCategory>("その他");
-  const [createdBy, setCreatedBy] = useState<string>(MEMBERS[0]);
+  const [createdBy, setCreatedBy] = useState<string>(MEMBER_NAMES[0]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -135,7 +134,7 @@ export default function RuleFormModal({ onClose }: Props) {
               onChange={(e) => setCreatedBy(e.target.value)}
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             >
-              {MEMBERS.map((member) => (
+              {MEMBER_NAMES.map((member) => (
                 <option key={member} value={member}>
                   {member}
                 </option>

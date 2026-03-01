@@ -7,9 +7,7 @@ import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-
-const CURRENT_ACTOR = "あなた";
-const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
+import { CURRENT_ACTOR, MEMBER_NAMES } from "@/shared/constants/house";
 
 type Props = {
   initialItems: ShoppingItem[];
@@ -227,7 +225,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                   onChange={(e) => setPendingPurchasedBy(e.target.value)}
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
                 >
-                  {MEMBERS.map((m) => (
+                  {MEMBER_NAMES.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>

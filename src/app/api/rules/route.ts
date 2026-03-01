@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readRules, appendRule } from "@/server/rule-store";
+import { appendAuditLog } from "@/server/audit-log-store";
 import type { CreateRuleInput, RuleCategory } from "@/types";
+import { isValidMemberName } from "@/shared/constants/house";
 
 const VALID_CATEGORIES: RuleCategory[] = [
   "ゴミ捨て",
@@ -47,9 +49,9 @@ export async function POST(request: Request) {
 
   const createdBy =
     typeof raw.createdBy === "string" ? raw.createdBy.trim() : "";
-  if (!createdBy) {
+  if (!createdBy || !isValidMemberName(createdBy)) {
     return NextResponse.json(
-      { error: "createdBy is required" },
+      { error: "createdBy must be a valid member name" },
       { status: 400 }
     );
   }
@@ -68,5 +70,14 @@ export async function POST(request: Request) {
   };
 
   const created = await appendRule(input);
+
+  await appendAuditLog({
+    action: "rule_created",
+    actor: createdBy,
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: { ruleId: created.id, title: created.title, category },
+  });
+
   return NextResponse.json({ data: created }, { status: 201 });
 }
