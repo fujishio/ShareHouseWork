@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { nextId } from "@/server/store-utils";
 import type { TaskCompletionRecord } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -37,10 +38,8 @@ export async function appendTaskCompletion(
   record: Omit<TaskCompletionRecord, "id">
 ): Promise<TaskCompletionRecord> {
   const records = await readTaskCompletions();
-  const nextId = records.reduce((max, current) => Math.max(max, current.id), 0) + 1;
-
   const created: TaskCompletionRecord = {
-    id: nextId,
+    id: nextId(records),
     ...record,
   };
 

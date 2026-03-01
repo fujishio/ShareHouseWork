@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { toJstMonthKey } from "@/shared/lib/time";
 import type {
   ContributionSettings,
   ContributionSettingsHistoryRecord,
@@ -15,20 +16,6 @@ const DEFAULT_SETTINGS: ContributionSettings = {
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
 const HISTORY_START_MONTH = "2000-01";
-
-function getJstMonthKey(now: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(now);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  if (!year || !month) {
-    return now.toISOString().slice(0, 7);
-  }
-  return `${year}-${month}`;
-}
 
 function isValidHistoryRecord(value: unknown): value is ContributionSettingsHistoryRecord {
   return (
@@ -142,12 +129,12 @@ export function resolveContributionSettingsAtMonth(
 
 export async function readContributionSettings(): Promise<ContributionSettings> {
   const history = await readContributionSettingsHistory();
-  return resolveContributionSettingsAtMonth(history, getJstMonthKey());
+  return resolveContributionSettingsAtMonth(history, toJstMonthKey());
 }
 
 export async function writeContributionSettings(settings: ContributionSettings) {
   const history = await readContributionSettingsHistory();
-  const effectiveMonth = getJstMonthKey();
+  const effectiveMonth = toJstMonthKey();
   const nextRecord: ContributionSettingsHistoryRecord = {
     effectiveMonth,
     monthlyAmountPerPerson: settings.monthlyAmountPerPerson,

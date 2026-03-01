@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid addedAt date" }, { status: 400 });
   }
 
-  const normalizedAddedBy =
-    typeof raw.addedBy === "string" && isTrimmedNonEmpty(raw.addedBy)
-      ? raw.addedBy.trim()
-      : "不明";
+  if (typeof raw.addedBy !== "string" || !isTrimmedNonEmpty(raw.addedBy)) {
+    return NextResponse.json({ error: "addedBy is required" }, { status: 400 });
+  }
+  const normalizedAddedBy = raw.addedBy.trim();
 
   const rawCategory = raw.category;
   const category =

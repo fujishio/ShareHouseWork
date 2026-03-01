@@ -21,6 +21,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksError, setTasksError] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,9 +34,13 @@ export default function TaskCompleteModal({ onClose }: Props) {
     fetch("/api/tasks")
       .then((res) => res.json() as Promise<TaskListResponse | ApiErrorResponse>)
       .then((json) => {
-        if ("data" in json) setTasks(json.data);
+        if ("data" in json) {
+          setTasks(json.data);
+        } else {
+          setTasksError(true);
+        }
       })
-      .catch(() => {})
+      .catch(() => setTasksError(true))
       .finally(() => setTasksLoading(false));
   }, []);
 
@@ -128,6 +133,11 @@ export default function TaskCompleteModal({ onClose }: Props) {
         {(isSubmitting || tasksLoading) && (
           <div className="mb-2">
             <LoadingNotice message={tasksLoading ? "タスクを読み込み中..." : "完了報告を保存中..."} />
+          </div>
+        )}
+        {tasksError && (
+          <div className="mb-2 rounded-lg px-3 py-2 text-xs font-medium bg-red-50 text-red-700">
+            タスクの読み込みに失敗しました。再度お試しください。
           </div>
         )}
         {feedback && (

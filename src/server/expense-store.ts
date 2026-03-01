@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { nextId } from "@/server/store-utils";
 import type { ExpenseRecord, CreateExpenseInput, CancelExpenseInput } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -37,10 +38,8 @@ export async function appendExpense(
   input: CreateExpenseInput
 ): Promise<ExpenseRecord> {
   const records = await readExpenses();
-  const nextId = records.reduce((max, current) => Math.max(max, current.id), 0) + 1;
-
   const created: ExpenseRecord = {
-    id: nextId,
+    id: nextId(records),
     ...input,
   };
 

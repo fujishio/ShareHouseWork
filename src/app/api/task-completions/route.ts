@@ -5,6 +5,7 @@ import {
   readTaskCompletions,
 } from "@/server/task-completions-store";
 import { appendAuditLog } from "@/server/audit-log-store";
+import { HOUSE_MEMBERS } from "@/shared/constants/house";
 import type {
   ApiErrorResponse,
   CreateTaskCompletionInput,
@@ -16,6 +17,7 @@ import type {
 export const runtime = "nodejs";
 
 const VALID_SOURCES: TaskCompletionSource[] = ["app", "line"];
+const VALID_MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
 
 function parseLimit(raw: string | null): number {
   if (!raw) {
@@ -125,8 +127,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "taskId must be a positive integer." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
-  if (!payload.completedBy.trim()) {
-    return NextResponse.json({ error: "completedBy is required." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
+  if (!VALID_MEMBER_NAMES.includes(payload.completedBy.trim())) {
+    return NextResponse.json({ error: "completedBy must be a valid member name." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
   const completedAt = new Date(payload.completedAt);

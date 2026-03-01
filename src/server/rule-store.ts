@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { nextId } from "@/server/store-utils";
 import type { Rule, CreateRuleInput, UpdateRuleInput } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -29,10 +30,8 @@ async function writeRules(rules: Rule[]) {
 
 export async function appendRule(input: CreateRuleInput): Promise<Rule> {
   const rules = await readRules();
-  const nextId = rules.reduce((max, r) => Math.max(max, r.id), 0) + 1;
-
   const created: Rule = {
-    id: nextId,
+    id: nextId(rules),
     ...input,
   };
 

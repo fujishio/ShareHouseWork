@@ -37,10 +37,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "name is required" }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
-  const category = raw.category as TaskCategory;
-  if (!VALID_CATEGORIES.includes(category)) {
+  if (typeof raw.category !== "string" || !VALID_CATEGORIES.includes(raw.category as TaskCategory)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
+  const category = raw.category as TaskCategory;
 
   const points = Number(raw.points);
   if (!Number.isInteger(points) || points < 1) {

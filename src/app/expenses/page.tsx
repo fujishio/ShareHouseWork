@@ -1,3 +1,4 @@
+import { toJstMonthKey } from "@/shared/lib/time";
 import { Wallet } from "lucide-react";
 import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
@@ -5,24 +6,7 @@ import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-mont
 import ExpenseSection from "@/components/ExpenseSection";
 import ExpenseMonthNav from "@/components/ExpenseMonthNav";
 
-const JST_TIMEZONE = "Asia/Tokyo";
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
-
-function getJstYearMonth(date: Date): { year: number; month: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: JST_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(date);
-  const year = Number(parts.find((part) => part.type === "year")?.value);
-  const month = Number(parts.find((part) => part.type === "month")?.value);
-  return { year, month };
-}
-
-function toMonthKey(date: Date): string {
-  const { year, month } = getJstYearMonth(date);
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
 
 function toLabelFromMonthKey(monthKey: string): string {
   if (!MONTH_KEY_REGEX.test(monthKey)) return monthKey;
@@ -49,7 +33,7 @@ function addOneMonth(monthKey: string): string {
 type SearchParams = { month?: string };
 
 function resolveTargetMonth(searchParams: SearchParams | undefined, now: Date): string {
-  const currentMonthKey = toMonthKey(now);
+  const currentMonthKey = toJstMonthKey(now);
   const value = searchParams?.month;
   if (typeof value === "string" && MONTH_KEY_REGEX.test(value)) {
     return value <= currentMonthKey ? value : currentMonthKey;
@@ -63,7 +47,7 @@ export default async function ExpensesPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const now = new Date();
-  const currentMonthKey = toMonthKey(now);
+  const currentMonthKey = toJstMonthKey(now);
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const targetMonthKey = resolveTargetMonth(resolvedSearchParams, now);
   const monthLabel = toLabelFromMonthKey(targetMonthKey);

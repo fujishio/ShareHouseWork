@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { updateRule, deleteRule, acknowledgeRule } from "@/server/rule-store";
+import { HOUSE_MEMBERS } from "@/shared/constants/house";
 import type { RuleCategory, UpdateRuleInput } from "@/types";
 
-const VALID_MEMBERS = ["家主", "パートナー", "友達１", "友達２"];
+const VALID_MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
 
 const VALID_CATEGORIES: RuleCategory[] = [
   "ゴミ捨て",
@@ -40,13 +41,13 @@ export async function PUT(
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  const category = raw.category as RuleCategory;
-  if (!VALID_CATEGORIES.includes(category)) {
+  if (typeof raw.category !== "string" || !VALID_CATEGORIES.includes(raw.category as RuleCategory)) {
     return NextResponse.json(
       { error: "Invalid category" },
       { status: 400 }
     );
   }
+  const category = raw.category as RuleCategory;
 
   const input: UpdateRuleInput = {
     title,
@@ -88,7 +89,7 @@ export async function PATCH(
   const memberName =
     typeof raw.acknowledgedBy === "string" ? raw.acknowledgedBy.trim() : "";
 
-  if (!memberName || !VALID_MEMBERS.includes(memberName)) {
+  if (!memberName || !VALID_MEMBER_NAMES.includes(memberName)) {
     return NextResponse.json(
       { error: "Invalid member name" },
       { status: 400 }

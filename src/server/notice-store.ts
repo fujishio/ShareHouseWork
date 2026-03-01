@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { nextId } from "@/server/store-utils";
 import type { Notice, CreateNoticeInput } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -29,10 +30,8 @@ async function writeNotices(notices: Notice[]) {
 
 export async function appendNotice(input: CreateNoticeInput): Promise<Notice> {
   const notices = await readNotices();
-  const nextId = notices.reduce((max, n) => Math.max(max, n.id), 0) + 1;
-
   const created: Notice = {
-    id: nextId,
+    id: nextId(notices),
     ...input,
   };
 

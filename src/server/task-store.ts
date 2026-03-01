@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { TASKS } from "@/domain/tasks/task-definitions";
+import { nextId } from "@/server/store-utils";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -36,8 +37,7 @@ export async function readTasks(): Promise<Task[]> {
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   const all = await readAllTasks();
-  const nextId = all.reduce((max, t) => Math.max(max, t.id), 0) + 1;
-  const created: Task = { id: nextId, ...input };
+  const created: Task = { id: nextId(all), ...input };
   await writeTasks([...all, created]);
   return created;
 }

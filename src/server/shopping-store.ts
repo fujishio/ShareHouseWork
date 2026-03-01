@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { nextId } from "@/server/store-utils";
 import type { ShoppingItem, CreateShoppingItemInput, CheckShoppingItemInput } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -37,10 +38,8 @@ export async function appendShoppingItem(
   input: CreateShoppingItemInput
 ): Promise<ShoppingItem> {
   const items = await readShoppingItems();
-  const nextId = items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
-
   const created: ShoppingItem = {
-    id: nextId,
+    id: nextId(items),
     ...input,
   };
 

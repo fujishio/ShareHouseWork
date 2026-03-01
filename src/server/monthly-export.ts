@@ -10,7 +10,7 @@ type MemberSummary = {
   lastCompletedAt: string;
 };
 
-function toCsvCell(value: string | number) {
+function toCsvCell(value: string | number | boolean) {
   const stringValue = String(value);
   if (!/[",\n]/.test(stringValue)) {
     return stringValue;
@@ -18,7 +18,7 @@ function toCsvCell(value: string | number) {
   return `"${stringValue.replace(/"/g, "\"\"")}"`;
 }
 
-function toCsvRow(values: Array<string | number>) {
+function toCsvRow(values: Array<string | number | boolean>) {
   return values.map((value) => toCsvCell(value)).join(",");
 }
 

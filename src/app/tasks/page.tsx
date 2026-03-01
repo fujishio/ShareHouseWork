@@ -1,35 +1,11 @@
 import { AlertCircle, CheckCircle2, Clock, Star } from "lucide-react";
-import { getPrioritizedTasks } from "@/domain/tasks";
+import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import MonthlyContributionCarousel from "@/components/MonthlyContributionCarousel";
 import RecentCompletionsSection from "@/components/RecentCompletionsSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readTasks } from "@/server/task-store";
 import { formatRelativeTime } from "@/shared/lib/time";
-import type { TaskCompletionRecord } from "@/types";
-
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-function getLatestCompletionByTask(records: TaskCompletionRecord[]): Record<number, Date | null> {
-  const latestByTask: Record<number, Date | null> = {};
-
-  for (const record of records) {
-    if (record.canceledAt) {
-      continue;
-    }
-
-    const completedAt = new Date(record.completedAt);
-    if (Number.isNaN(completedAt.getTime())) {
-      continue;
-    }
-
-    const current = latestByTask[record.taskId];
-    if (!current || completedAt > current) {
-      latestByTask[record.taskId] = completedAt;
-    }
-  }
-
-  return latestByTask;
-}
 
 function toMonthKey(date: Date): string {
   const year = date.getFullYear();

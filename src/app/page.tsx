@@ -2,47 +2,21 @@ import ContributionWidget from "@/components/ContributionWidget";
 import ExpenseWidget from "@/components/ExpenseWidget";
 import NoticesWidget from "@/components/NoticesWidget";
 import RecentTasksWidget from "@/components/RecentTasksWidget";
-import { getPrioritizedTasks } from "@/domain/tasks";
+import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
-import { formatJpDate, getGreeting } from "@/shared/lib/time";
+import { formatJpDate, getGreeting, toJstMonthKey } from "@/shared/lib/time";
 import { HOUSE_MEMBERS, CURRENT_USER_ID } from "@/shared/constants/house";
 import type { ContributionData, TaskCompletionRecord } from "@/types";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
-const JST_TIMEZONE = "Asia/Tokyo";
-
-function toJstMonthKey(date: Date): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: JST_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(date);
-  const year = parts.find((p) => p.type === "year")?.value;
-  const month = parts.find((p) => p.type === "month")?.value;
-  return year && month ? `${year}-${month}` : date.toISOString().slice(0, 7);
-}
 
 function toLabelFromMonthKey(monthKey: string): string {
   const [year, month] = monthKey.split("-");
   return `${year}年${Number(month)}月`;
-}
-
-function getLatestCompletionByTask(records: TaskCompletionRecord[]): Record<number, Date | null> {
-  const latest: Record<number, Date | null> = {};
-  for (const record of records) {
-    if (record.canceledAt) continue;
-    const completedAt = new Date(record.completedAt);
-    if (Number.isNaN(completedAt.getTime())) continue;
-    const current = latest[record.taskId];
-    if (!current || completedAt > current) {
-      latest[record.taskId] = completedAt;
-    }
-  }
-  return latest;
 }
 
 function computeContributionData(records: TaskCompletionRecord[], now: Date): ContributionData[] {
