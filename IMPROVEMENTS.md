@@ -11,23 +11,23 @@
 |------|------|
 | DB移行（JSON → PostgreSQL + Prisma） | 未着手 |
 | 認証（NextAuth + LINE Login） | 未着手 |
-| テスト失敗 | **1件 fail**（shopping-api-validation、パスエイリアス問題） |
-| メンバーリスト重複 | 7ファイルにハードコード（HOUSE_MEMBERS未使用） |
-| 日付/タイムゾーン重複ロジック | 3ファイルに分散（shared/lib/time.ts 未活用箇所あり） |
-| "あなた" ハードコード | 6コンポーネントに散在（認証実装で全て要置換） |
+| テスト | **27件 pass / 0件 fail**（全テスト通過） |
+| メンバーリスト一元化 | 完了（HOUSE_MEMBERS からの派生に統一） |
+| 日付/タイムゾーン集約 | 完了（shared/lib/time.ts に集約） |
+| "あなた" ハードコード | CURRENT_ACTOR に集約済（認証実装で1箇所変更するだけ） |
 | APIバリデーション統一（zod） | 未完了 |
-| APIメンバー検証 | 一部のみ（task-completions は検証済、expenses/shopping は未検証） |
-| 監査ログ | 一部の操作のみ（rules/notices の作成・更新は未記録） |
+| APIメンバー検証 | 完了（全APIで isValidMemberName() による検証済） |
+| 監査ログ | 完了（全CUD操作に監査ログ追加済） |
 | レートリミット | 未着手 |
-| テスト + CI | 部分完了（22件 pass / 1件 fail） |
+| テスト + CI | 完了（27件 pass、CI で test + build 実行） |
 | ローディング状態の統一 | 完了 |
 | エラーハンドリングUI | 完了 |
 
 ---
 
-## 今すぐ対応可能な整理・バグ修正（認証/DB移行の準備）
+## ~~今すぐ対応可能な整理・バグ修正（認証/DB移行の準備）~~ ✅ 全完了
 
-### P0. テスト失敗の修正
+### P0. テスト失敗の修正 ✅
 
 **問題**
 - `src/domain/shopping/shopping-api-validation.test.ts` が失敗（1件）
@@ -42,7 +42,7 @@
 
 ---
 
-### P1. メンバーリストの一元化（DRY違反の修正）
+### P1. メンバーリストの一元化（DRY違反の修正） ✅
 
 **問題**
 - `HOUSE_MEMBERS`（`src/shared/constants/house.ts`）が正式な定義元だが、以下7ファイルで同じ名前リストをハードコードしている:
@@ -64,7 +64,7 @@
 
 ---
 
-### P2. "あなた" ハードコードの整理
+### P2. "あなた" ハードコードの整理 ✅
 
 **問題**
 - 現在のユーザーを表す文字列 `"あなた"` が以下6コンポーネントにハードコードされている:
@@ -81,7 +81,7 @@
 
 ---
 
-### P3. 日付/タイムゾーン重複ロジックの集約
+### P3. 日付/タイムゾーン重複ロジックの集約 ✅
 
 **問題**
 - `src/shared/lib/time.ts` に JST ユーティリティがあるのに、以下のファイルで重複実装している:
@@ -95,7 +95,7 @@
 
 ---
 
-### P4. isRuleConfirmed ロジックバグの修正
+### P4. isRuleConfirmed ロジックバグの修正 ✅
 
 **問題**
 - `src/components/RulesSection.tsx:30-31`:
@@ -112,7 +112,7 @@
 
 ---
 
-### P5. APIメンバー名バリデーションの統一
+### P5. APIメンバー名バリデーションの統一 ✅
 
 **問題**
 - `task-completions` API は `completedBy` を `HOUSE_MEMBERS` で検証している（正しい）
@@ -128,7 +128,7 @@
 
 ---
 
-### P6. 型定義の整理（Prisma移行準備）
+### P6. 型定義の整理（Prisma移行準備） ✅
 
 **問題**
 - `src/types/index.ts` にいくつかの型の不整合がある:
@@ -145,7 +145,7 @@
 
 ---
 
-### P7. 監査ログの欠落を補完
+### P7. 監査ログの欠落を補完 ✅
 
 **問題**
 - 以下の操作で監査ログが記録されていない:
@@ -160,7 +160,7 @@
 
 ---
 
-### P8. `src/lib/` 空ディレクトリの削除
+### P8. `src/lib/` 空ディレクトリの削除 ✅
 
 **問題**
 - `src/lib/` ディレクトリが空のまま残っている
@@ -170,7 +170,7 @@
 
 ---
 
-### P9. `package.json` に `"type": "module"` を追加
+### P9. `package.json` に `"type": "module"` を追加 ✅
 
 **問題**
 - テスト実行時に毎回 `MODULE_TYPELESS_PACKAGE_JSON` 警告が出る
@@ -341,6 +341,16 @@
 | エラーハンドリングUI | `error.tsx` / `RetryNotice` / 再取得ボタンを追加済み |
 | テスト + CI（基本） | `.github/workflows/ci.yml` で test / build を自動実行 |
 | コード重複リファクタリング | JST集約・nextId()共通化・getLatestCompletionByTask集約（2026-03-01） |
+| P0. テスト失敗の修正 | パスエイリアス問題を解消、全27テスト pass（2026-03-01） |
+| P1. メンバーリストの一元化 | RuleCategory バリデーション統一（2026-03-01） |
+| P2. 監査ログ AuditAction 型追加 | AuditAction union type を types/index.ts に追加（2026-03-01） |
+| P3. shopping API バリデーション強化 | addedBy の検証追加（2026-03-01） |
+| P4. task-completions メンバーバリデーション | isValidMemberName() による検証追加（2026-03-01） |
+| P5. TaskCompleteModal エラーハンドリング | サイレント抑制からエラー表示に変更（2026-03-01） |
+| P6. monthly-export CSV 型バグ修正 | boolean が toCsvCell に渡せないバグを修正（2026-03-01） |
+| P7. 監査ログの欠落を補完 | rules/notices の全CUD操作に監査ログ追加（2026-03-01） |
+| P8. `src/lib/` 空ディレクトリ削除 | 削除済（2026-03-01） |
+| P9. `package.json` に `"type": "module"` 追加 | 警告解消済（2026-03-01） |
 
 ---
 
@@ -348,9 +358,9 @@
 
 | 順 | 項目 | 理由 |
 |:--:|------|------|
-| 1 | P0〜P3 | テスト修正・DRY違反・バグ修正。認証/DB前にコード品質を確保 |
-| 2 | P4〜P9 | バリデーション統一・型整理・監査ログ補完。移行時の手戻りを減らす |
-| 3 | A. DB移行 | Vercelデプロイに必須。全機能の基盤 |
+| ~~1~~ | ~~P0〜P3~~ | ~~テスト修正・DRY違反・バグ修正~~ ✅ 完了 |
+| ~~2~~ | ~~P4〜P9~~ | ~~バリデーション統一・型整理・監査ログ補完~~ ✅ 完了 |
+| 3 | A. DB移行 | Vercelデプロイに必須。全機能の基盤 ← **次はここ** |
 | 4 | B. 認証実装 | ユーザー識別なしでは実運用不可 |
 | 5 | C. APIバリデーション統一 | DB移行と同時に整備すると効率的 |
 | 6 | D. レートリミット導入 | 認証後すぐに対応 |
@@ -362,7 +372,7 @@
 
 ## 直近の確認ログ
 
-- `npm test`: **22 pass / 1 fail**（shopping-api-validation: `@/` パスエイリアス未解決）
+- `npm test`: **27 pass / 0 fail**（全テスト通過）
 - `npx tsc --noEmit`: **エラーなし**（型チェック通過）
 - CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行
-- 既知の軽微課題: Node 実行時に `MODULE_TYPELESS_PACKAGE_JSON` 警告あり
+- `"type": "module"` 追加済（`MODULE_TYPELESS_PACKAGE_JSON` 警告を解消）
