@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Star, ChevronLeft } from "lucide-react";
-import { TASKS } from "@/domain/tasks";
 import type {
   ApiErrorResponse,
   CreateTaskCompletionInput,
+  Task,
   TaskCompletionCreateResponse,
+  TaskListResponse,
 } from "@/types";
 import { LoadingNotice } from "@/components/RequestStatus";
 import { showToast } from "@/shared/lib/toast";
@@ -18,6 +19,8 @@ type Props = {
 
 export default function TaskCompleteModal({ onClose }: Props) {
   const router = useRouter();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,17 +29,27 @@ export default function TaskCompleteModal({ onClose }: Props) {
     message: string;
   } | null>(null);
 
+  useEffect(() => {
+    fetch("/api/tasks")
+      .then((res) => res.json() as Promise<TaskListResponse | ApiErrorResponse>)
+      .then((json) => {
+        if ("data" in json) setTasks(json.data);
+      })
+      .catch(() => {})
+      .finally(() => setTasksLoading(false));
+  }, []);
+
   const categories = useMemo(() => {
     const map = new Map<string, number>();
-    for (const task of TASKS) {
+    for (const task of tasks) {
       map.set(task.category, (map.get(task.category) ?? 0) + 1);
     }
     return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
-  }, []);
+  }, [tasks]);
 
   const filteredTasks = useMemo(
-    () => TASKS.filter((t) => t.category === selectedCategory),
-    [selectedCategory]
+    () => tasks.filter((t) => t.category === selectedCategory),
+    [tasks, selectedCategory]
   );
 
   const handleComplete = async (taskId: number) => {
@@ -112,7 +125,11 @@ export default function TaskCompleteModal({ onClose }: Props) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        {isSubmitting && <div className="mb-2"><LoadingNotice message="完了報告を保存中..." /></div>}
+        {(isSubmitting || tasksLoading) && (
+          <div className="mb-2">
+            <LoadingNotice message={tasksLoading ? "タスクを読み込み中..." : "完了報告を保存中..."} />
+          </div>
+        )}
         {feedback && (
           <div
             className={`mb-2 rounded-lg px-3 py-2 text-xs font-medium ${

@@ -1,8 +1,9 @@
 import { AlertCircle, CheckCircle2, Clock, Star } from "lucide-react";
-import { TASKS, getPrioritizedTasks } from "@/domain/tasks";
+import { getPrioritizedTasks } from "@/domain/tasks";
 import MonthlyContributionCarousel from "@/components/MonthlyContributionCarousel";
 import RecentCompletionsSection from "@/components/RecentCompletionsSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
+import { readTasks } from "@/server/task-store";
 import { formatRelativeTime } from "@/shared/lib/time";
 import type { TaskCompletionRecord } from "@/types";
 
@@ -72,11 +73,11 @@ function StatusBadge({ overdueDays }: { overdueDays: number }) {
 
 export default async function TasksPage() {
   const now = new Date();
-  const completions = await readTaskCompletions();
+  const [completions, tasks] = await Promise.all([readTaskCompletions(), readTasks()]);
   const validCompletions = completions.filter((record) => !record.canceledAt);
 
   const latestByTask = getLatestCompletionByTask(completions);
-  const priorityTasks = getPrioritizedTasks(latestByTask, now, TASKS.length);
+  const priorityTasks = getPrioritizedTasks(latestByTask, now, tasks.length, tasks);
 
   const recentCompletions = [...completions]
     .filter((record) => !Number.isNaN(new Date(record.completedAt).getTime()))

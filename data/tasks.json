@@ -1,0 +1,247 @@
+[
+  {
+    "id": 1,
+    "name": "【料理】共有の食事",
+    "points": 20,
+    "category": "炊事・洗濯",
+    "frequencyDays": 3
+  },
+  {
+    "id": 2,
+    "name": "【料理】洗い物・片付け",
+    "points": 20,
+    "category": "炊事・洗濯",
+    "frequencyDays": 1
+  },
+  {
+    "id": 3,
+    "name": "【キッチン】排水溝ネット交換",
+    "points": 10,
+    "category": "炊事・洗濯",
+    "frequencyDays": 14
+  },
+  {
+    "id": 4,
+    "name": "【キッチン】生ゴミ捨て",
+    "points": 10,
+    "category": "炊事・洗濯",
+    "frequencyDays": 3
+  },
+  {
+    "id": 5,
+    "name": "【洗濯】共有カゴの洗濯",
+    "points": 20,
+    "category": "炊事・洗濯",
+    "frequencyDays": 7
+  },
+  {
+    "id": 6,
+    "name": "【洗濯】干す・取り込む",
+    "points": 20,
+    "category": "炊事・洗濯",
+    "frequencyDays": 3
+  },
+  {
+    "id": 7,
+    "name": "【洗濯】洗剤・柔軟剤の補充",
+    "points": 10,
+    "category": "炊事・洗濯",
+    "frequencyDays": 30
+  },
+  {
+    "id": 8,
+    "name": "【風呂】浴槽の掃除",
+    "points": 20,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 9,
+    "name": "【風呂】床・壁の掃除",
+    "points": 20,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 10,
+    "name": "【風呂】排水口の掃除",
+    "points": 20,
+    "category": "水回りの掃除",
+    "frequencyDays": 14
+  },
+  {
+    "id": 11,
+    "name": "【洗面所】洗面台の掃除",
+    "points": 10,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 12,
+    "name": "【洗面所】床の掃除",
+    "points": 10,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 13,
+    "name": "【トイレ】掃除",
+    "points": 30,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 14,
+    "name": "【トイレ】トイレットペーパー補充",
+    "points": 10,
+    "category": "水回りの掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 15,
+    "name": "【風呂】シャンプー類の補充",
+    "points": 10,
+    "category": "水回りの掃除",
+    "frequencyDays": 30
+  },
+  {
+    "id": 16,
+    "name": "【キッチン】コンロ周りの掃除",
+    "points": 30,
+    "category": "共用部の掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 17,
+    "name": "【キッチン】コンロ五徳・油受けの洗浄",
+    "points": 30,
+    "category": "共用部の掃除",
+    "frequencyDays": 14
+  },
+  {
+    "id": 18,
+    "name": "【キッチン】電子レンジの掃除",
+    "points": 20,
+    "category": "共用部の掃除",
+    "frequencyDays": 14
+  },
+  {
+    "id": 19,
+    "name": "【キッチン】グリル掃除",
+    "points": 30,
+    "category": "共用部の掃除",
+    "frequencyDays": 14
+  },
+  {
+    "id": 20,
+    "name": "【リビング】掃除機がけ",
+    "points": 30,
+    "category": "共用部の掃除",
+    "frequencyDays": 3
+  },
+  {
+    "id": 21,
+    "name": "【リビング】ソファの水拭き",
+    "points": 20,
+    "category": "共用部の掃除",
+    "frequencyDays": 30
+  },
+  {
+    "id": 22,
+    "name": "【リビング】テーブルの水拭き",
+    "points": 10,
+    "category": "共用部の掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 23,
+    "name": "【廊下・階段】掃除機がけ",
+    "points": 30,
+    "category": "共用部の掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 24,
+    "name": "【玄関外】掃除",
+    "points": 20,
+    "category": "共用部の掃除",
+    "frequencyDays": 7
+  },
+  {
+    "id": 25,
+    "name": "【ベランダ】掃除",
+    "points": 20,
+    "category": "共用部の掃除",
+    "frequencyDays": 30
+  },
+  {
+    "id": 26,
+    "name": "【ゴミ出し】可燃",
+    "points": 20,
+    "category": "ゴミ捨て",
+    "frequencyDays": 7
+  },
+  {
+    "id": 27,
+    "name": "【ゴミ出し】資源・不燃",
+    "points": 20,
+    "category": "ゴミ捨て",
+    "frequencyDays": 14
+  },
+  {
+    "id": 28,
+    "name": "【掃除機】ダストカップ掃除",
+    "points": 20,
+    "category": "ゴミ捨て",
+    "frequencyDays": 7
+  },
+  {
+    "id": 29,
+    "name": "【掃除機】フィルター掃除",
+    "points": 20,
+    "category": "ゴミ捨て",
+    "frequencyDays": 14
+  },
+  {
+    "id": 30,
+    "name": "【買い出し】スーパー",
+    "points": 30,
+    "category": "買い出し",
+    "frequencyDays": 7
+  },
+  {
+    "id": 31,
+    "name": "【買い出し】ドラッグストア",
+    "points": 30,
+    "category": "買い出し",
+    "frequencyDays": 14
+  },
+  {
+    "id": 32,
+    "name": "換気扇の掃除",
+    "points": 50,
+    "category": "季節・不定期",
+    "frequencyDays": 180
+  },
+  {
+    "id": 33,
+    "name": "エアコンフィルター掃除",
+    "points": 30,
+    "category": "季節・不定期",
+    "frequencyDays": 90
+  },
+  {
+    "id": 34,
+    "name": "排水口の大掃除",
+    "points": 30,
+    "category": "季節・不定期",
+    "frequencyDays": 90
+  },
+  {
+    "id": 35,
+    "name": "窓ガラス・網戸の掃除",
+    "points": 30,
+    "category": "季節・不定期",
+    "frequencyDays": 90
+  }
+]

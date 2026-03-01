@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { Check, Trash2, RotateCcw } from "lucide-react";
-import type { ShoppingItem } from "@/types";
+import type { ShoppingItem, ExpenseCategory } from "@/types";
+import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 
 const CURRENT_ACTOR = "あなた";
+const MEMBERS = ["家主", "パートナー", "友達１", "友達２"] as const;
 
 type Props = {
   initialItems: ShoppingItem[];
@@ -51,6 +53,10 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
   const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
+  const [pendingCheckItem, setPendingCheckItem] = useState<ShoppingItem | null>(null);
+  const [pendingAmount, setPendingAmount] = useState("");
+  const [pendingPurchasedBy, setPendingPurchasedBy] = useState<string>(CURRENT_ACTOR);
+  const [pendingCategory, setPendingCategory] = useState<ExpenseCategory>("消耗品");
 
   const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
   const checkedItems = items
@@ -66,28 +72,63 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
     (item) => item.checkedAt?.startsWith(currentMonth)
   ).length;
 
-  async function handleCheck(item: ShoppingItem) {
+  function openCheckDialog(item: ShoppingItem) {
+    setPendingCheckItem(item);
+    setPendingAmount("");
+    setPendingPurchasedBy(CURRENT_ACTOR);
+    setPendingCategory(item.category ?? "消耗品");
+  }
+
+  async function handleConfirmCheck(addToExpenses: boolean) {
+    if (!pendingCheckItem) return;
+    const item = pendingCheckItem;
+    setPendingCheckItem(null);
     setCheckingId(item.id);
     try {
-      const response = await fetch(`/api/shopping/${item.id}`, {
+      const checkResponse = await fetch(`/api/shopping/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkedBy: CURRENT_ACTOR }),
+        body: JSON.stringify({ checkedBy: pendingPurchasedBy }),
       });
-      if (!response.ok) {
+      if (!checkResponse.ok) {
         showToast({
           level: "error",
-          message: await getApiErrorMessage(response, "購入済み更新に失敗しました"),
+          message: await getApiErrorMessage(checkResponse, "購入済み更新に失敗しました"),
         });
         return;
       }
-      const json = (await response.json()) as { data: ShoppingItem };
-      setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
-      showToast({ level: "success", message: "購入済みにしました" });
+      const checkJson = (await checkResponse.json()) as { data: ShoppingItem };
+      setItems((prev) => prev.map((i) => (i.id === item.id ? checkJson.data : i)));
+
+      if (addToExpenses) {
+        const expenseResponse = await fetch("/api/expenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: item.name,
+            amount: Number(pendingAmount),
+            category: pendingCategory,
+            purchasedBy: pendingPurchasedBy,
+            purchasedAt: checkJson.data.checkedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+          }),
+        });
+        if (!expenseResponse.ok) {
+          showToast({
+            level: "error",
+            message: await getApiErrorMessage(expenseResponse, "費用の登録に失敗しました"),
+          });
+          showToast({ level: "success", message: "購入済みにしました（費用の登録は失敗しました）" });
+          return;
+        }
+        showToast({ level: "success", message: "購入済みにして費用に追加しました" });
+      } else {
+        showToast({ level: "success", message: "購入済みにしました" });
+      }
     } catch {
       showToast({ level: "error", message: "通信エラーが発生しました" });
     } finally {
       setCheckingId(null);
+      setPendingAmount("");
     }
   }
 
@@ -147,6 +188,88 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         <LoadingNotice message="買い物リストを更新中..." />
       )}
 
+      {/* Purchase confirmation dialog */}
+      {pendingCheckItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
+          onClick={() => setPendingCheckItem(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-4 space-y-3 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-xs text-stone-400 mb-0.5">購入済みにする</p>
+              <p className="text-base font-bold text-stone-800">{pendingCheckItem.name}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600">
+                  金額（円）
+                </label>
+                <input
+                  type="number"
+                  value={pendingAmount}
+                  onChange={(e) => setPendingAmount(e.target.value)}
+                  placeholder="0"
+                  min={1}
+                  autoFocus
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-600">
+                  購入者
+                </label>
+                <select
+                  value={pendingPurchasedBy}
+                  onChange={(e) => setPendingPurchasedBy(e.target.value)}
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                >
+                  {MEMBERS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-stone-600">
+                カテゴリ
+              </label>
+              <select
+                value={pendingCategory}
+                onChange={(e) => setPendingCategory(e.target.value as ExpenseCategory)}
+                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+              >
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleConfirmCheck(false)}
+                className="flex-1 rounded-xl border border-stone-300 py-2.5 text-sm font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
+              >
+                費用に追加せず完了
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmCheck(true)}
+                disabled={!pendingAmount || Number(pendingAmount) <= 0}
+                className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                費用に追加して完了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Shopping list */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
         <div className="px-4 pt-4 pb-3 border-b border-stone-100">
@@ -170,7 +293,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                   type="button"
                   aria-label="購入済みにする"
                   disabled={checkingId === item.id}
-                  onClick={() => handleCheck(item)}
+                  onClick={() => openCheckDialog(item)}
                   className="flex-shrink-0 w-6 h-6 rounded-full border-2 border-stone-300 flex items-center justify-center hover:border-amber-400 hover:bg-amber-50 transition-colors disabled:opacity-40"
                 />
                 <div className="min-w-0 flex-1">

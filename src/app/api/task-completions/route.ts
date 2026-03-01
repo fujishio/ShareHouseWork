@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { TASKS } from "@/domain/tasks";
+import { readTasks } from "@/server/task-store";
 import {
   appendTaskCompletion,
   readTaskCompletions,
@@ -141,7 +141,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "source must be app or line." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
-  const task = TASKS.find((item) => item.id === payload.taskId);
+  const tasks = await readTasks();
+  const task = tasks.find((item) => item.id === payload.taskId);
   if (!task) {
     return NextResponse.json({ error: "taskId does not exist." }, { status: 404 }) as NextResponse<ApiErrorResponse>;
   }

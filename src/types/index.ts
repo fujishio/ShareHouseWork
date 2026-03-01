@@ -158,6 +158,7 @@ export type ShoppingItem = {
   name: string;
   quantity: string;
   memo: string;
+  category?: ExpenseCategory;
   addedBy: string;
   addedAt: IsoDateString;
   checkedBy?: string;
@@ -170,6 +171,7 @@ export type CreateShoppingItemInput = {
   name: string;
   quantity: string;
   memo: string;
+  category?: ExpenseCategory;
   addedBy: string;
   addedAt: IsoDateString;
 };
@@ -269,7 +271,27 @@ export type Task = {
   points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
   frequencyDays: number; // ideal interval between completions
+  deletedAt?: IsoDateString;
 };
+
+export type CreateTaskInput = {
+  name: string;
+  category: TaskCategory;
+  points: HousePoints;
+  frequencyDays: number;
+};
+
+export type UpdateTaskInput = {
+  name: string;
+  category: TaskCategory;
+  points: HousePoints;
+  frequencyDays: number;
+};
+
+export type TaskListResponse = ApiSuccessResponse<Task[]>;
+export type TaskCreateResponse = ApiSuccessResponse<Task>;
+export type TaskUpdateResponse = ApiSuccessResponse<Task>;
+export type TaskDeleteResponse = ApiSuccessResponse<Task>;
 
 export type PrioritizedTask = Task & {
   lastCompletedAt: Date | null;

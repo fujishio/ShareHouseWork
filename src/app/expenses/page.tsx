@@ -1,8 +1,9 @@
-import { Wallet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import ExpenseSection from "@/components/ExpenseSection";
+import ExpenseMonthNav from "@/components/ExpenseMonthNav";
 
 const JST_TIMEZONE = "Asia/Tokyo";
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
@@ -95,34 +96,12 @@ export default async function ExpensesPage({
   return (
     <div className="space-y-4">
       {/* Month navigation */}
-      <div className="flex items-center justify-between px-1">
-        <a
-          href={`?month=${prevMonthKey}`}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 transition-colors"
-          aria-label="前の月"
-        >
-          <ChevronLeft size={20} />
-        </a>
-        <span className="text-base font-bold text-stone-800">{monthLabel}</span>
-        {canGoNext ? (
-          <a
-            href={`?month=${nextMonthKey}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 transition-colors"
-            aria-label="次の月"
-          >
-            <ChevronRight size={20} />
-          </a>
-        ) : (
-          <button
-            type="button"
-            disabled
-            aria-label="次の月（現在月のため無効）"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-stone-300 cursor-not-allowed"
-          >
-            <ChevronRight size={20} />
-          </button>
-        )}
-      </div>
+      <ExpenseMonthNav
+        monthLabel={monthLabel}
+        prevMonthKey={prevMonthKey}
+        nextMonthKey={nextMonthKey}
+        canGoNext={canGoNext}
+      />
 
       {/* Summary card */}
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">

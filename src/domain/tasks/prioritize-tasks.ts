@@ -1,4 +1,4 @@
-import type { PrioritizedTask } from "../../types/index.ts";
+import type { PrioritizedTask, Task } from "../../types/index.ts";
 import { TASKS } from "./task-definitions.ts";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -6,9 +6,10 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 export function getPrioritizedTasks(
   lastCompletions: Record<number, Date | null>,
   now: Date,
-  limit = 5
+  limit = 5,
+  tasks: Task[] = TASKS
 ): PrioritizedTask[] {
-  return TASKS.map((task) => {
+  return tasks.map((task) => {
     const lastCompletedAt = lastCompletions[task.id] ?? null;
 
     let urgencyRatio: number;

@@ -5,7 +5,8 @@ import {
   isTrimmedNonEmpty,
   normalizeShoppingDate,
 } from "@/domain/shopping/shopping-api-validation";
-import type { CreateShoppingItemInput } from "@/types";
+import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
+import type { CreateShoppingItemInput, ExpenseCategory } from "@/types";
 
 export async function GET() {
   const items = await readShoppingItems();
@@ -47,10 +48,17 @@ export async function POST(request: Request) {
       ? raw.addedBy.trim()
       : "不明";
 
+  const rawCategory = raw.category;
+  const category =
+    typeof rawCategory === "string" && EXPENSE_CATEGORIES.includes(rawCategory as ExpenseCategory)
+      ? (rawCategory as ExpenseCategory)
+      : undefined;
+
   const input: CreateShoppingItemInput = {
     name: normalizedName,
     quantity: typeof raw.quantity === "string" ? raw.quantity.trim() : "1",
     memo: typeof raw.memo === "string" ? raw.memo.trim() : "",
+    category,
     addedBy: normalizedAddedBy,
     addedAt: normalizedAddedAt,
   };

@@ -28,5 +28,16 @@
     "addedAt": "2026-02-25T11:33:50.365Z",
     "checkedBy": "家主",
     "checkedAt": "2026-02-25T11:33:52.241Z"
+  },
+  {
+    "id": 4,
+    "name": "トイレットペーパー",
+    "quantity": "1",
+    "memo": "",
+    "category": "消耗品",
+    "addedBy": "家主",
+    "addedAt": "2026-03-01",
+    "checkedBy": "あなた",
+    "checkedAt": "2026-03-01"
   }
 ]

@@ -36,10 +36,10 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
     (e) => e.purchasedAt.startsWith(monthPrefix) && !e.canceledAt
   );
 
-  const allExpenses = [...expenses].sort(
-    (a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime()
-  );
-  const visibleHistory = isHistoryExpanded ? allExpenses : allExpenses.slice(0, 5);
+  const monthHistoryExpenses = [...expenses]
+    .filter((e) => e.purchasedAt.startsWith(monthPrefix))
+    .sort((a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime());
+  const visibleHistory = isHistoryExpanded ? monthHistoryExpenses : monthHistoryExpenses.slice(0, 5);
 
   async function handleCancel(expense: ExpenseRecord) {
     setCancelingId(expense.id);
@@ -87,7 +87,7 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">支出履歴</h3>
 
-        {allExpenses.length === 0 ? (
+        {monthHistoryExpenses.length === 0 ? (
           <p className="py-4 text-center text-sm text-stone-400">まだ支出記録はありません</p>
         ) : (
           <ul className="space-y-2">
@@ -137,13 +137,13 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
           </ul>
         )}
 
-        {allExpenses.length > 5 && (
+        {monthHistoryExpenses.length > 5 && (
           <button
             type="button"
             onClick={() => setIsHistoryExpanded((prev) => !prev)}
             className="mt-3 w-full rounded-xl border border-stone-200 py-2 text-xs font-medium text-stone-500 hover:bg-stone-50 transition-colors"
           >
-            {isHistoryExpanded ? "折りたたむ" : `残り${allExpenses.length - 5}件を表示`}
+            {isHistoryExpanded ? "折りたたむ" : `残り${monthHistoryExpenses.length - 5}件を表示`}
           </button>
         )}
       </div>
