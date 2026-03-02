@@ -1,104 +1,82 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Rule, CreateRuleInput, UpdateRuleInput } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "rules.json");
+const COLLECTION = "rules";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    await writeFile(DATA_FILE, "[]\n", "utf-8");
-  }
+function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
+  return {
+    id,
+    title: data.title,
+    body: data.body,
+    category: data.category,
+    createdBy: data.createdBy,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt ?? undefined,
+    acknowledgedBy: data.acknowledgedBy ?? [],
+    deletedAt: data.deletedAt ?? undefined,
+    deletedBy: data.deletedBy ?? undefined,
+  };
 }
 
 export async function readRules(): Promise<Rule[]> {
-  await ensureDataFile();
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  return parsed as Rule[];
-}
-
-async function writeRules(rules: Rule[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(rules, null, 2)}\n`, "utf-8");
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .orderBy("createdAt", "desc")
+    .get();
+  return snapshot.docs.map((doc) => docToRule(doc.id, doc.data()));
 }
 
 export async function appendRule(input: CreateRuleInput): Promise<Rule> {
-  const rules = await readRules();
-  const created: Rule = {
-    id: nextId(rules),
+  const db = getAdminFirestore();
+  const data = {
     ...input,
+    acknowledgedBy: [],
+    deletedAt: null,
+    deletedBy: null,
   };
-
-  await writeRules([...rules, created]);
-  return created;
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToRule(ref.id, data);
 }
 
-export async function updateRule(
-  ruleId: number,
-  input: UpdateRuleInput
-): Promise<Rule | null> {
-  const rules = await readRules();
-  const index = rules.findIndex((r) => r.id === ruleId);
-  if (index === -1) return null;
+export async function updateRule(ruleId: string, input: UpdateRuleInput): Promise<Rule | null> {
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(ruleId);
+  const doc = await ref.get();
+  if (!doc.exists || doc.data()?.deletedAt) return null;
 
-  const target = rules[index];
-  if (target.deletedAt) return null;
-
-  const updated: Rule = {
-    ...target,
-    title: input.title,
-    body: input.body,
-    category: input.category,
-    updatedAt: input.updatedAt,
-  };
-  rules[index] = updated;
-  await writeRules(rules);
-  return updated;
+  await ref.update({ ...input });
+  return docToRule(ruleId, { ...doc.data(), ...input });
 }
 
-export async function acknowledgeRule(
-  ruleId: number,
-  memberName: string
-): Promise<Rule | null> {
-  const rules = await readRules();
-  const index = rules.findIndex((r) => r.id === ruleId);
-  if (index === -1) return null;
+export async function acknowledgeRule(ruleId: string, memberName: string): Promise<Rule | null> {
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(ruleId);
+  const doc = await ref.get();
+  if (!doc.exists || doc.data()?.deletedAt) return null;
 
-  const target = rules[index];
-  if (target.deletedAt) return null;
+  const current: string[] = doc.data()?.acknowledgedBy ?? [];
+  if (current.includes(memberName)) return docToRule(ruleId, doc.data()!);
 
-  const current = target.acknowledgedBy ?? [];
-  if (current.includes(memberName)) return target;
-
-  const updated: Rule = {
-    ...target,
-    acknowledgedBy: [...current, memberName],
-  };
-  rules[index] = updated;
-  await writeRules(rules);
-  return updated;
+  const acknowledgedBy = [...current, memberName];
+  await ref.update({ acknowledgedBy });
+  return docToRule(ruleId, { ...doc.data(), acknowledgedBy });
 }
 
 export async function deleteRule(
-  ruleId: number,
+  ruleId: string,
   deletedBy: string,
   deletedAt: string
 ): Promise<Rule | null> {
-  const rules = await readRules();
-  const index = rules.findIndex((r) => r.id === ruleId);
-  if (index === -1) return null;
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(ruleId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  const target = rules[index];
-  if (target.deletedAt) return target;
+  const data = doc.data()!;
+  if (data.deletedAt) return docToRule(ruleId, data);
 
-  const updated: Rule = { ...target, deletedAt, deletedBy };
-  rules[index] = updated;
-  await writeRules(rules);
-  return updated;
+  const updated = { deletedAt, deletedBy };
+  await ref.update(updated);
+  return docToRule(ruleId, { ...data, ...updated });
 }

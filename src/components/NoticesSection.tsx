@@ -7,7 +7,7 @@ import { formatRelativeTime } from "@/shared/lib/time";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   initialNotices: Notice[];
@@ -21,16 +21,14 @@ function isOld(postedAt: string): boolean {
 
 export default function NoticesSection({ initialNotices }: Props) {
   const [notices, setNotices] = useState<Notice[]>(initialNotices);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [oldExpanded, setOldExpanded] = useState(false);
 
   async function handleDelete(notice: Notice) {
     setDeletingId(notice.id);
     try {
-      const response = await fetch(`/api/notices/${notice.id}`, {
+      const response = await apiFetch(`/api/notices/${notice.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deletedBy: CURRENT_ACTOR }),
       });
       if (!response.ok) {
         showToast({
@@ -148,7 +146,7 @@ export default function NoticesSection({ initialNotices }: Props) {
 
 type NoticeItemProps = {
   notice: Notice;
-  deletingId: number | null;
+  deletingId: string | null;
   onDelete: (notice: Notice) => void;
   important: boolean;
 };

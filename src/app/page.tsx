@@ -9,7 +9,7 @@ import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
 import { formatJpDate, getGreeting, toJstMonthKey } from "@/shared/lib/time";
-import { HOUSE_MEMBERS, CURRENT_USER_ID } from "@/shared/constants/house";
+import { HOUSE_MEMBERS } from "@/shared/constants/house";
 import type { ContributionData, TaskCompletionRecord } from "@/types";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -54,8 +54,9 @@ export default async function HomePage() {
   const priorityTasks = getPrioritizedTasks(latestByTask, now);
 
   const contributionData = computeContributionData(completions, now);
-  const myContribution = contributionData.find((d) => d.member.id === CURRENT_USER_ID);
-  const myRank = contributionData.findIndex((d) => d.member.id === CURRENT_USER_ID) + 1;
+  const currentUser = HOUSE_MEMBERS[0];
+  const myContribution = contributionData.find((d) => d.member.id === currentUser.id);
+  const myRank = contributionData.findIndex((d) => d.member.id === currentUser.id) + 1;
 
   const summary = calculateMonthlyExpenseSummary(currentMonthKey, allExpenses, contributionHistory);
   const expenseSummary = {
@@ -70,7 +71,6 @@ export default async function HomePage() {
     .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
     .slice(0, 5);
 
-  const currentUser = HOUSE_MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? HOUSE_MEMBERS[0];
 
   return (
     <div className="space-y-4">
@@ -87,7 +87,7 @@ export default async function HomePage() {
         data={contributionData}
         myPoints={myContribution?.totalPoints ?? 0}
         myRank={myRank || 1}
-        currentUserId={CURRENT_USER_ID}
+        currentUserId={currentUser.id}
       />
 
       {/* Priority tasks */}

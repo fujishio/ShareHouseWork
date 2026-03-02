@@ -9,7 +9,7 @@ import type {
 import { formatRelativeTime } from "@/shared/lib/time";
 import { ErrorNotice, LoadingNotice } from "./RequestStatus";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type CancelDraft = {
   cancelReasonType: "wrong_entry" | "incomplete" | "other";
@@ -27,7 +27,7 @@ type Props = {
 
 export default function RecentCompletionsSection({ initialRecords }: Props) {
   const [records, setRecords] = useState(initialRecords);
-  const [targetId, setTargetId] = useState<number | null>(null);
+  const [targetId, setTargetId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CancelDraft>(DEFAULT_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
     [records]
   );
 
-  const handleCancel = async (completionId: number) => {
+  const handleCancel = async (completionId: string) => {
     if (isSubmitting) {
       return;
     }
@@ -66,13 +66,12 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
     setErrorMessage(null);
 
     try {
-      const response = await fetch(`/api/task-completions/${completionId}`, {
+      const response = await apiFetch(`/api/task-completions/${completionId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          canceledBy: CURRENT_ACTOR,
           cancelReason: selectedReason,
         }),
       });

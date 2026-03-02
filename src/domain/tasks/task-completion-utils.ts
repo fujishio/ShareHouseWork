@@ -2,8 +2,8 @@ import type { TaskCompletionRecord } from "@/types";
 
 export function getLatestCompletionByTask(
   records: TaskCompletionRecord[]
-): Record<number, Date | null> {
-  const latest: Record<number, Date | null> = {};
+): Record<string, Date | null> {
+  const latest: Record<string, Date | null> = {};
   for (const record of records) {
     if (record.canceledAt) continue;
     const completedAt = new Date(record.completedAt);

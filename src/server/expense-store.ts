@@ -1,77 +1,57 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { ExpenseRecord, CreateExpenseInput, CancelExpenseInput } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "expenses.json");
+const COLLECTION = "expenses";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    await writeFile(DATA_FILE, "[]\n", "utf-8");
-  }
+function docToRecord(id: string, data: FirebaseFirestore.DocumentData): ExpenseRecord {
+  return {
+    id,
+    title: data.title,
+    amount: data.amount,
+    category: data.category,
+    purchasedBy: data.purchasedBy,
+    purchasedAt: data.purchasedAt,
+    canceledAt: data.canceledAt ?? undefined,
+    canceledBy: data.canceledBy ?? undefined,
+    cancelReason: data.cancelReason ?? undefined,
+  };
 }
 
 export async function readExpenses(): Promise<ExpenseRecord[]> {
-  await ensureDataFile();
-
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-
-  return parsed as ExpenseRecord[];
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .orderBy("purchasedAt", "desc")
+    .get();
+  return snapshot.docs.map((doc) => docToRecord(doc.id, doc.data()));
 }
 
-export async function writeExpenses(records: ExpenseRecord[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(records, null, 2)}\n`, "utf-8");
-}
-
-export async function appendExpense(
-  input: CreateExpenseInput
-): Promise<ExpenseRecord> {
-  const records = await readExpenses();
-  const created: ExpenseRecord = {
-    id: nextId(records),
+export async function appendExpense(input: CreateExpenseInput): Promise<ExpenseRecord> {
+  const db = getAdminFirestore();
+  const data = {
     ...input,
+    canceledAt: null,
+    canceledBy: null,
+    cancelReason: null,
   };
-
-  await writeExpenses([...records, created]);
-  return created;
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToRecord(ref.id, data);
 }
 
 export async function cancelExpense(
-  expenseId: number,
+  expenseId: string,
   input: CancelExpenseInput,
   canceledAt: string
 ): Promise<ExpenseRecord | null> {
-  const records = await readExpenses();
-  const index = records.findIndex((record) => record.id === expenseId);
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(expenseId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  if (index === -1) {
-    return null;
-  }
+  const data = doc.data()!;
+  if (data.canceledAt) return docToRecord(expenseId, data);
 
-  const target = records[index];
-  if (target.canceledAt) {
-    return target;
-  }
-
-  const updated: ExpenseRecord = {
-    ...target,
-    canceledAt,
-    canceledBy: input.canceledBy,
-    cancelReason: input.cancelReason,
-  };
-
-  records[index] = updated;
-  await writeExpenses(records);
-  return updated;
+  const updated = { canceledAt, canceledBy: input.canceledBy, cancelReason: input.cancelReason };
+  await ref.update(updated);
+  return docToRecord(expenseId, { ...data, ...updated });
 }

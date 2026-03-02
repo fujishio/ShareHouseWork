@@ -9,7 +9,7 @@ test("未完了タスクが優先される", () => {
   const target = TASKS.find((task) => task.frequencyDays === 7);
   assert.ok(target);
 
-  const baselineCompletions = TASKS.reduce<Record<number, Date | null>>((acc, task) => {
+  const baselineCompletions = TASKS.reduce<Record<string, Date | null>>((acc, task) => {
     acc[task.id] = NOW;
     return acc;
   }, {});
@@ -41,8 +41,8 @@ test("期限境界でoverdueDaysが期待通りになる", () => {
 });
 
 test("同率時の並び順が決定的である", () => {
-  const taskA = TASKS.find((task) => task.id === 1);
-  const taskB = TASKS.find((task) => task.id === 4);
+  const taskA = TASKS.find((task) => task.id === "1");
+  const taskB = TASKS.find((task) => task.id === "4");
   assert.ok(taskA);
   assert.ok(taskB);
 
@@ -58,6 +58,6 @@ test("同率時の並び順が決定的である", () => {
   ).filter((task) => task.id === taskA.id || task.id === taskB.id);
 
   assert.equal(result.length, 2);
-  assert.equal(result[0].id, 1);
-  assert.equal(result[1].id, 4);
+  assert.equal(result[0].id, "1");
+  assert.equal(result[1].id, "4");
 });

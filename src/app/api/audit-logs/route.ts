@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readAuditLogs } from "@/server/audit-log-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { ApiErrorResponse, AuditLogsListResponse } from "@/types";
 
 export const runtime = "nodejs";
@@ -27,6 +28,9 @@ function parseDate(raw: string | null): Date | null {
 }
 
 export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { searchParams } = new URL(request.url);
   const from = parseDate(searchParams.get("from"));
   const to = parseDate(searchParams.get("to"));

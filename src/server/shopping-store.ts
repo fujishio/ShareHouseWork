@@ -1,126 +1,89 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { ShoppingItem, CreateShoppingItemInput, CheckShoppingItemInput } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "shopping.json");
+const COLLECTION = "shoppingItems";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    await writeFile(DATA_FILE, "[]\n", "utf-8");
-  }
+function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingItem {
+  return {
+    id,
+    name: data.name,
+    quantity: data.quantity,
+    memo: data.memo,
+    category: data.category ?? undefined,
+    addedBy: data.addedBy,
+    addedAt: data.addedAt,
+    checkedBy: data.checkedBy ?? undefined,
+    checkedAt: data.checkedAt ?? undefined,
+    canceledAt: data.canceledAt ?? undefined,
+    canceledBy: data.canceledBy ?? undefined,
+  };
 }
 
 export async function readShoppingItems(): Promise<ShoppingItem[]> {
-  await ensureDataFile();
-
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-
-  return parsed as ShoppingItem[];
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .orderBy("addedAt", "desc")
+    .get();
+  return snapshot.docs.map((doc) => docToItem(doc.id, doc.data()));
 }
 
-export async function writeShoppingItems(items: ShoppingItem[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(items, null, 2)}\n`, "utf-8");
-}
-
-export async function appendShoppingItem(
-  input: CreateShoppingItemInput
-): Promise<ShoppingItem> {
-  const items = await readShoppingItems();
-  const created: ShoppingItem = {
-    id: nextId(items),
+export async function appendShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
+  const db = getAdminFirestore();
+  const data = {
     ...input,
+    category: input.category ?? null,
+    checkedBy: null,
+    checkedAt: null,
+    canceledAt: null,
+    canceledBy: null,
   };
-
-  await writeShoppingItems([...items, created]);
-  return created;
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToItem(ref.id, data);
 }
 
 export async function checkShoppingItem(
-  itemId: number,
+  itemId: string,
   input: CheckShoppingItemInput,
   checkedAt: string
 ): Promise<ShoppingItem | null> {
-  const items = await readShoppingItems();
-  const index = items.findIndex((item) => item.id === itemId);
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(itemId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  if (index === -1) {
-    return null;
-  }
+  const data = doc.data()!;
+  if (data.checkedAt || data.canceledAt) return docToItem(itemId, data);
 
-  const target = items[index];
-  if (target.checkedAt || target.canceledAt) {
-    return target;
-  }
-
-  const updated: ShoppingItem = {
-    ...target,
-    checkedBy: input.checkedBy,
-    checkedAt,
-  };
-
-  items[index] = updated;
-  await writeShoppingItems(items);
-  return updated;
+  const updated = { checkedBy: input.checkedBy, checkedAt };
+  await ref.update(updated);
+  return docToItem(itemId, { ...data, ...updated });
 }
 
-export async function uncheckShoppingItem(
-  itemId: number
-): Promise<ShoppingItem | null> {
-  const items = await readShoppingItems();
-  const index = items.findIndex((item) => item.id === itemId);
+export async function uncheckShoppingItem(itemId: string): Promise<ShoppingItem | null> {
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(itemId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  if (index === -1) {
-    return null;
-  }
-
-  const target = items[index];
-  const updated: ShoppingItem = {
-    ...target,
-    checkedBy: undefined,
-    checkedAt: undefined,
-  };
-
-  items[index] = updated;
-  await writeShoppingItems(items);
-  return updated;
+  await ref.update({ checkedBy: null, checkedAt: null });
+  return docToItem(itemId, { ...doc.data(), checkedBy: null, checkedAt: null });
 }
 
 export async function cancelShoppingItem(
-  itemId: number,
+  itemId: string,
   canceledBy: string,
   canceledAt: string
 ): Promise<ShoppingItem | null> {
-  const items = await readShoppingItems();
-  const index = items.findIndex((item) => item.id === itemId);
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(itemId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  if (index === -1) {
-    return null;
-  }
+  const data = doc.data()!;
+  if (data.canceledAt) return docToItem(itemId, data);
 
-  const target = items[index];
-  if (target.canceledAt) {
-    return target;
-  }
-
-  const updated: ShoppingItem = {
-    ...target,
-    canceledAt,
-    canceledBy,
-  };
-
-  items[index] = updated;
-  await writeShoppingItems(items);
-  return updated;
+  const updated = { canceledAt, canceledBy };
+  await ref.update(updated);
+  return docToItem(itemId, { ...data, ...updated });
 }

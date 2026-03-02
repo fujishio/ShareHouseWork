@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR, MEMBER_NAMES } from "@/shared/constants/house";
+import { MEMBER_NAMES } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 const CATEGORY_ORDER: RuleCategory[] = [
   "ゴミ捨て",
@@ -41,13 +42,13 @@ type Props = {
 export default function RulesSection({ initialRules }: Props) {
   const router = useRouter();
   const [rules, setRules] = useState<Rule[]>(initialRules);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
   const [editCategory, setEditCategory] = useState<RuleCategory>("その他");
   const [saving, setSaving] = useState(false);
-  const [acknowledgingId, setAcknowledgingId] = useState<number | null>(null);
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set()
   );
@@ -75,7 +76,7 @@ export default function RulesSection({ initialRules }: Props) {
   async function handleAcknowledge(rule: Rule, memberName: string) {
     setAcknowledgingId(rule.id);
     try {
-      const response = await fetch(`/api/rules/${rule.id}`, {
+      const response = await apiFetch(`/api/rules/${rule.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ acknowledgedBy: memberName }),
@@ -100,10 +101,9 @@ export default function RulesSection({ initialRules }: Props) {
   async function handleDelete(rule: Rule) {
     setDeletingId(rule.id);
     try {
-      const response = await fetch(`/api/rules/${rule.id}`, {
+      const response = await apiFetch(`/api/rules/${rule.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deletedBy: CURRENT_ACTOR }),
       });
       if (!response.ok) {
         showToast({
@@ -138,7 +138,7 @@ export default function RulesSection({ initialRules }: Props) {
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/rules/${editingRule.id}`, {
+      const response = await apiFetch(`/api/rules/${editingRule.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -326,7 +326,7 @@ export default function RulesSection({ initialRules }: Props) {
 
 type PendingRuleItemProps = {
   rule: Rule;
-  acknowledgingId: number | null;
+  acknowledgingId: string | null;
   onAcknowledge: (rule: Rule, memberName: string) => void;
 };
 
@@ -397,7 +397,7 @@ function PendingRuleItem({ rule, acknowledgingId, onAcknowledge }: PendingRuleIt
 
 type RuleItemProps = {
   rule: Rule;
-  deletingId: number | null;
+  deletingId: string | null;
   onDelete: (rule: Rule) => void;
   onEdit: (rule: Rule) => void;
 };

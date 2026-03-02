@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { readExpenses, appendExpense } from "@/server/expense-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import {
   isTrimmedNonEmpty,
   normalizePurchasedAt,
 } from "@/domain/expenses/expense-api-validation";
 import type { CreateExpenseInput, ExpenseCategory } from "@/types";
-import { isValidMemberName } from "@/shared/constants/house";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const expenses = await readExpenses();
   return NextResponse.json({ data: expenses });
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -27,20 +33,15 @@ export async function POST(request: Request) {
     typeof (body as CreateExpenseInput).title !== "string" ||
     typeof (body as CreateExpenseInput).amount !== "number" ||
     typeof (body as CreateExpenseInput).category !== "string" ||
-    typeof (body as CreateExpenseInput).purchasedBy !== "string" ||
     typeof (body as CreateExpenseInput).purchasedAt !== "string"
   ) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
   }
 
-  const input = body as CreateExpenseInput;
+  const input = body as Omit<CreateExpenseInput, "purchasedBy"> & { purchasedBy?: string };
 
   if (!isTrimmedNonEmpty(input.title)) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
-  }
-
-  if (!isTrimmedNonEmpty(input.purchasedBy) || !isValidMemberName(input.purchasedBy.trim())) {
-    return NextResponse.json({ error: "purchasedBy must be a valid member name" }, { status: 400 });
   }
 
   if (input.amount <= 0 || !Number.isFinite(input.amount)) {
@@ -58,8 +59,8 @@ export async function POST(request: Request) {
 
   const created = await appendExpense({
     ...input,
-    purchasedBy: input.purchasedBy.trim(),
+    purchasedBy: actor.name,
     purchasedAt: normalizedPurchasedAt,
-  });
+  } as CreateExpenseInput);
   return NextResponse.json({ data: created }, { status: 201 });
 }

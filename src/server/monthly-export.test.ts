@@ -9,8 +9,8 @@ import type {
 
 const records: TaskCompletionRecord[] = [
   {
-    id: 1,
-    taskId: 1,
+    id: "1",
+    taskId: "1",
     taskName: "A",
     points: 5,
     completedBy: "あなた",
@@ -18,17 +18,17 @@ const records: TaskCompletionRecord[] = [
     source: "app",
   },
   {
-    id: 2,
-    taskId: 2,
+    id: "2",
+    taskId: "2",
     taskName: "B",
     points: 10,
     completedBy: "あなた",
     completedAt: "2026-02-02T10:00:00.000Z",
-    source: "line",
+    source: "app",
   },
   {
-    id: 3,
-    taskId: 2,
+    id: "3",
+    taskId: "2",
     taskName: "C",
     points: 7,
     completedBy: "パートナー",
@@ -36,8 +36,8 @@ const records: TaskCompletionRecord[] = [
     source: "app",
   },
   {
-    id: 4,
-    taskId: 3,
+    id: "4",
+    taskId: "3",
     taskName: "D",
     points: 2,
     completedBy: "あなた",
@@ -48,7 +48,7 @@ const records: TaskCompletionRecord[] = [
 
 const expenses: ExpenseRecord[] = [
   {
-    id: 1,
+    id: "1",
     title: "電気代",
     amount: 12000,
     category: "水道・光熱費",
@@ -56,7 +56,7 @@ const expenses: ExpenseRecord[] = [
     purchasedAt: "2026-02-05T10:00:00.000Z",
   },
   {
-    id: 2,
+    id: "2",
     title: "食材",
     amount: 5000,
     category: "食費",
@@ -67,7 +67,7 @@ const expenses: ExpenseRecord[] = [
 
 const shoppingItems: ShoppingItem[] = [
   {
-    id: 1,
+    id: "1",
     name: "洗剤",
     quantity: "1",
     memo: "",
@@ -77,7 +77,7 @@ const shoppingItems: ShoppingItem[] = [
     checkedAt: "2026-02-02T12:00:00.000Z",
   },
   {
-    id: 2,
+    id: "2",
     name: "ティッシュ",
     quantity: "2",
     memo: "大容量",
@@ -96,9 +96,9 @@ test("member summary and TOTAL row are generated for a target month", () => {
     shoppingItems,
   });
   assert.match(csv, /# task_member_summary/);
-  assert.match(csv, /2026-02,あなた,2,15,1,1,/);
-  assert.match(csv, /2026-02,パートナー,1,7,1,0,/);
-  assert.match(csv, /2026-02,TOTAL,3,22,2,1,/);
+  assert.match(csv, /2026-02,あなた,2,15,2,/);
+  assert.match(csv, /2026-02,パートナー,1,7,1,/);
+  assert.match(csv, /2026-02,TOTAL,3,22,3,/);
   assert.match(csv, /# expenses/);
   assert.match(csv, /2026-02,1,電気代,12000,水道・光熱費,あなた,/);
   assert.match(csv, /# shopping/);
@@ -113,7 +113,7 @@ test("empty month returns N/A row", () => {
     expenses,
     shoppingItems,
   });
-  assert.match(csv, /2026-04,N\/A,0,0,0,0,,/);
+  assert.match(csv, /2026-04,N\/A,0,0,0,,/);
   assert.match(csv, /2026-04,N\/A,,0,,,,false,,,/);
   assert.match(csv, /2026-04,N\/A,,,,,,none,,,,/);
 });

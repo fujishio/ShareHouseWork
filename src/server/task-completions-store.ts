@@ -1,78 +1,61 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { TaskCompletionRecord } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "task-completions.json");
+const COLLECTION = "taskCompletions";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    await writeFile(DATA_FILE, "[]\n", "utf-8");
-  }
+function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskCompletionRecord {
+  return {
+    id,
+    taskId: data.taskId,
+    taskName: data.taskName,
+    points: data.points,
+    completedBy: data.completedBy,
+    completedAt: data.completedAt,
+    source: data.source,
+    canceledAt: data.canceledAt ?? undefined,
+    canceledBy: data.canceledBy ?? undefined,
+    cancelReason: data.cancelReason ?? undefined,
+  };
 }
 
 export async function readTaskCompletions(): Promise<TaskCompletionRecord[]> {
-  await ensureDataFile();
-
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-
-  return parsed as TaskCompletionRecord[];
-}
-
-export async function writeTaskCompletions(records: TaskCompletionRecord[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(records, null, 2)}\n`, "utf-8");
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .orderBy("completedAt", "desc")
+    .get();
+  return snapshot.docs.map((doc) => docToRecord(doc.id, doc.data()));
 }
 
 export async function appendTaskCompletion(
   record: Omit<TaskCompletionRecord, "id">
 ): Promise<TaskCompletionRecord> {
-  const records = await readTaskCompletions();
-  const created: TaskCompletionRecord = {
-    id: nextId(records),
+  const db = getAdminFirestore();
+  const data = {
     ...record,
+    canceledAt: record.canceledAt ?? null,
+    canceledBy: record.canceledBy ?? null,
+    cancelReason: record.cancelReason ?? null,
   };
-
-  await writeTaskCompletions([...records, created]);
-  return created;
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToRecord(ref.id, data);
 }
 
 export async function cancelTaskCompletion(
-  completionId: number,
+  completionId: string,
   canceledBy: string,
   cancelReason: string,
   canceledAt: string
 ): Promise<TaskCompletionRecord | null> {
-  const records = await readTaskCompletions();
-  const index = records.findIndex((record) => record.id === completionId);
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(completionId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  if (index === -1) {
-    return null;
-  }
+  const data = doc.data()!;
+  if (data.canceledAt) return docToRecord(completionId, data);
 
-  const target = records[index];
-  if (target.canceledAt) {
-    return target;
-  }
-
-  const updated: TaskCompletionRecord = {
-    ...target,
-    canceledAt,
-    canceledBy,
-    cancelReason,
-  };
-
-  records[index] = updated;
-  await writeTaskCompletions(records);
-  return updated;
+  const updated = { canceledAt, canceledBy, cancelReason };
+  await ref.update(updated);
+  return docToRecord(completionId, { ...data, ...updated });
 }

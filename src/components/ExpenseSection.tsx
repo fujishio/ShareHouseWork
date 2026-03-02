@@ -7,7 +7,7 @@ import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   initialExpenses: ExpenseRecord[];
@@ -30,7 +30,7 @@ function formatPurchaseDateLabel(purchasedAt: string): string {
 export default function ExpenseSection({ initialExpenses, currentMonth }: Props) {
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   const monthPrefix = toMonthPrefix(currentMonth);
   const currentMonthExpenses = expenses.filter(
@@ -45,11 +45,10 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
   async function handleCancel(expense: ExpenseRecord) {
     setCancelingId(expense.id);
     try {
-      const response = await fetch(`/api/expenses/${expense.id}`, {
+      const response = await apiFetch(`/api/expenses/${expense.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          canceledBy: CURRENT_ACTOR,
           cancelReason: "登録間違い",
         }),
       });

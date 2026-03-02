@@ -3,14 +3,15 @@ export type MoneyYen = number;
 export type HousePoints = number;
 
 export type Member = {
-  id: number;
+  id: string; // Firebase Auth UID
   name: string;
   color: string; // Tailwind color class or hex for chart
+  email?: string;
 };
 
 export type TaskCompletion = {
-  id: number;
-  taskId: number;
+  id: string;
+  taskId: string;
   taskName: string;
   points: HousePoints;
   completedBy: string;
@@ -18,11 +19,11 @@ export type TaskCompletion = {
   source: TaskCompletionSource;
 };
 
-export type TaskCompletionSource = "app" | "line";
+export type TaskCompletionSource = "app";
 
 export type TaskCompletionRecord = {
-  id: number;
-  taskId: number;
+  id: string;
+  taskId: string;
   taskName: string;
   points: HousePoints;
   completedBy: string;
@@ -34,7 +35,7 @@ export type TaskCompletionRecord = {
 };
 
 export type CreateTaskCompletionInput = {
-  taskId: number;
+  taskId: string;
   completedBy: string;
   completedAt: IsoDateString;
   source: TaskCompletionSource;
@@ -60,51 +61,18 @@ export type AuditAction =
   | "rule_acknowledged"
   | "rule_deleted"
   | "notice_created"
-  | "notice_deleted"
-  | "line_webhook_received"
-  | "line_notification_queued";
+  | "notice_deleted";
 
 export type AuditLogRecord = {
-  id: number;
+  id: string;
   action: AuditAction;
   actor: string;
-  source: "app" | "line" | "system";
+  source: "app" | "system";
   createdAt: IsoDateString;
   details: Record<string, string | number | boolean | null>;
 };
 
 export type AuditLogsListResponse = ApiSuccessResponse<AuditLogRecord[]>;
-
-export type LineWebhookTaskCompletedEvent = {
-  type: "task.completed";
-  taskId: number;
-  completedBy: string;
-  completedAt?: IsoDateString;
-};
-
-export type LineWebhookPayload = {
-  events: LineWebhookTaskCompletedEvent[];
-};
-
-export type LineWebhookResult = {
-  processed: number;
-  created: number;
-  errors: string[];
-};
-
-export type LineWebhookResponse = ApiSuccessResponse<LineWebhookResult>;
-
-export type LineNotifyInput = {
-  message: string;
-  level?: "normal" | "important";
-};
-
-export type LineNotifyResult = {
-  queued: boolean;
-  queuedAt: IsoDateString;
-};
-
-export type LineNotifyResponse = ApiSuccessResponse<LineNotifyResult>;
 
 export type ContributionData = {
   member: Member;
@@ -126,7 +94,7 @@ export type ExpenseCategory =
   | "その他";
 
 export type ExpenseRecord = {
-  id: number;
+  id: string;
   title: string;
   amount: MoneyYen;
   category: ExpenseCategory;
@@ -160,7 +128,7 @@ export type ContributionSettingsHistoryRecord = ContributionSettings & {
 };
 
 export type ShoppingItem = {
-  id: number;
+  id: string;
   name: string;
   quantity: string;
   memo: string;
@@ -196,7 +164,7 @@ export type ExpenseCancelResponse = ApiSuccessResponse<ExpenseRecord>;
 export type ContributionSettingsResponse = ApiSuccessResponse<ContributionSettings>;
 
 export type Notice = {
-  id: number;
+  id: string;
   title: string;
   body: string;
   postedBy: string;
@@ -226,7 +194,7 @@ export type RuleCategory =
   | "その他";
 
 export type Rule = {
-  id: number;
+  id: string;
   title: string;
   body: string;
   category: RuleCategory;
@@ -272,7 +240,7 @@ export type TaskCategory =
   | "季節・不定期";
 
 export type Task = {
-  id: number;
+  id: string;
   name: string;
   points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;

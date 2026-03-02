@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, ClipboardList, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
-import { HOUSE_MEMBERS, CURRENT_USER_ID, OWNER_MEMBER_NAME } from "@/shared/constants/house";
+import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
+import { useAuth } from "@/context/AuthContext";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   saveNotificationSettings,
@@ -11,6 +12,7 @@ import {
 import type { ContributionSettings, NotificationSettings, Task, TaskCategory, TaskListResponse, ApiErrorResponse } from "@/types";
 import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
+import { apiFetch } from "@/shared/lib/fetch-client";
 import { showToast } from "@/shared/lib/toast";
 
 const TASK_CATEGORIES: TaskCategory[] = [
@@ -81,7 +83,7 @@ function TaskManagementSection() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TaskCategory>(TASK_CATEGORIES[0]);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<TaskFormState>(BLANK_FORM);
   const [addingNew, setAddingNew] = useState(false);
   const [newForm, setNewForm] = useState<TaskFormState>({ ...BLANK_FORM, category: TASK_CATEGORIES[0] });
@@ -91,7 +93,7 @@ function TaskManagementSection() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch("/api/tasks");
+      const res = await apiFetch("/api/tasks");
       if (!res.ok) {
         const message = await getApiErrorMessage(res, "タスクの取得に失敗しました");
         setLoadError(message);
@@ -146,7 +148,7 @@ function TaskManagementSection() {
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/tasks/${editingId}`, {
+      const res = await apiFetch(`/api/tasks/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editForm.name.trim(), category: editForm.category, points, frequencyDays }),
@@ -166,11 +168,11 @@ function TaskManagementSection() {
     }
   };
 
-  const deleteTask = async (taskId: number, taskName: string) => {
+  const deleteTask = async (taskId: string, taskName: string) => {
     if (!window.confirm(`「${taskName}」を削除しますか？`)) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       if (!res.ok) {
         const message = await getApiErrorMessage(res, "タスクの削除に失敗しました");
         showToast({ level: "error", message });
@@ -192,7 +194,7 @@ function TaskManagementSection() {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/tasks", {
+      const res = await apiFetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newForm.name.trim(), category: newForm.category, points, frequencyDays }),
@@ -430,14 +432,15 @@ export default function SettingsPage() {
   const [contributionError, setContributionError] = useState<string | null>(null);
   const [contributionLoading, setContributionLoading] = useState(false);
   const [contributionLoadError, setContributionLoadError] = useState<string | null>(null);
-  const currentUserName = (HOUSE_MEMBERS.find((m) => m.id === CURRENT_USER_ID) ?? HOUSE_MEMBERS[0]).name;
+  const { user } = useAuth();
+  const currentUserName = user?.displayName ?? HOUSE_MEMBERS[0].name;
   const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
   const loadContributionSettings = useCallback(async () => {
     setContributionLoading(true);
     setContributionLoadError(null);
     try {
-      const response = await fetch("/api/settings/contribution");
+      const response = await apiFetch("/api/settings/contribution");
       if (!response.ok) {
         const message = await getApiErrorMessage(response, "共益費設定の取得に失敗しました");
         setContributionLoadError(message);
@@ -473,12 +476,9 @@ export default function SettingsPage() {
     setContributionSaving(true);
     setContributionError(null);
     try {
-      const response = await fetch("/api/settings/contribution", {
+      const response = await apiFetch("/api/settings/contribution", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-sharehouse-actor": currentUserName,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ monthlyAmountPerPerson: amount, memberCount }),
       });
       if (response.ok) {

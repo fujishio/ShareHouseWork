@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { readRules, appendRule } from "@/server/rule-store";
 import { appendAuditLog } from "@/server/audit-log-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { CreateRuleInput, RuleCategory } from "@/types";
-import { isValidMemberName } from "@/shared/constants/house";
 
 const VALID_CATEGORIES: RuleCategory[] = [
   "ゴミ捨て",
@@ -12,13 +12,19 @@ const VALID_CATEGORIES: RuleCategory[] = [
   "その他",
 ];
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const rules = await readRules();
   const active = rules.filter((r) => !r.deletedAt);
   return NextResponse.json({ data: active });
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -47,15 +53,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const createdBy =
-    typeof raw.createdBy === "string" ? raw.createdBy.trim() : "";
-  if (!createdBy || !isValidMemberName(createdBy)) {
-    return NextResponse.json(
-      { error: "createdBy must be a valid member name" },
-      { status: 400 }
-    );
-  }
-
   const createdAt =
     typeof raw.createdAt === "string"
       ? raw.createdAt
@@ -65,7 +62,7 @@ export async function POST(request: Request) {
     title,
     body: body_,
     category,
-    createdBy,
+    createdBy: actor.name,
     createdAt,
   };
 
@@ -73,7 +70,7 @@ export async function POST(request: Request) {
 
   await appendAuditLog({
     action: "rule_created",
-    actor: createdBy,
+    actor: actor.name,
     source: "app",
     createdAt: new Date().toISOString(),
     details: { ruleId: created.id, title: created.title, category },

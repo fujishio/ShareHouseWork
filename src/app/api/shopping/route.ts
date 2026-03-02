@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readShoppingItems, appendShoppingItem } from "@/server/shopping-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import {
   getJstDateString,
   isTrimmedNonEmpty,
@@ -7,14 +8,19 @@ import {
 } from "@/domain/shopping/shopping-api-validation";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { CreateShoppingItemInput, ExpenseCategory } from "@/types";
-import { isValidMemberName } from "@/shared/constants/house";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const items = await readShoppingItems();
   return NextResponse.json({ data: items });
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -44,11 +50,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid addedAt date" }, { status: 400 });
   }
 
-  if (typeof raw.addedBy !== "string" || !isTrimmedNonEmpty(raw.addedBy) || !isValidMemberName(raw.addedBy.trim())) {
-    return NextResponse.json({ error: "addedBy must be a valid member name" }, { status: 400 });
-  }
-  const normalizedAddedBy = raw.addedBy.trim();
-
   const rawCategory = raw.category;
   const category =
     typeof rawCategory === "string" && EXPENSE_CATEGORIES.includes(rawCategory as ExpenseCategory)
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     quantity: typeof raw.quantity === "string" ? raw.quantity.trim() : "1",
     memo: typeof raw.memo === "string" ? raw.memo.trim() : "",
     category,
-    addedBy: normalizedAddedBy,
+    addedBy: actor.name,
     addedAt: normalizedAddedAt,
   };
 

@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { readNotices, appendNotice } from "@/server/notice-store";
 import { appendAuditLog } from "@/server/audit-log-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { CreateNoticeInput } from "@/types";
-import { isValidMemberName } from "@/shared/constants/house";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const notices = await readNotices();
   const active = notices.filter((n) => !n.deletedAt);
   return NextResponse.json({ data: active });
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();
@@ -29,11 +35,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  const postedBy = typeof raw.postedBy === "string" ? raw.postedBy.trim() : "";
-  if (!postedBy || !isValidMemberName(postedBy)) {
-    return NextResponse.json({ error: "postedBy must be a valid member name" }, { status: 400 });
-  }
-
   const postedAt =
     typeof raw.postedAt === "string"
       ? raw.postedAt
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   const input: CreateNoticeInput = {
     title,
     body: typeof raw.body === "string" ? raw.body.trim() : "",
-    postedBy,
+    postedBy: actor.name,
     postedAt,
     isImportant: raw.isImportant === true,
   };
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
   await appendAuditLog({
     action: "notice_created",
-    actor: postedBy,
+    actor: actor.name,
     source: "app",
     createdAt: new Date().toISOString(),
     details: { noticeId: created.id, title: created.title, isImportant: created.isImportant },

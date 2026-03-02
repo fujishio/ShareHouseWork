@@ -5,19 +5,17 @@ import {
   readTaskCompletions,
 } from "@/server/task-completions-store";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { HOUSE_MEMBERS } from "@/shared/constants/house";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type {
   ApiErrorResponse,
-  CreateTaskCompletionInput,
   TaskCompletionCreateResponse,
   TaskCompletionsListResponse,
-  TaskCompletionSource,
 } from "@/types";
 
 export const runtime = "nodejs";
 
-const VALID_SOURCES: TaskCompletionSource[] = ["app", "line"];
-const VALID_MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
+const VALID_SOURCES = ["app"] as const;
+type ValidSource = typeof VALID_SOURCES[number];
 
 function parseLimit(raw: string | null): number {
   if (!raw) {
@@ -46,21 +44,10 @@ function parseDate(raw: string | null): Date | null {
   return parsed;
 }
 
-function isCreatePayload(value: unknown): value is CreateTaskCompletionInput {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return (
-    typeof payload.taskId === "number" &&
-    typeof payload.completedBy === "string" &&
-    typeof payload.completedAt === "string" &&
-    typeof payload.source === "string"
-  );
-}
-
 export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { searchParams } = new URL(request.url);
   const from = parseDate(searchParams.get("from"));
   const to = parseDate(searchParams.get("to"));
@@ -109,29 +96,30 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const rawPayload: unknown = await request.json().catch(() => null);
 
-  if (!isCreatePayload(rawPayload)) {
+  if (typeof rawPayload !== "object" || rawPayload === null) {
     return NextResponse.json(
       {
         error:
-          "Invalid payload. Required: taskId(number), completedBy(string), completedAt(ISO string), source(app|line)",
+          "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)",
       },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
 
-  const payload = rawPayload;
+  const payload = rawPayload as Record<string, unknown>;
 
-  if (!Number.isInteger(payload.taskId) || payload.taskId <= 0) {
-    return NextResponse.json({ error: "taskId must be a positive integer." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
+  const taskId = typeof payload.taskId === "string" ? payload.taskId : "";
+  if (!taskId) {
+    return NextResponse.json({ error: "taskId must be a non-empty string." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
-  if (!VALID_MEMBER_NAMES.includes(payload.completedBy.trim())) {
-    return NextResponse.json({ error: "completedBy must be a valid member name." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
-  }
-
-  const completedAt = new Date(payload.completedAt);
+  const completedAtRaw = typeof payload.completedAt === "string" ? payload.completedAt : "";
+  const completedAt = new Date(completedAtRaw);
   if (Number.isNaN(completedAt.getTime())) {
     return NextResponse.json(
       { error: "completedAt must be a valid ISO date string." },
@@ -139,29 +127,30 @@ export async function POST(request: Request) {
     ) as NextResponse<ApiErrorResponse>;
   }
 
-  if (!VALID_SOURCES.includes(payload.source)) {
-    return NextResponse.json({ error: "source must be app or line." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
+  const source = typeof payload.source === "string" ? payload.source : "";
+  if (!VALID_SOURCES.includes(source as ValidSource)) {
+    return NextResponse.json({ error: "source must be app." }, { status: 400 }) as NextResponse<ApiErrorResponse>;
   }
 
   const tasks = await readTasks();
-  const task = tasks.find((item) => item.id === payload.taskId);
+  const task = tasks.find((item) => item.id === taskId);
   if (!task) {
     return NextResponse.json({ error: "taskId does not exist." }, { status: 404 }) as NextResponse<ApiErrorResponse>;
   }
 
   const created = await appendTaskCompletion({
-    taskId: payload.taskId,
+    taskId,
     taskName: task.name,
     points: task.points,
-    completedBy: payload.completedBy.trim(),
+    completedBy: actor.name,
     completedAt: completedAt.toISOString(),
-    source: payload.source,
+    source: source as ValidSource,
   });
 
   await appendAuditLog({
     action: "task_completion_created",
-    actor: created.completedBy,
-    source: created.source,
+    actor: actor.name,
+    source: "app",
     createdAt: new Date().toISOString(),
     details: {
       taskId: created.taskId,

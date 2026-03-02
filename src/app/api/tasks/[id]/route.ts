@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateTask, deleteTask } from "@/server/task-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { TaskCategory, UpdateTaskInput, TaskUpdateResponse, TaskDeleteResponse, ApiErrorResponse } from "@/types";
 
 export const runtime = "nodejs";
@@ -17,11 +18,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { id } = await params;
-  const taskId = Number(id);
-  if (!Number.isInteger(taskId) || taskId <= 0) {
-    return NextResponse.json({ error: "Invalid task id" }, { status: 400 }) as NextResponse<ApiErrorResponse>;
-  }
 
   let body: unknown;
   try {
@@ -57,7 +57,7 @@ export async function PATCH(
   }
 
   const input: UpdateTaskInput = { name, category, points, frequencyDays };
-  const updated = await updateTask(taskId, input);
+  const updated = await updateTask(id, input);
   if (!updated) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 }) as NextResponse<ApiErrorResponse>;
   }
@@ -66,16 +66,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const taskId = Number(id);
-  if (!Number.isInteger(taskId) || taskId <= 0) {
-    return NextResponse.json({ error: "Invalid task id" }, { status: 400 }) as NextResponse<ApiErrorResponse>;
-  }
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
 
-  const deleted = await deleteTask(taskId, new Date().toISOString());
+  const { id } = await params;
+
+  const deleted = await deleteTask(id, new Date().toISOString());
   if (!deleted) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 }) as NextResponse<ApiErrorResponse>;
   }

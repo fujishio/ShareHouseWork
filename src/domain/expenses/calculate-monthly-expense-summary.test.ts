@@ -9,7 +9,7 @@ test("過去月を指定すると当該月の残高と繰越を取得できる",
   ];
   const expenses: ExpenseRecord[] = [
     {
-      id: 1,
+      id: "1",
       title: "1月支出",
       amount: 5000,
       category: "日用品",
@@ -17,7 +17,7 @@ test("過去月を指定すると当該月の残高と繰越を取得できる",
       purchasedAt: "2026-01-10",
     },
     {
-      id: 2,
+      id: "2",
       title: "2月支出",
       amount: 3000,
       category: "日用品",
@@ -61,7 +61,7 @@ test("1月は前年から繰越しない（年内繰越のみ）", () => {
   ];
   const expenses: ExpenseRecord[] = [
     {
-      id: 1,
+      id: "1",
       title: "12月支出",
       amount: 12000,
       category: "食費",

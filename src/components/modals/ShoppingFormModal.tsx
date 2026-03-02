@@ -9,6 +9,7 @@ import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory } from "@/types";
 import { MEMBER_NAMES } from "@/shared/constants/house";
 import { toLocalDateInputValue } from "@/shared/lib/time";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   onClose: () => void;
@@ -31,7 +32,7 @@ export default function ShoppingFormModal({ onClose }: Props) {
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const response = await fetch("/api/shopping", {
+      const response = await apiFetch("/api/shopping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

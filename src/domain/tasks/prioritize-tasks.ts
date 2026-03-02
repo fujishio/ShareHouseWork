@@ -4,7 +4,7 @@ import { TASKS } from "./task-definitions.ts";
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 export function getPrioritizedTasks(
-  lastCompletions: Record<number, Date | null>,
+  lastCompletions: Record<string, Date | null>,
   now: Date,
   limit = 5,
   tasks: Task[] = TASKS
@@ -37,7 +37,7 @@ export function getPrioritizedTasks(
       if (a.frequencyDays !== b.frequencyDays) {
         return a.frequencyDays - b.frequencyDays;
       }
-      return a.id - b.id;
+      return a.id.localeCompare(b.id);
     })
     .slice(0, limit);
 }

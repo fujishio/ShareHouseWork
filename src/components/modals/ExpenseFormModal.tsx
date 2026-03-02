@@ -9,6 +9,7 @@ import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { MEMBER_NAMES } from "@/shared/constants/house";
 import { toLocalDateInputValue } from "@/shared/lib/time";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   onClose: () => void;
@@ -35,7 +36,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const response = await fetch("/api/expenses", {
+      const response = await apiFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

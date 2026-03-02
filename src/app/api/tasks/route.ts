@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readTasks, createTask } from "@/server/task-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { TaskCategory, CreateTaskInput, TaskListResponse, TaskCreateResponse, ApiErrorResponse } from "@/types";
 
 export const runtime = "nodejs";
@@ -19,6 +20,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   let body: unknown;
   try {
     body = await request.json();

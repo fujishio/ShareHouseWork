@@ -11,7 +11,7 @@ type Props = {
   data: ContributionData[];
   myPoints: number;
   myRank: number;
-  currentUserId: number;
+  currentUserId: string;
 };
 
 type LabelProps = {

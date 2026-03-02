@@ -7,6 +7,7 @@ import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { MEMBER_NAMES } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 const CATEGORIES: { value: RuleCategory; label: string }[] = [
   { value: "ゴミ捨て", label: "🗑 ゴミ捨て" },
@@ -36,7 +37,7 @@ export default function RuleFormModal({ onClose }: Props) {
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const response = await fetch("/api/rules", {
+      const response = await apiFetch("/api/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

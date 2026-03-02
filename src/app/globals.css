@@ -8,6 +8,18 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  body {
+    font-family:
+      "Hiragino Sans",
+      "Hiragino Kaku Gothic ProN",
+      "Yu Gothic UI",
+      "Yu Gothic",
+      "Noto Sans JP",
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+
   /* Warm scrollbar for the cozy theme */
   ::-webkit-scrollbar {
     width: 4px;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { updateRule, deleteRule, acknowledgeRule } from "@/server/rule-store";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { isValidMemberName } from "@/shared/constants/house";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { RuleCategory, UpdateRuleInput } from "@/types";
 
 const VALID_CATEGORIES: RuleCategory[] = [
@@ -16,11 +16,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { id } = await params;
-  const ruleId = Number(id);
-  if (!Number.isInteger(ruleId) || ruleId <= 0) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
 
   let body: unknown;
   try {
@@ -55,17 +54,17 @@ export async function PUT(
     updatedAt: new Date().toISOString(),
   };
 
-  const updated = await updateRule(ruleId, input);
+  const updated = await updateRule(id, input);
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   await appendAuditLog({
     action: "rule_updated",
-    actor: "app",
+    actor: actor.name,
     source: "app",
     createdAt: new Date().toISOString(),
-    details: { ruleId, title: updated.title, category },
+    details: { ruleId: id, title: updated.title, category },
   });
 
   return NextResponse.json({ data: updated });
@@ -75,45 +74,22 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { id } = await params;
-  const ruleId = Number(id);
-  if (!Number.isInteger(ruleId) || ruleId <= 0) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  if (typeof body !== "object" || body === null) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  const raw = body as Record<string, unknown>;
-  const memberName =
-    typeof raw.acknowledgedBy === "string" ? raw.acknowledgedBy.trim() : "";
-
-  if (!memberName || !isValidMemberName(memberName)) {
-    return NextResponse.json(
-      { error: "Invalid member name" },
-      { status: 400 }
-    );
-  }
-
-  const updated = await acknowledgeRule(ruleId, memberName);
+  const updated = await acknowledgeRule(id, actor.name);
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   await appendAuditLog({
     action: "rule_acknowledged",
-    actor: memberName,
+    actor: actor.name,
     source: "app",
     createdAt: new Date().toISOString(),
-    details: { ruleId, title: updated.title },
+    details: { ruleId: id, title: updated.title },
   });
 
   return NextResponse.json({ data: updated });
@@ -123,28 +99,13 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { id } = await params;
-  const ruleId = Number(id);
-  if (!Number.isInteger(ruleId) || ruleId <= 0) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    body = {};
-  }
-
-  const raw = (body ?? {}) as Record<string, unknown>;
-  const rawDeletedBy = typeof raw.deletedBy === "string" ? raw.deletedBy.trim() : "";
-  if (!rawDeletedBy || !isValidMemberName(rawDeletedBy)) {
-    return NextResponse.json({ error: "deletedBy must be a valid member name" }, { status: 400 });
-  }
-  const deletedBy = rawDeletedBy;
 
   const deletedAt = new Date().toISOString();
-  const updated = await deleteRule(ruleId, deletedBy, deletedAt);
+  const updated = await deleteRule(id, actor.name, deletedAt);
 
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -152,10 +113,10 @@ export async function DELETE(
 
   await appendAuditLog({
     action: "rule_deleted",
-    actor: deletedBy,
+    actor: actor.name,
     source: "app",
     createdAt: new Date().toISOString(),
-    details: { ruleId, title: updated.title },
+    details: { ruleId: id, title: updated.title },
   });
 
   return NextResponse.json({ data: updated });

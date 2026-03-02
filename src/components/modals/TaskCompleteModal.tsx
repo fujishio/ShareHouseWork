@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { Check, Star, ChevronLeft } from "lucide-react";
 import type {
   ApiErrorResponse,
-  CreateTaskCompletionInput,
   Task,
   TaskCompletionCreateResponse,
   TaskListResponse,
 } from "@/types";
 import { LoadingNotice } from "@/components/RequestStatus";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   onClose: () => void;
@@ -24,7 +23,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
   const [tasksLoading, setTasksLoading] = useState(true);
   const [tasksError, setTasksError] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [completedTaskId, setCompletedTaskId] = useState<number | null>(null);
+  const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -32,7 +31,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
   } | null>(null);
 
   useEffect(() => {
-    fetch("/api/tasks")
+    apiFetch("/api/tasks")
       .then((res) => res.json() as Promise<TaskListResponse | ApiErrorResponse>)
       .then((json) => {
         if ("data" in json) {
@@ -58,7 +57,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
     [tasks, selectedCategory]
   );
 
-  const handleComplete = async (taskId: number) => {
+  const handleComplete = async (taskId: string) => {
     if (isSubmitting) return;
 
     setCompletedTaskId(taskId);
@@ -66,15 +65,14 @@ export default function TaskCompleteModal({ onClose }: Props) {
     setFeedback(null);
 
     try {
-      const response = await fetch("/api/task-completions", {
+      const response = await apiFetch("/api/task-completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
-          completedBy: CURRENT_ACTOR,
           completedAt: new Date().toISOString(),
           source: "app",
-        } satisfies CreateTaskCompletionInput),
+        }),
       });
 
       const result = (await response.json().catch(() => null)) as

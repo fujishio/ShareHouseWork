@@ -7,7 +7,8 @@ import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { CURRENT_ACTOR, MEMBER_NAMES } from "@/shared/constants/house";
+import { MEMBER_NAMES } from "@/shared/constants/house";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type Props = {
   initialItems: ShoppingItem[];
@@ -48,12 +49,12 @@ function isRecentPurchased(checkedAt: string, currentMonth: string): boolean {
 
 export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const [items, setItems] = useState<ShoppingItem[]>(initialItems);
-  const [checkingId, setCheckingId] = useState<number | null>(null);
-  const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
   const [pendingCheckItem, setPendingCheckItem] = useState<ShoppingItem | null>(null);
   const [pendingAmount, setPendingAmount] = useState("");
-  const [pendingPurchasedBy, setPendingPurchasedBy] = useState<string>(CURRENT_ACTOR);
+  const [pendingPurchasedBy, setPendingPurchasedBy] = useState<string>(MEMBER_NAMES[0]);
   const [pendingCategory, setPendingCategory] = useState<ExpenseCategory>("消耗品");
 
   const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
@@ -73,7 +74,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   function openCheckDialog(item: ShoppingItem) {
     setPendingCheckItem(item);
     setPendingAmount("");
-    setPendingPurchasedBy(CURRENT_ACTOR);
+    setPendingPurchasedBy(MEMBER_NAMES[0]);
     setPendingCategory(item.category ?? "消耗品");
   }
 
@@ -83,7 +84,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
     setPendingCheckItem(null);
     setCheckingId(item.id);
     try {
-      const checkResponse = await fetch(`/api/shopping/${item.id}`, {
+      const checkResponse = await apiFetch(`/api/shopping/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checkedBy: pendingPurchasedBy }),
@@ -99,7 +100,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
       setItems((prev) => prev.map((i) => (i.id === item.id ? checkJson.data : i)));
 
       if (addToExpenses) {
-        const expenseResponse = await fetch("/api/expenses", {
+        const expenseResponse = await apiFetch("/api/expenses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -133,7 +134,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   async function handleUncheck(item: ShoppingItem) {
     setCheckingId(item.id);
     try {
-      const response = await fetch(`/api/shopping/${item.id}`, {
+      const response = await apiFetch(`/api/shopping/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uncheck: true }),
@@ -158,10 +159,8 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   async function handleCancel(item: ShoppingItem) {
     setCancelingId(item.id);
     try {
-      const response = await fetch(`/api/shopping/${item.id}`, {
+      const response = await apiFetch(`/api/shopping/${item.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canceledBy: CURRENT_ACTOR }),
       });
       if (!response.ok) {
         showToast({

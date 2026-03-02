@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack --hostname localhost --port 3000",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
     "lucide-react": "^0.575.0",
     "next": "^16.1.6",
     "react": "^19.0.0",

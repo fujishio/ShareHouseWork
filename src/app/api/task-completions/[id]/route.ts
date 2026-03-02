@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { cancelTaskCompletion, readTaskCompletions } from "@/server/task-completions-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type {
   ApiErrorResponse,
   TaskCompletionCancelResponse,
@@ -8,54 +9,34 @@ import type {
 
 export const runtime = "nodejs";
 
-type CancelPayload = {
-  canceledBy: string;
-  cancelReason: string;
-};
-
-function isCancelPayload(value: unknown): value is CancelPayload {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return (
-    typeof payload.canceledBy === "string" &&
-    typeof payload.cancelReason === "string"
-  );
-}
-
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const { id } = await context.params;
-  const completionId = Number(id);
 
-  if (!Number.isInteger(completionId) || completionId <= 0) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json(
-      { error: "id must be a positive integer." },
+      { error: "Invalid JSON" },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
 
-  const payloadRaw: unknown = await request.json().catch(() => null);
-  if (!isCancelPayload(payloadRaw)) {
+  if (typeof body !== "object" || body === null) {
     return NextResponse.json(
-      { error: "Invalid payload. Required: canceledBy(string), cancelReason(string)" },
+      { error: "Invalid payload. Required: cancelReason(string)" },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
 
-  const canceledBy = payloadRaw.canceledBy.trim();
-  const cancelReason = payloadRaw.cancelReason.trim();
-
-  if (!canceledBy) {
-    return NextResponse.json(
-      { error: "canceledBy is required." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
-  }
+  const raw = body as Record<string, unknown>;
+  const cancelReason = typeof raw.cancelReason === "string" ? raw.cancelReason.trim() : "";
 
   if (!cancelReason) {
     return NextResponse.json(
@@ -64,7 +45,7 @@ export async function PATCH(
     ) as NextResponse<ApiErrorResponse>;
   }
 
-  const existing = (await readTaskCompletions()).find((record) => record.id === completionId);
+  const existing = (await readTaskCompletions()).find((record) => record.id === id);
   if (!existing) {
     return NextResponse.json(
       { error: "Task completion not found." },
@@ -81,8 +62,8 @@ export async function PATCH(
 
   const canceledAt = new Date().toISOString();
   const updated = await cancelTaskCompletion(
-    completionId,
-    canceledBy,
+    id,
+    actor.name,
     cancelReason,
     canceledAt
   );
@@ -96,7 +77,7 @@ export async function PATCH(
 
   await appendAuditLog({
     action: "task_completion_canceled",
-    actor: canceledBy,
+    actor: actor.name,
     source: "app",
     createdAt: canceledAt,
     details: {

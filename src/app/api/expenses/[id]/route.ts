@@ -1,46 +1,38 @@
 import { NextResponse } from "next/server";
 import { cancelExpense } from "@/server/expense-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { isTrimmedNonEmpty } from "@/domain/expenses/expense-api-validation";
-import type { CancelExpenseInput } from "@/types";
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const expenseId = Number(id);
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
 
-  if (!Number.isInteger(expenseId) || expenseId <= 0) {
-    return NextResponse.json({ error: "Invalid expense id" }, { status: 400 });
-  }
+  const { id } = await params;
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    body = {};
   }
 
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    typeof (body as CancelExpenseInput).canceledBy !== "string" ||
-    typeof (body as CancelExpenseInput).cancelReason !== "string"
-  ) {
-    return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
-  }
+  const raw =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const cancelReason = typeof raw.cancelReason === "string" ? raw.cancelReason.trim() : "";
 
-  const input = body as CancelExpenseInput;
-  if (!isTrimmedNonEmpty(input.canceledBy) || !isTrimmedNonEmpty(input.cancelReason)) {
-    return NextResponse.json({ error: "canceledBy and cancelReason are required" }, { status: 400 });
+  if (!isTrimmedNonEmpty(cancelReason)) {
+    return NextResponse.json({ error: "cancelReason is required" }, { status: 400 });
   }
 
   const canceledAt = new Date().toISOString();
   const updated = await cancelExpense(
-    expenseId,
+    id,
     {
-      canceledBy: input.canceledBy.trim(),
-      cancelReason: input.cancelReason.trim(),
+      canceledBy: actor.name,
+      cancelReason,
     },
     canceledAt
   );

@@ -5,7 +5,6 @@ type MemberSummary = {
   completions: number;
   totalPoints: number;
   appCompletions: number;
-  lineCompletions: number;
   firstCompletedAt: string;
   lastCompletedAt: string;
 };
@@ -46,7 +45,6 @@ export function buildMonthlyOperationsCsv(
     "completions",
     "total_points",
     "app_completions",
-    "line_completions",
     "first_completed_at",
     "last_completed_at",
   ]);
@@ -56,7 +54,7 @@ export function buildMonthlyOperationsCsv(
   lines.push(summaryHeader);
 
   if (monthlyTaskCompletions.length === 0) {
-    lines.push(toCsvRow([month, "N/A", 0, 0, 0, 0, "", ""]));
+    lines.push(toCsvRow([month, "N/A", 0, 0, 0, "", ""]));
   } else {
     const byMember = new Map<string, MemberSummary>();
     for (const record of monthlyTaskCompletions) {
@@ -67,7 +65,6 @@ export function buildMonthlyOperationsCsv(
           completions: 1,
           totalPoints: record.points,
           appCompletions: record.source === "app" ? 1 : 0,
-          lineCompletions: record.source === "line" ? 1 : 0,
           firstCompletedAt: record.completedAt,
           lastCompletedAt: record.completedAt,
         });
@@ -78,8 +75,6 @@ export function buildMonthlyOperationsCsv(
       existing.totalPoints += record.points;
       if (record.source === "app") {
         existing.appCompletions += 1;
-      } else {
-        existing.lineCompletions += 1;
       }
       if (record.completedAt < existing.firstCompletedAt) {
         existing.firstCompletedAt = record.completedAt;
@@ -98,7 +93,6 @@ export function buildMonthlyOperationsCsv(
           summary.completions,
           summary.totalPoints,
           summary.appCompletions,
-          summary.lineCompletions,
           summary.firstCompletedAt,
           summary.lastCompletedAt,
         ])
@@ -111,12 +105,10 @@ export function buildMonthlyOperationsCsv(
         acc.totalPoints += record.points;
         if (record.source === "app") {
           acc.appCompletions += 1;
-        } else {
-          acc.lineCompletions += 1;
         }
         return acc;
       },
-      { completions: 0, totalPoints: 0, appCompletions: 0, lineCompletions: 0 }
+      { completions: 0, totalPoints: 0, appCompletions: 0 }
     );
 
     lines.push(
@@ -126,7 +118,6 @@ export function buildMonthlyOperationsCsv(
         totals.completions,
         totals.totalPoints,
         totals.appCompletions,
-        totals.lineCompletions,
         monthlyTaskCompletions[0].completedAt,
         monthlyTaskCompletions[monthlyTaskCompletions.length - 1].completedAt,
       ])

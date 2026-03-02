@@ -1,73 +1,58 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { TASKS } from "@/domain/tasks/task-definitions";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "tasks.json");
+const COLLECTION = "tasks";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    // Seed with hardcoded default tasks on first run
-    await writeFile(DATA_FILE, `${JSON.stringify(TASKS, null, 2)}\n`, "utf-8");
-  }
+function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
+  return {
+    id,
+    name: data.name,
+    category: data.category,
+    points: data.points,
+    frequencyDays: data.frequencyDays,
+    deletedAt: data.deletedAt ?? undefined,
+  };
 }
 
-async function readAllTasks(): Promise<Task[]> {
-  await ensureDataFile();
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  return parsed as Task[];
-}
-
-async function writeTasks(tasks: Task[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(tasks, null, 2)}\n`, "utf-8");
+export async function readAllTasks(): Promise<Task[]> {
+  const db = getAdminFirestore();
+  const snapshot = await db.collection(COLLECTION).get();
+  return snapshot.docs.map((doc) => docToTask(doc.id, doc.data()));
 }
 
 export async function readTasks(): Promise<Task[]> {
-  const all = await readAllTasks();
-  return all.filter((t) => !t.deletedAt);
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where("deletedAt", "==", null)
+    .get();
+  return snapshot.docs.map((doc) => docToTask(doc.id, doc.data()));
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-  const all = await readAllTasks();
-  const created: Task = { id: nextId(all), ...input };
-  await writeTasks([...all, created]);
-  return created;
+  const db = getAdminFirestore();
+  const data = { ...input, deletedAt: null };
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToTask(ref.id, data);
 }
 
-export async function updateTask(
-  taskId: number,
-  input: UpdateTaskInput
-): Promise<Task | null> {
-  const all = await readAllTasks();
-  const index = all.findIndex((t) => t.id === taskId);
-  if (index === -1) return null;
-  const target = all[index];
-  if (target.deletedAt) return null;
-  const updated: Task = { ...target, ...input };
-  all[index] = updated;
-  await writeTasks(all);
-  return updated;
+export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(taskId);
+  const doc = await ref.get();
+  if (!doc.exists || doc.data()?.deletedAt) return null;
+
+  await ref.update({ ...input });
+  return docToTask(taskId, { ...doc.data(), ...input });
 }
 
-export async function deleteTask(
-  taskId: number,
-  deletedAt: string
-): Promise<Task | null> {
-  const all = await readAllTasks();
-  const index = all.findIndex((t) => t.id === taskId);
-  if (index === -1) return null;
-  const target = all[index];
-  if (target.deletedAt) return target;
-  const updated: Task = { ...target, deletedAt };
-  all[index] = updated;
-  await writeTasks(all);
-  return updated;
+export async function deleteTask(taskId: string, deletedAt: string): Promise<Task | null> {
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(taskId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
+  if (doc.data()?.deletedAt) return docToTask(taskId, doc.data()!);
+
+  await ref.update({ deletedAt });
+  return docToTask(taskId, { ...doc.data(), deletedAt });
 }

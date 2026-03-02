@@ -1,58 +1,55 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { nextId } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Notice, CreateNoticeInput } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "notices.json");
+const COLLECTION = "notices";
 
-async function ensureDataFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-  try {
-    await readFile(DATA_FILE, "utf-8");
-  } catch {
-    await writeFile(DATA_FILE, "[]\n", "utf-8");
-  }
+function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
+  return {
+    id,
+    title: data.title,
+    body: data.body,
+    postedBy: data.postedBy,
+    postedAt: data.postedAt,
+    isImportant: data.isImportant,
+    deletedAt: data.deletedAt ?? undefined,
+    deletedBy: data.deletedBy ?? undefined,
+  };
 }
 
 export async function readNotices(): Promise<Notice[]> {
-  await ensureDataFile();
-  const raw = await readFile(DATA_FILE, "utf-8");
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  return parsed as Notice[];
-}
-
-async function writeNotices(notices: Notice[]) {
-  await ensureDataFile();
-  await writeFile(DATA_FILE, `${JSON.stringify(notices, null, 2)}\n`, "utf-8");
+  const db = getAdminFirestore();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .orderBy("postedAt", "desc")
+    .get();
+  return snapshot.docs.map((doc) => docToNotice(doc.id, doc.data()));
 }
 
 export async function appendNotice(input: CreateNoticeInput): Promise<Notice> {
-  const notices = await readNotices();
-  const created: Notice = {
-    id: nextId(notices),
+  const db = getAdminFirestore();
+  const data = {
     ...input,
+    deletedAt: null,
+    deletedBy: null,
   };
-
-  await writeNotices([created, ...notices]);
-  return created;
+  const ref = await db.collection(COLLECTION).add(data);
+  return docToNotice(ref.id, data);
 }
 
 export async function deleteNotice(
-  noticeId: number,
+  noticeId: string,
   deletedBy: string,
   deletedAt: string
 ): Promise<Notice | null> {
-  const notices = await readNotices();
-  const index = notices.findIndex((n) => n.id === noticeId);
-  if (index === -1) return null;
+  const db = getAdminFirestore();
+  const ref = db.collection(COLLECTION).doc(noticeId);
+  const doc = await ref.get();
+  if (!doc.exists) return null;
 
-  const target = notices[index];
-  if (target.deletedAt) return target;
+  const data = doc.data()!;
+  if (data.deletedAt) return docToNotice(noticeId, data);
 
-  const updated: Notice = { ...target, deletedAt, deletedBy };
-  notices[index] = updated;
-  await writeNotices(notices);
-  return updated;
+  const updated = { deletedAt, deletedBy };
+  await ref.update(updated);
+  return docToNotice(noticeId, { ...data, ...updated });
 }
