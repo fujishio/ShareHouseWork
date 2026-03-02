@@ -20,7 +20,7 @@
 | DB基盤 | Firestore（`DATABASE.md` 準拠） |
 | 認証 | Firebase Auth の Bearer IDトークン検証（`verifyRequest()`） |
 | LINE関連 | 実装・設計の主軸ではない（本ドキュメントから削除） |
-| テスト | **27 pass / 0 fail** |
+| テスト | **52 pass / 0 fail** |
 | 型チェック | `npx tsc --noEmit` 通過 |
 | 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
 | API入力検証 | 手書きバリデーション中心（zod未導入） |
@@ -153,7 +153,7 @@
 | rules/notices/task-completions の監査ログ | 完了 |
 | expenses/shopping の監査ログ | 完了 |
 | `package.json` `"type": "module"` | 完了 |
-| `npm test` 27件 pass | 完了 |
+| `npm test` 52件 pass | 完了 |
 | `npx tsc --noEmit` 通過 | 完了 |
 
 ---
@@ -168,7 +168,7 @@
 ---
 
 ## 9. 直近の確認ログ
-- `npm test`: 27 pass / 0 fail
+- `npm test`: 52 pass / 0 fail
 - `npx tsc --noEmit`: エラーなし
 - CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行
 
@@ -183,7 +183,7 @@ DB移行・認証基盤刷新を除く、現時点の作業進捗です。
 | Firestore ルール最小権限化 | 完了 | 高 (1) | クライアントからの Firestore 直接 read/write を禁止（API経由のみ）。 |
 | `actor.name` 永続化方針の明文化 | 完了 | 高 (2) | 記録時の表示名スナップショット固定を採用（再解決なし）。 |
 | 監査ログの全CUD対応 | 完了 | 高 (3) | `rules/notices/task-completions/expenses/shopping` のCUDログを実装。 |
-| API統合テスト | 未着手 | 高 (4) | ユニットテストは整備済み（27 pass）。 |
+| API統合テスト | 完了 | 高 (4) | `task-completions/expenses/shopping/rules` の統合テストを追加済み。 |
 | APIバリデーション統一（zod） | 未着手 | 中 (5) | 手書きバリデーション中心。 |
 | 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | ユーティリティ整備済み。型とAPI境界の統一は未完。 |
 | クエリ/インデックス運用明文化 | 未着手 | 中 | `DATABASE.md` はあるが運用手順化は未実施。 |
