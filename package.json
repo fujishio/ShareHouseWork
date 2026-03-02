@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "db:seed": "node --experimental-strip-types scripts/seed-firestore.ts",
+    "db:seed:reset": "node --experimental-strip-types scripts/seed-firestore.ts --reset",
     "emulators:start": "firebase emulators:start --project demo-sharehouse-work",
     "emulators:start:import": "firebase emulators:start --project demo-sharehouse-work --import=.firebase-data --export-on-exit=.firebase-data"
   },
