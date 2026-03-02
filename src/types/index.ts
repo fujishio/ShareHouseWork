@@ -17,6 +17,7 @@ export type House = {
   description?: string;
   ownerUid?: string;
   memberUids: string[];
+  hostUids: string[];
   createdAt: IsoDateTimeString;
 };
 

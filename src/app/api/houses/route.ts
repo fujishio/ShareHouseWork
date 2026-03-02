@@ -13,6 +13,7 @@ const createHouseSchema = z.object({
   name: zNonEmptyTrimmedString,
   description: zTrimmedString.optional(),
   ownerUid: zTrimmedString.optional(),
+  joinPassword: zTrimmedString.optional(),
 });
 
 export async function GET() {
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     name: parsed.data.name,
     description: parsed.data.description || undefined,
     ownerUid: parsed.data.ownerUid || undefined,
+    joinPassword: parsed.data.joinPassword || undefined,
   });
   return NextResponse.json({ data: created }, { status: 201 }) as NextResponse<HouseCreateResponse>;
 }

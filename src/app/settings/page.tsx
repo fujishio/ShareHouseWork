@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, ClipboardList, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
+import { Bell, BellOff, ClipboardList, Pencil, Plus, Trash2, Users, Wallet, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +10,7 @@ import {
   saveNotificationSettings,
   loadNotificationSettings,
 } from "@/shared/lib/notification-settings";
-import type { ContributionSettings, NotificationSettings, Task, TaskCategory, TaskListResponse, ApiErrorResponse } from "@/types";
+import type { ContributionSettings, House, Member, HouseListResponse, NotificationSettings, Task, TaskCategory, TaskListResponse, ApiErrorResponse, UserListResponse } from "@/types";
 import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { apiFetch } from "@/shared/lib/fetch-client";
@@ -410,6 +410,152 @@ function TaskInlineForm({
   );
 }
 
+function MemberManagementSection() {
+  const { user } = useAuth();
+  const [house, setHouse] = useState<House | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [housesRes, usersRes] = await Promise.all([
+        apiFetch("/api/houses"),
+        apiFetch("/api/users"),
+      ]);
+      if (!housesRes.ok) {
+        setLoadError("ハウス情報の取得に失敗しました");
+        return;
+      }
+      if (!usersRes.ok) {
+        setLoadError("メンバー情報の取得に失敗しました");
+        return;
+      }
+      const housesJson = (await housesRes.json()) as HouseListResponse;
+      const usersJson = (await usersRes.json()) as UserListResponse;
+      const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
+      setHouse(myHouse);
+      if (myHouse) {
+        const houseMembers = usersJson.data.filter((u) => myHouse.memberUids.includes(u.id));
+        setMembers(houseMembers);
+      }
+    } catch {
+      setLoadError("通信エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  const updateRole = async (targetUid: string, action: "grant" | "revoke") => {
+    if (!house) return;
+    setSaving(true);
+    try {
+      const res = await apiFetch(`/api/houses/${house.id}/roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userUid: targetUid, action }),
+      });
+      if (!res.ok) {
+        const message = await getApiErrorMessage(res, "権限の変更に失敗しました");
+        showToast({ level: "error", message });
+        return;
+      }
+      showToast({
+        level: "success",
+        message: action === "grant" ? "ホスト権限を付与しました" : "ホスト権限を解除しました",
+      });
+      await loadData();
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isCurrentUserHost = house?.hostUids.includes(user?.uid ?? "") ?? false;
+
+  return (
+    <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Users size={18} className="text-amber-500" />
+        <h3 className="text-sm font-bold text-stone-800">メンバー管理</h3>
+      </div>
+      <p className="text-xs text-stone-500 mb-3">ハウスメンバーのホスト権限を管理します。</p>
+
+      {loading && <LoadingNotice message="メンバーを読み込み中..." />}
+      {loadError && (
+        <RetryNotice
+          message={loadError}
+          actionLabel="再取得"
+          onRetry={() => { void loadData(); }}
+          disabled={loading}
+        />
+      )}
+
+      {!loading && !loadError && !house && (
+        <p className="text-xs text-stone-400">参加しているハウスが見つかりません。</p>
+      )}
+
+      {!loading && !loadError && house && (
+        <div className="space-y-1.5">
+          {members.map((member) => {
+            const isHost = house.hostUids.includes(member.id);
+            const isSelf = member.id === user?.uid;
+            return (
+              <div
+                key={member.id}
+                className="flex items-center gap-2 rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2"
+              >
+                <div
+                  className="h-6 w-6 shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                  style={{ backgroundColor: member.color }}
+                >
+                  {member.name.slice(0, 1)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-stone-800 truncate">
+                    {member.name}
+                    {isSelf && <span className="text-stone-400 font-normal ml-1">(あなた)</span>}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    isHost
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {isHost ? "ホスト" : "メンバー"}
+                </span>
+                {isCurrentUserHost && !isSelf && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => { void updateRole(member.id, isHost ? "revoke" : "grant"); }}
+                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+                      isHost
+                        ? "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                        : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    }`}
+                  >
+                    {isHost ? "ホストを外す" : "ホストにする"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DEFAULT_CONTRIBUTION: ContributionSettings = {
   monthlyAmountPerPerson: 15000,
   memberCount: HOUSE_MEMBERS.length,
@@ -680,6 +826,8 @@ export default function SettingsPage() {
       </div>
 
       <TaskManagementSection />
+
+      <MemberManagementSection />
 
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
         <h3 className="text-sm font-bold text-stone-800">月次データエクスポート</h3>

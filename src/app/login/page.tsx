@@ -1,22 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
+import { useAuth } from "@/context/AuthContext";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) router.replace("/");
+  }, [user, loading, router]);
+
+  if (loading) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       await signInWithEmailAndPassword(getClientAuth(), email, password);
@@ -24,7 +34,7 @@ export default function LoginPage() {
     } catch {
       setError("メールアドレスまたはパスワードが正しくありません");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -66,15 +76,25 @@ export default function LoginPage() {
             <label className="block text-xs font-medium text-stone-600 mb-1.5">
               パスワード
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-              placeholder="パスワード"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                placeholder="パスワード"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -85,10 +105,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-semibold rounded-xl py-2.5 text-sm transition-colors"
           >
-            {loading ? "ログイン中..." : "ログイン"}
+            {submitting ? "ログイン中..." : "ログイン"}
           </button>
 
           <p className="text-xs text-stone-500 text-center">
