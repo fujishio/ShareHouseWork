@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
 
 function getFirebaseClientConfig() {
   const config = {
@@ -27,6 +27,17 @@ function initClientApp() {
 }
 
 export function getClientAuth() {
-  initClientApp();
-  return getAuth();
+  const app = initClientApp();
+  const auth = getAuth(app);
+
+  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {
+    const emulatorUrl = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL || "http://127.0.0.1:9099";
+
+    // Prevent duplicate connects in HMR / repeated init.
+    if (!(auth as { emulatorConfig?: unknown }).emulatorConfig) {
+      connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
+    }
+  }
+
+  return auth;
 }

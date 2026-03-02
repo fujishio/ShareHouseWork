@@ -8,7 +8,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "emulators:start": "firebase emulators:start --project demo-sharehouse-work",
+    "emulators:start:import": "firebase emulators:start --project demo-sharehouse-work --import=.firebase-data --export-on-exit=.firebase-data"
   },
   "dependencies": {
     "firebase": "^12.10.0",
@@ -25,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
+    "firebase-tools": "^15.8.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
