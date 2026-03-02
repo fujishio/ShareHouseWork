@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpen } from "lucide-react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ContextualFAB from "@/components/ContextualFAB";
 import ToastViewport from "@/components/ToastViewport";
 import { AuthProvider } from "@/context/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
+import HeaderRuleLink from "@/components/HeaderRuleLink";
+import HeaderUserBadge from "@/components/HeaderUserBadge";
 
 export const metadata: Metadata = {
   title: "ShareHouseWork",
@@ -35,17 +35,8 @@ export default function RootLayout({
                     </h1>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link
-                      href="/rules"
-                      aria-label="ハウスルール"
-                      className="flex flex-col items-center justify-center text-stone-400 hover:text-amber-600 transition-colors"
-                    >
-                      <BookOpen size={16} strokeWidth={1.5} />
-                      <span className="text-[9px] font-medium leading-tight mt-0.5">ルール</span>
-                    </Link>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center text-sm font-medium text-amber-300 shadow-sm">
-                      家
-                    </div>
+                    <HeaderRuleLink />
+                    <HeaderUserBadge />
                   </div>
                 </div>
               </header>
