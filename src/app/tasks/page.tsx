@@ -5,7 +5,6 @@ import RecentCompletionsSection from "@/components/RecentCompletionsSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readTasks } from "@/server/task-store";
 import { formatRelativeTime } from "@/shared/lib/time";
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 function toMonthKey(date: Date): string {
   const year = date.getFullYear();

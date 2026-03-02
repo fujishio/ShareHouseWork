@@ -7,7 +7,6 @@ import type { ExpenseCategory } from "@/types";
 import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { MEMBER_NAMES } from "@/shared/constants/house";
 import { toLocalDateInputValue } from "@/shared/lib/time";
 import { apiFetch } from "@/shared/lib/fetch-client";
 
@@ -20,7 +19,6 @@ export default function ExpenseFormModal({ onClose }: Props) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("消耗品");
-  const [purchasedBy, setPurchasedBy] = useState<string>(MEMBER_NAMES[0]);
   const [purchasedAt, setPurchasedAt] = useState(toLocalDateInputValue);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -43,7 +41,6 @@ export default function ExpenseFormModal({ onClose }: Props) {
           title: title.trim(),
           amount: parsedAmount,
           category,
-          purchasedBy,
           purchasedAt,
         }),
       });
@@ -123,38 +120,20 @@ export default function ExpenseFormModal({ onClose }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label htmlFor="modal-expense-category" className="mb-1 block text-xs font-medium text-stone-600">
-              カテゴリ
-            </label>
-            <select
-              id="modal-expense-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            >
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="modal-expense-purchasedby" className="mb-1 block text-xs font-medium text-stone-600">
-              購入者
-            </label>
-            <select
-              id="modal-expense-purchasedby"
-              value={purchasedBy}
-              onChange={(e) => setPurchasedBy(e.target.value)}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            >
-              {MEMBER_NAMES.map((member) => (
-                <option key={member} value={member}>{member}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label htmlFor="modal-expense-category" className="mb-1 block text-xs font-medium text-stone-600">
+            カテゴリ
+          </label>
+          <select
+            id="modal-expense-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          >
+            {EXPENSE_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
 
         <button

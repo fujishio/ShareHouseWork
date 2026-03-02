@@ -10,7 +10,3 @@ export const HOUSE_MEMBERS: Member[] = [
 ];
 
 export const MEMBER_NAMES = HOUSE_MEMBERS.map((m) => m.name);
-
-export function isValidMemberName(name: string): boolean {
-  return MEMBER_NAMES.includes(name);
-}

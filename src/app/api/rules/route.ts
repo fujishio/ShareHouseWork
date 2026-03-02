@@ -53,10 +53,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const createdAt =
-    typeof raw.createdAt === "string"
-      ? raw.createdAt
-      : new Date().toISOString();
+  const createdAt = new Date().toISOString();
 
   const input: CreateRuleInput = {
     title,

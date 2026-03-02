@@ -35,10 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  const postedAt =
-    typeof raw.postedAt === "string"
-      ? raw.postedAt
-      : new Date().toISOString();
+  const postedAt = new Date().toISOString();
 
   const input: CreateNoticeInput = {
     title,

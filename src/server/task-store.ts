@@ -14,12 +14,6 @@ function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
   };
 }
 
-export async function readAllTasks(): Promise<Task[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db.collection(COLLECTION).get();
-  return snapshot.docs.map((doc) => docToTask(doc.id, doc.data()));
-}
-
 export async function readTasks(): Promise<Task[]> {
   const db = getAdminFirestore();
   const snapshot = await db

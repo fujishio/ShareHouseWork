@@ -27,40 +27,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  if (typeof body !== "object" || body === null) {
+    return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
+  }
+
+  const raw = body as Record<string, unknown>;
   if (
-    typeof body !== "object" ||
-    body === null ||
-    typeof (body as CreateExpenseInput).title !== "string" ||
-    typeof (body as CreateExpenseInput).amount !== "number" ||
-    typeof (body as CreateExpenseInput).category !== "string" ||
-    typeof (body as CreateExpenseInput).purchasedAt !== "string"
+    typeof raw.title !== "string" ||
+    typeof raw.amount !== "number" ||
+    typeof raw.category !== "string" ||
+    typeof raw.purchasedAt !== "string"
   ) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
   }
 
-  const input = body as Omit<CreateExpenseInput, "purchasedBy"> & { purchasedBy?: string };
-
-  if (!isTrimmedNonEmpty(input.title)) {
+  if (!isTrimmedNonEmpty(raw.title)) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  if (input.amount <= 0 || !Number.isFinite(input.amount)) {
+  if (raw.amount <= 0 || !Number.isFinite(raw.amount)) {
     return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
   }
 
-  if (!EXPENSE_CATEGORIES.includes(input.category as ExpenseCategory)) {
+  if (!EXPENSE_CATEGORIES.includes(raw.category as ExpenseCategory)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
 
-  const normalizedPurchasedAt = normalizePurchasedAt(input.purchasedAt);
+  const normalizedPurchasedAt = normalizePurchasedAt(raw.purchasedAt);
   if (!normalizedPurchasedAt) {
     return NextResponse.json({ error: "Invalid purchasedAt date" }, { status: 400 });
   }
 
-  const created = await appendExpense({
-    ...input,
+  const input: CreateExpenseInput = {
+    title: raw.title.trim(),
+    amount: raw.amount,
+    category: raw.category as ExpenseCategory,
     purchasedBy: actor.name,
     purchasedAt: normalizedPurchasedAt,
-  } as CreateExpenseInput);
+  };
+
+  const created = await appendExpense(input);
   return NextResponse.json({ data: created }, { status: 201 });
 }

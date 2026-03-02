@@ -7,7 +7,6 @@ import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory } from "@/types";
-import { MEMBER_NAMES } from "@/shared/constants/house";
 import { toLocalDateInputValue } from "@/shared/lib/time";
 import { apiFetch } from "@/shared/lib/fetch-client";
 
@@ -21,7 +20,6 @@ export default function ShoppingFormModal({ onClose }: Props) {
   const [quantity, setQuantity] = useState("");
   const [memo, setMemo] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("消耗品");
-  const [addedBy, setAddedBy] = useState<string>(MEMBER_NAMES[0]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -40,7 +38,6 @@ export default function ShoppingFormModal({ onClose }: Props) {
           quantity: quantity.trim() || "1",
           memo: memo.trim(),
           category,
-          addedBy,
           addedAt: toLocalDateInputValue(),
         }),
       });
@@ -88,36 +85,18 @@ export default function ShoppingFormModal({ onClose }: Props) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label htmlFor="modal-shopping-quantity" className="mb-1 block text-xs font-medium text-stone-600">
-              数量
-            </label>
-            <input
-              id="modal-shopping-quantity"
-              type="text"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="例: 2個"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="modal-shopping-addedby" className="mb-1 block text-xs font-medium text-stone-600">
-              追加者
-            </label>
-            <select
-              id="modal-shopping-addedby"
-              value={addedBy}
-              onChange={(e) => setAddedBy(e.target.value)}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            >
-              {MEMBER_NAMES.map((member) => (
-                <option key={member} value={member}>{member}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label htmlFor="modal-shopping-quantity" className="mb-1 block text-xs font-medium text-stone-600">
+            数量
+          </label>
+          <input
+            id="modal-shopping-quantity"
+            type="text"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            placeholder="例: 2個"
+            className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          />
         </div>
 
         <div>
