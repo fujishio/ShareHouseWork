@@ -1,378 +1,191 @@
-# ShareHouseWork 改善案
+# ShareHouseWork 改善案（DATABASE準拠）
 
-最終更新: 2026-03-01
-※ コードベース実装と `npm test` 実行結果をもとに更新しています。
+最終更新: 2026-03-02
+基準ドキュメント: `DATABASE.md`（Firestore設計）
 
 ---
 
-## 現状サマリー
+## 1. 目的
+- `IMPROVEMENTS.md` を現行の DB/実装定義に合わせる。
+- Firestore 前提の運用改善項目を明確化する。
+- 古い前提（LINE 連携前提、`/data/*.json` 前提）を除去する。
+- 当面の対象外として、DB移行（RDB化）と認証基盤の刷新（NextAuth等）は扱わない。
+
+---
+
+## 2. 現状サマリー（2026-03-02）
 
 | 項目 | 状態 |
 |------|------|
-| DB移行（JSON → PostgreSQL + Prisma） | 未着手 |
-| 認証（NextAuth + LINE Login） | 未着手 |
-| テスト | **27件 pass / 0件 fail**（全テスト通過） |
-| メンバーリスト一元化 | 完了（HOUSE_MEMBERS からの派生に統一） |
-| 日付/タイムゾーン集約 | 完了（shared/lib/time.ts に集約） |
-| "あなた" ハードコード | CURRENT_ACTOR に集約済（認証実装で1箇所変更するだけ） |
-| APIバリデーション統一（zod） | 未完了 |
-| APIメンバー検証 | 完了（全APIで isValidMemberName() による検証済） |
-| 監査ログ | 完了（全CUD操作に監査ログ追加済） |
-| レートリミット | 未着手 |
-| テスト + CI | 完了（27件 pass、CI で test + build 実行） |
-| ローディング状態の統一 | 完了 |
-| エラーハンドリングUI | 完了 |
+| DB基盤 | Firestore（`DATABASE.md` 準拠） |
+| 認証 | Firebase Auth の Bearer IDトークン検証（`verifyRequest()`） |
+| LINE関連 | 実装・設計の主軸ではない（本ドキュメントから削除） |
+| テスト | **27 pass / 0 fail** |
+| 型チェック | `npx tsc --noEmit` 通過 |
+| 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
+| API入力検証 | 手書きバリデーション中心（zod未導入） |
+| 日付運用 | ISO8601 と `YYYY-MM-DD` が混在（`DATABASE.md` 記載どおり） |
+| CI | `npm test` + `npm run build` 実行 |
 
 ---
 
-## ~~今すぐ対応可能な整理・バグ修正（認証/DB移行の準備）~~ ✅ 全完了
+## 3. DATABASE.md と整合した前提
 
-### P0. テスト失敗の修正 ✅
+### 3.1 コレクション（現行）
+- `users`
+- `houses`
+- `tasks`
+- `taskCompletions`
+- `expenses`
+- `shoppingItems`
+- `rules`
+- `notices`
+- `contributionSettings`
+- `auditLogs`
 
-**問題**
-- `src/domain/shopping/shopping-api-validation.test.ts` が失敗（1件）
-- 原因: `shopping-api-validation.ts` が `@/shared/lib/time` のパスエイリアスで re-export しており、Node.js テストランナーが `@/` を解決できない
+### 3.2 データ運用ルール（現行）
+- 論理削除: `tasks`, `rules`, `notices` は `deletedAt` 管理。
+- 取消: `taskCompletions`, `expenses`, `shoppingItems` は `canceledAt` 系で管理。
+- 履歴の `*By` は UID ではなく表示名（`actor.name`）で保存。
+- Firestore の参照整合性は API 層で担保。
+
+### 3.3 認証/実行者名の扱い（現行）
+- API は `Authorization: Bearer <Firebase ID token>` を検証。
+- `completedBy`, `purchasedBy`, `postedBy` などはクライアント入力ではなく、`verifyRequest()` で取得した `actor.name` を使用。
+
+---
+
+## 4. 優先度: 高（先に着手）
+
+### E. Firestore セキュリティルールの最小権限化
+
+**現状（対応前）**
+- `request.auth != null` で広く read/write 可能。
+
+**対応状況**
+- クライアントからの Firestore 直接 read/write を禁止（API経由のみ）に変更済み。
+- 次段で Emulator ルールテストを追加予定。
+
+### D. `actor.name` 永続化方針の明文化
+
+**決定（2026-03-02）**
+- 履歴の `actor.name` / `*By` は「記録時の表示名スナップショットを固定保存」する。
+- 後日の表示名変更時に、既存履歴の表示名は再解決しない。
 
 **対応**
-- テストファイルで `@/` エイリアスを使わないようにするか、テスト用のパス解決設定を追加する
-- 例: re-export を相対パスに変更、または `--import` でエイリアス解決を登録
+- `DATABASE.md` / `Overview.md` に方針を反映。
+- 監査ログ・履歴APIの実装は現行方針（固定保存）に合わせて維持。
 
-**影響範囲**
-- `src/domain/shopping/shopping-api-validation.ts`（1行目）
+### A. 監査ログの対象を全 CUD に拡張
 
----
+**現状（対応後）**
+- 実装済み:
+  - `rules`: 作成/更新/確認/削除
+  - `notices`: 作成/削除
+  - `taskCompletions`: 作成/取消
+  - `expenses`: 作成/取消
+  - `shoppingItems`: 作成/チェック/取消/未購入戻し
 
-### P1. メンバーリストの一元化（DRY違反の修正） ✅
+**対応状況**
+- `expenses` / `shopping` API に `appendAuditLog` を追加済み。
+- `AuditAction` を不足分まで拡張済み。
+- 重複ログ抑止のため、既取消/既チェック状態の再実行では監査ログを追加しないよう調整。
 
-**問題**
-- `HOUSE_MEMBERS`（`src/shared/constants/house.ts`）が正式な定義元だが、以下7ファイルで同じ名前リストをハードコードしている:
-  - `src/components/modals/ExpenseFormModal.tsx:11`
-  - `src/components/modals/NoticeFormModal.tsx:9`
-  - `src/components/modals/RuleFormModal.tsx:10`
-  - `src/components/modals/ShoppingFormModal.tsx:11`
-  - `src/components/ShoppingSection.tsx:12`
-  - `src/components/RulesSection.tsx:12`
-  - `src/app/settings/page.tsx:410-413`（`memberCount: 4` のハードコード）
-
-**対応**
-- `HOUSE_MEMBERS.map(m => m.name)` を共有ユーティリティとしてエクスポート
-- 全ファイルからハードコード配列を削除し、共通定義を使用する
-- `DEFAULT_CONTRIBUTION.memberCount` を `HOUSE_MEMBERS.length` に変更
-
-**効果**
-- 認証実装時にメンバー情報をDBから取得する際、変更箇所が1箇所に集約される
+### F. API統合テストの追加
+- 現在の単体テストに加え、主要 API の正常系/異常系を追加。
+- 対象優先: `task-completions`, `expenses`, `shopping`, `rules`。
 
 ---
 
-### P2. "あなた" ハードコードの整理 ✅
+## 5. 優先度: 中（高優先の次）
 
-**問題**
-- 現在のユーザーを表す文字列 `"あなた"` が以下6コンポーネントにハードコードされている:
-  - `src/components/modals/TaskCompleteModal.tsx:73` — `completedBy: "あなた"`
-  - `src/components/ExpenseSection.tsx:51` — `canceledBy: "あなた"`
-  - `src/components/ShoppingSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
-  - `src/components/RulesSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
-  - `src/components/NoticesSection.tsx:11` — `CURRENT_ACTOR = "あなた"`
-  - `src/components/RecentCompletionsSection.tsx:13` — `CANCELED_BY = "あなた"`
-
-**対応**
-- `CURRENT_ACTOR` を `src/shared/constants/house.ts` に集約し、全コンポーネントから import する
-- 認証実装時はこの1箇所を `useSession().user.name` に切り替えるだけで済むようにする
-
----
-
-### P3. 日付/タイムゾーン重複ロジックの集約 ✅
-
-**問題**
-- `src/shared/lib/time.ts` に JST ユーティリティがあるのに、以下のファイルで重複実装している:
-  - `src/app/shopping/page.tsx:4-15` — `getJstMonthKey()` の再実装
-  - `src/components/modals/ExpenseFormModal.tsx:13-16` — `toLocalDateInputValue()`（タイムゾーンオフセット計算）
-  - `src/components/modals/ShoppingFormModal.tsx:13-16` — `toLocalDateString()`（同様の重複）
-
-**対応**
-- `shopping/page.tsx` の `getJstMonthKey` を `shared/lib/time.ts` の `toJstMonthKey` に置き換える
-- `toLocalDateInputValue` / `toLocalDateString` を `shared/lib/time.ts` に集約する
-
----
-
-### P4. isRuleConfirmed ロジックバグの修正 ✅
-
-**問題**
-- `src/components/RulesSection.tsx:30-31`:
-  ```typescript
-  function isRuleConfirmed(rule: Rule): boolean {
-    if (!rule.acknowledgedBy) return true; // ← 未確認なのに true を返す
-  ```
-- `acknowledgedBy` が未定義（誰も確認していない）場合に `true`（確認済み）を返してしまう
-- 意図としては「確認フローが不要なルール」を想定している可能性があるが、ロジックとして紛らわしい
-
-**対応**
-- ルールが確認フローを持つかどうかを明示的に判定する（例: `acknowledgedBy === undefined` は「確認不要」、`[]` は「未確認」）
-- または、意図を明確にするコメントを追加する
-
----
-
-### P5. APIメンバー名バリデーションの統一 ✅
-
-**問題**
-- `task-completions` API は `completedBy` を `HOUSE_MEMBERS` で検証している（正しい）
-- 以下の API はメンバー名を検証していない:
-  - `expenses` — `paidBy` が任意の文字列を受け入れる
-  - `shopping` — `addedBy` が任意の文字列を受け入れる
-  - `notices` — `postedBy` が検証なし
-  - `rules/[id]` DELETE — `deletedBy` のデフォルトが `"不明"` で検証なし
-
-**対応**
-- 全 API で `HOUSE_MEMBERS.map(m => m.name)` によるメンバー名バリデーションを追加する
-- 共通の `isValidMemberName()` ヘルパーを作成する
-
----
-
-### P6. 型定義の整理（Prisma移行準備） ✅
-
-**問題**
-- `src/types/index.ts` にいくつかの型の不整合がある:
-  - `TaskCompletion.completedAt` が `Date` 型だが、`TaskCompletionRecord.completedAt` は `IsoDateString`（混在）
-  - `TaskCompletion.taskId` が optional（`taskId?: number`）だが、必須であるべき
-  - `ShoppingItem.checkedBy` / `checkedAt` がペアで使われるべきだが個別に optional
-  - `canceledAt` / `canceledBy` / `cancelReason` がグループ化されていない
-  - `AuditLogRecord.details` が `Record<string, string | number | boolean | null>` で広すぎる
-
-**対応**
-- Prisma スキーマ設計を見据えて型を整理する
-- 必須フィールドの optional を修正する
-- 日付型を `IsoDateString` に統一する
-
----
-
-### P7. 監査ログの欠落を補完 ✅
-
-**問題**
-- 以下の操作で監査ログが記録されていない:
-  - ルール作成（POST `/api/rules`）
-  - ルール更新（PUT `/api/rules/[id]`）
-  - ルール確認（PATCH `/api/rules/[id]`）
-  - お知らせ作成（POST `/api/notices`）
-
-**対応**
-- 全 CUD 操作に監査ログを追加する
-- 共通の `logAuditEvent()` ヘルパーの導入を検討する
-
----
-
-### P8. `src/lib/` 空ディレクトリの削除 ✅
-
-**問題**
-- `src/lib/` ディレクトリが空のまま残っている
-
-**対応**
-- 不要なら削除する
-
----
-
-### P9. `package.json` に `"type": "module"` を追加 ✅
-
-**問題**
-- テスト実行時に毎回 `MODULE_TYPELESS_PACKAGE_JSON` 警告が出る
-- Node.js が CommonJS として解析→ES Module として再解析するオーバーヘッドが発生
-
-**対応**
-- `package.json` に `"type": "module"` を追加する
-- 既存のビルド・テストが壊れないか確認する
-
----
-
-## 優先度: 高（実運用ブロッカー）
-
-### A. DB移行（JSON → PostgreSQL + Prisma）
-
-**問題**
-- `/data/*.json` へのファイル書き込みで永続化している
-- Vercel（サーバーレス）ではデプロイ後にデータが消失する
-- 同時書き込みで競合・データ破損のリスクがある
-- ID生成（`nextId()`）が同時リクエストで衝突する可能性がある
-
-**対応**
-- Prisma + Supabase（または Neon）へ移行する
-- `src/server/*-store.ts` の各ストアを Prisma Client に置き換える
-- `Expense / Shopping / Notice / Rule / TaskCompletion / AuditLog` をスキーマ化する
-- マイグレーションファイルでスキーマをバージョン管理する
-- 既存 `data/*.json` から移行スクリプトを作成する
-
-**影響範囲**
-- `src/server/` 配下の全ストアファイル（9ファイル）
-- 全APIルート（`src/app/api/`、17ファイル）
-- `data/` ディレクトリの廃止
-
----
-
-### B. 認証実装（NextAuth + LINE Login）
-
-**問題**
-- 全ページが認証なしでアクセス可能
-- ユーザー識別が「あなた」固定で、監査・権限・通知制御が実運用レベルに達していない
-- `x-sharehouse-actor` ヘッダーがクライアントから偽装可能
-
-**対応**
-- NextAuth.js + LINE Provider を実装する
-- 未認証時はログイン画面へリダイレクトする
-- APIでセッション検証を必須化する
-- `completedBy / purchasedBy / postedBy` を実際のログインユーザーで自動設定する
-- `x-sharehouse-actor` ヘッダーを廃止し、セッションベースに切り替える
-
-**影響範囲**
-- `src/app/layout.tsx`（SessionProvider 追加）
-- 全APIルート（セッション検証の追加）
-- 全フォームモーダル（ユーザー名の自動取得）
-
----
-
-### C. APIバリデーション統一（zod）
-
-**問題**
-- ルートごとに手書きバリデーションで、漏れや整合崩れが起きやすい
-- テキストフィールドに最大長制限がない（巨大な文字列を受け入れてしまう）
-- エラーレスポンス型の適用が不統一
-
-**対応**
-- zod スキーマを `domain` または `shared` に集約する
-- エラー形式を `{ error, code, details }` に統一する
-- テキストフィールドに最大長バリデーションを追加する
-
----
-
-### D. レートリミット導入
-
-**問題**
-- 公開APIが無制限で叩ける状態
-
-**対応**
-- IP単位の制限を Vercel Edge Middleware で導入する
-- 認証実装後はユーザー単位のリミットに切り替える
-
----
-
-## 優先度: 中（完成度を上げる）
-
-### E. テスト対象の拡張
+### B. APIバリデーションの統一（zod）
 
 **現状**
-- ドメイン / ユーティリティ / CSV生成はテストあり（22件 pass / 1件 fail）
-- API統合テスト・コンポーネントテスト・カバレッジ計測が未整備
+- ルートごとに手書きバリデーションで実装。
+- 文字列長や enum 制約がルートごとに散在。
 
 **対応**
-- APIルートの統合テスト（正常系/異常系）を追加する
-- UIの主要操作（登録・取消・完了）を最低限 E2E またはコンポーネントテスト化する
-- カバレッジ閾値を CI でチェックする
+- `domain/*` もしくは `shared/*` に zod スキーマを集約。
+- 共通エラー形式を定義（例: `{ error, code, details }`）。
+- `DATABASE.md` の field 定義（型・必須）と API バリデーションを 1:1 で対応させる。
 
----
-
-### F. CSVエクスポート拡張
+### C. 日付フォーマットの扱いを明示し、混在バグを予防
 
 **現状**
-- エンドポイントと UI 導線はあるが、出力対象がタスク完了のみで月次運用データとして不足
+- 設計上、日時（ISO8601）と日付（`YYYY-MM-DD`）が混在。
+- 実装上は妥当だが、境界（比較/ソート/CSV）で事故が起きやすい。
 
 **対応**
-- タスク完了に加え、支出・買い物を出力する
-- 利用用途別にシート分割（または複数CSV）を検討する
+- `types/index.ts` で用途別の型 alias を明確化（例: `IsoDateTimeString`, `IsoDateString`）。
+- API境界で正規化を必須化（入力即正規化）。
+- CSV/集計ロジックで日時・日付を混在比較しない規約を追加。
+
+### G. インデックス/クエリ運用の明文化
+- `DATABASE.md` の主要クエリに対し、必要インデックスと運用手順を `docs/` に追加。
+- 本番で追加が必要な複合インデックスが出た場合の更新手順を固定化。
 
 ---
 
-### G. 買い物の長期アーカイブ
+## 6. 優先度: 低（後段で対応）
 
-**現状**
-- 購入済み表示 / 未購入戻しは実装済み
-- 月跨ぎでデータが蓄積され続ける
+### H. CSVエクスポートの運用拡張
+- `taskCompletions` / `expenses` / `shoppingItems` の月次出力は実装済み。
+- 運用手順（配布先、命名規則、保管期間、再出力手順）を `docs/` に追記する。
 
-**対応**
-- 一定期間経過分をアーカイブまたは折りたたみ表示にする
+### I. Lint/Format 強化
+- lint ルールの厳格化、整形ルール統一。
 
----
-
-### H. UX共通化（再試行導線）
-
-**現状**
-- Toast通知・Loading・Skeleton UI は対応済み
-- 失敗時の再試行導線が未標準化
-
-**対応**
-- 失敗時の再試行ボタンを主要な操作画面に追加する
+### J. PWA/オフライン
+- 優先課題完了後に再評価。
 
 ---
 
-## 優先度: 低〜中（運用安定化・保守性）
+## 7. 完了済み（現行実装で確認済み）
 
-### I. Next.js 設定の具体化
-
-- `next.config.ts` にセキュリティヘッダや必要な最適化設定を追加する
-
-### J. Lint / Format 強化
-
-- `@typescript-eslint/strict` を追加する
-- Prettier を導入してコードスタイルを統一する
-- CI に lint を追加する
-
-### K. PWA 対応
-
-- `manifest.json` を追加してホーム画面への追加を可能にする
-- Service Worker でオフライン時の基本表示を確保する
-
-### L. 環境変数の整理
-
-- `.env.example` を実装状況に合わせて最新化する（`DATABASE_URL` は未使用など）
-
-### M. ダークモード
-
-- `prefers-color-scheme` に応じた自動切り替えを実装する（他の改善完了後に検討）
+| 項目 | 状態 |
+|------|------|
+| Firestore ストア実装 | 完了 |
+| Firebase Auth Bearer 検証 | 完了 |
+| `MEMBER_NAMES` 一元化 | 完了 |
+| `toJstMonthKey` / `toLocalDateInputValue` 集約 | 完了 |
+| ルール確認ロジックの意図コメント化 | 完了 |
+| rules/notices/task-completions の監査ログ | 完了 |
+| expenses/shopping の監査ログ | 完了 |
+| `package.json` `"type": "module"` | 完了 |
+| `npm test` 27件 pass | 完了 |
+| `npx tsc --noEmit` 通過 | 完了 |
 
 ---
 
-## 完了済み
-
-| 項目 | 対応内容 |
-|------|---------|
-| ダッシュボードのモック除去 | `src/app/page.tsx` が実APIに直接接続済み |
-| APIのHTTPメソッド設計 | `DELETE / PATCH / PUT` を `src/app/api/*/[id]/route.ts` で利用 |
-| ルール画面 `/rules` | `src/app/rules/page.tsx` + `src/components/RulesSection.tsx` 実装済み |
-| 買い物アーカイブ（基本） | 購入済み表示 / 未購入戻し実装済み |
-| 費用カテゴリ集計 | `ExpenseCategoryChart` を `ExpenseSection` で表示済み |
-| CSVエクスポート（基本） | `/api/exports/monthly.csv` と設定画面ボタンを接続済み |
-| ローディング状態の統一 | `Loading.tsx` / `PageSkeleton` / `loading.tsx` を追加済み |
-| エラーハンドリングUI | `error.tsx` / `RetryNotice` / 再取得ボタンを追加済み |
-| テスト + CI（基本） | `.github/workflows/ci.yml` で test / build を自動実行 |
-| コード重複リファクタリング | JST集約・nextId()共通化・getLatestCompletionByTask集約（2026-03-01） |
-| P0. テスト失敗の修正 | パスエイリアス問題を解消、全27テスト pass（2026-03-01） |
-| P1. メンバーリストの一元化 | RuleCategory バリデーション統一（2026-03-01） |
-| P2. 監査ログ AuditAction 型追加 | AuditAction union type を types/index.ts に追加（2026-03-01） |
-| P3. shopping API バリデーション強化 | addedBy の検証追加（2026-03-01） |
-| P4. task-completions メンバーバリデーション | isValidMemberName() による検証追加（2026-03-01） |
-| P5. TaskCompleteModal エラーハンドリング | サイレント抑制からエラー表示に変更（2026-03-01） |
-| P6. monthly-export CSV 型バグ修正 | boolean が toCsvCell に渡せないバグを修正（2026-03-01） |
-| P7. 監査ログの欠落を補完 | rules/notices の全CUD操作に監査ログ追加（2026-03-01） |
-| P8. `src/lib/` 空ディレクトリ削除 | 削除済（2026-03-01） |
-| P9. `package.json` に `"type": "module"` 追加 | 警告解消済（2026-03-01） |
+## 8. 次の着手順（推奨）
+1. F: API統合テストを追加
+2. B + C: zod統一と日付型/正規化ルールをセットで導入
+3. G: インデックス/クエリ運用を `docs/` に明文化
+4. H: CSVエクスポートの運用手順を `docs/` に明文化
+5. I: Lint/Format強化
 
 ---
 
-## 推奨着手順
-
-| 順 | 項目 | 理由 |
-|:--:|------|------|
-| ~~1~~ | ~~P0〜P3~~ | ~~テスト修正・DRY違反・バグ修正~~ ✅ 完了 |
-| ~~2~~ | ~~P4〜P9~~ | ~~バリデーション統一・型整理・監査ログ補完~~ ✅ 完了 |
-| 3 | A. DB移行 | Vercelデプロイに必須。全機能の基盤 ← **次はここ** |
-| 4 | B. 認証実装 | ユーザー識別なしでは実運用不可 |
-| 5 | C. APIバリデーション統一 | DB移行と同時に整備すると効率的 |
-| 6 | D. レートリミット導入 | 認証後すぐに対応 |
-| 7 | E. テスト拡張 | 機能追加前に品質ゲートを確立 |
-| 8 | F〜H | CSVエクスポート拡張・アーカイブ・再試行導線 |
-| 9 | I〜M | 運用安定化・保守改善（順不同） |
-
----
-
-## 直近の確認ログ
-
-- `npm test`: **27 pass / 0 fail**（全テスト通過）
-- `npx tsc --noEmit`: **エラーなし**（型チェック通過）
+## 9. 直近の確認ログ
+- `npm test`: 27 pass / 0 fail
+- `npx tsc --noEmit`: エラーなし
 - CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行
-- `"type": "module"` 追加済（`MODULE_TYPELESS_PACKAGE_JSON` 警告を解消）
+
+---
+
+## 10. 対象内タスクの進捗
+
+DB移行・認証基盤刷新を除く、現時点の作業進捗です。
+
+| 項目 | 進捗 | 推奨優先度 | 補足 |
+|---|---|---|---|
+| Firestore ルール最小権限化 | 完了 | 高 (1) | クライアントからの Firestore 直接 read/write を禁止（API経由のみ）。 |
+| `actor.name` 永続化方針の明文化 | 完了 | 高 (2) | 記録時の表示名スナップショット固定を採用（再解決なし）。 |
+| 監査ログの全CUD対応 | 完了 | 高 (3) | `rules/notices/task-completions/expenses/shopping` のCUDログを実装。 |
+| API統合テスト | 未着手 | 高 (4) | ユニットテストは整備済み（27 pass）。 |
+| APIバリデーション統一（zod） | 未着手 | 中 (5) | 手書きバリデーション中心。 |
+| 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | ユーティリティ整備済み。型とAPI境界の統一は未完。 |
+| クエリ/インデックス運用明文化 | 未着手 | 中 | `DATABASE.md` はあるが運用手順化は未実施。 |
+| CSV運用拡張 | 一部完了 | 低 | `task/expenses/shopping` 出力は対応済み。運用向け整備は継続。 |
+| Lint/Format強化 | 未着手 | 低 | ルール厳格化・整形統一はこれから。 |

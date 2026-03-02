@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readShoppingItems, appendShoppingItem } from "@/server/shopping-store";
+import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import {
   getJstDateString,
@@ -66,5 +67,20 @@ export async function POST(request: Request) {
   };
 
   const created = await appendShoppingItem(input);
+
+  await appendAuditLog({
+    action: "shopping_created",
+    actor: actor.name,
+    source: "app",
+    createdAt: new Date().toISOString(),
+    details: {
+      shoppingItemId: created.id,
+      name: created.name,
+      quantity: created.quantity,
+      category: created.category ?? null,
+      addedAt: created.addedAt,
+    },
+  });
+
   return NextResponse.json({ data: created }, { status: 201 });
 }

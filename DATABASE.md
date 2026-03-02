@@ -3,7 +3,7 @@
 ## 1. 前提
 - DB は Firestore を使用（RDB の「テーブル」相当は `collection`）。
 - 本ドキュメントは現行実装（`src/server/*-store.ts`, `src/app/api/**/route.ts`）準拠。
-- セキュリティルールは現状 `request.auth != null` で全ドキュメント read/write 可。
+- セキュリティルールは「クライアントからの Firestore 直接 read/write を禁止（API 経由のみ）」を採用。
 
 ## 2. 論理ER（コレクション関連）
 ```mermaid
@@ -23,6 +23,7 @@ erDiagram
 
 注記:
 - 実装上、履歴系の `*By` は UID ではなく表示名（`actor.name`）を保存。
+- `actor.name` は「記録時の表示名スナップショットを固定保存」し、後日の表示名変更では履歴を再解決しない。
 - Firestore は FK 制約なし。関連整合性は API 層で担保。
 
 ## 3. コレクション定義
@@ -180,6 +181,7 @@ erDiagram
 ## 5. 実装ルール（運用）
 - 論理削除: `tasks`, `rules`, `notices` は `deletedAt` で管理。
 - 取消: `taskCompletions`, `expenses`, `shoppingItems` は `canceledAt` 系で管理。
+- 履歴系 `*By` / `actor` は表示名のスナップショット固定（UID 再解決はしない）。
 - 日付フォーマットは混在:
   - 日時: ISO8601（例 `2026-03-02T08:15:30.000Z`）
   - 日付: `YYYY-MM-DD`（例 `2026-03-02`）

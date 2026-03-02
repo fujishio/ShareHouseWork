@@ -3,7 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      // All data access is mediated by Next.js API routes (Admin SDK).
+      // Client SDK direct read/write is denied by default.
+      allow read, write: if false;
     }
   }
 }

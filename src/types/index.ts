@@ -65,6 +65,12 @@ export type TaskCompletionCancelResponse = ApiSuccessResponse<TaskCompletionReco
 export type AuditAction =
   | "task_completion_created"
   | "task_completion_canceled"
+  | "expense_created"
+  | "expense_canceled"
+  | "shopping_created"
+  | "shopping_checked"
+  | "shopping_unchecked"
+  | "shopping_canceled"
   | "rule_created"
   | "rule_updated"
   | "rule_acknowledged"
