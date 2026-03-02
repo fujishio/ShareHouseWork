@@ -20,6 +20,8 @@
 | DB基盤 | Firestore（`DATABASE.md` 準拠） |
 | 認証 | Firebase Auth の Bearer IDトークン検証（`verifyRequest()`） |
 | LINE関連 | 実装・設計の主軸ではない（本ドキュメントから削除） |
+| 通知配信 | アプリ内通知は実装済み。外部通知（Discord/メール）は未実装 |
+| 設定画面 | 通知文言をメールに統一、ログアウト導線を追加 |
 | テスト | **52 pass / 0 fail** |
 | 型チェック | `npx tsc --noEmit` 通過 |
 | 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
@@ -91,9 +93,9 @@
 - `AuditAction` を不足分まで拡張済み。
 - 重複ログ抑止のため、既取消/既チェック状態の再実行では監査ログを追加しないよう調整。
 
-### F. API統合テストの追加
-- 現在の単体テストに加え、主要 API の正常系/異常系を追加。
-- 対象優先: `task-completions`, `expenses`, `shopping`, `rules`。
+### F. API統合テストの運用継続
+- 主要 API（`task-completions`, `expenses`, `shopping`, `rules`）は正常系/異常系の統合テスト追加済み。
+- 今後は新規 API 追加時の同時テスト追加を運用ルール化する。
 
 ---
 
@@ -124,6 +126,34 @@
 - `docs/firestore-query-index-operations.md` を追加。
 - 複合インデックス追加の判断基準と本番反映手順を固定化。
 
+### K. Discord通知要件（新規）
+
+**目的**
+- 外部通知を Discord に統一し、主要イベントをリアルタイム共有する。
+
+**機能要件（MVP）**
+- 送信方式は Discord Incoming Webhook を採用する（Bot は将来拡張）。
+- 通知イベントを定義する: `task.completed`, `notice.created`, `expense.added`, `shopping.checked`。
+- 通知設定をハウス単位で保持する: `enabled`, `importantOnly`, `webhookUrl`, `updatedAt`, `updatedBy`。
+- イベント発生時は同期送信せず、通知キューに積んで非同期送信する。
+- 重要通知のみ送るフィルタ（`importantOnly`）を実装する。
+
+**非機能要件**
+- 冪等性: `eventId + destination` で重複送信を防止する。
+- 再送: 失敗時は指数バックオフでリトライし、上限超過時は dead-letter に退避する。
+- 監視: 成功件数/失敗件数/最終エラーを記録し、運用で追跡可能にする。
+- セキュリティ: Webhook URL は Secret Manager または `.env.local` に保存し、リポジトリにコミットしない。
+
+**実装方針**
+- Firestore に `notificationSettings`（設定）と `notificationQueue`（配信キュー）コレクションを追加。
+- API 層はイベント生成のみ行い、送信処理は Cloud Functions/Worker に分離する。
+- メッセージテンプレートはイベントごとに固定化し、将来の i18n 可能な構造にする。
+
+**受け入れ基準**
+- 設定ONのハウスでイベント発生時、Discord チャンネルに1回だけ通知される。
+- 一時失敗時に自動再送され、重複通知が発生しない。
+- 設定OFF時は通知が送信されない。
+
 ---
 
 ## 6. 優先度: 低（後段で対応）
@@ -151,6 +181,8 @@
 | ルール確認ロジックの意図コメント化 | 完了 |
 | rules/notices/task-completions の監査ログ | 完了 |
 | expenses/shopping の監査ログ | 完了 |
+| 設定画面のログアウト導線 | 完了 |
+| 通知設定文言のメール統一 | 完了 |
 | `package.json` `"type": "module"` | 完了 |
 | `npm test` 52件 pass | 完了 |
 | `npx tsc --noEmit` 通過 | 完了 |
@@ -158,10 +190,11 @@
 ---
 
 ## 8. 次の着手順（推奨）
-1. F: API統合テストを追加
-2. B + C: zod統一を `notices/tasks/houses` へ展開
-3. H: CSVエクスポートの運用手順を `docs/` に明文化
-4. I: Lint/Format強化
+1. E: Firestore Emulator のルールテストを追加（最小権限化の回帰防止）
+2. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一
+3. K: Discord 通知の MVP 実装（設定・キュー・非同期送信）
+4. H: CSVエクスポートの運用手順を `docs/` に明文化
+5. I: Lint/Format強化
 
 ---
 
@@ -182,8 +215,13 @@ DB移行・認証基盤刷新を除く、現時点の作業進捗です。
 | `actor.name` 永続化方針の明文化 | 完了 | 高 (2) | 記録時の表示名スナップショット固定を採用（再解決なし）。 |
 | 監査ログの全CUD対応 | 完了 | 高 (3) | `rules/notices/task-completions/expenses/shopping` のCUDログを実装。 |
 | API統合テスト | 完了 | 高 (4) | `task-completions/expenses/shopping/rules` の統合テストを追加済み。 |
+| API統合テスト運用 | 一部完了 | 高 (4) | 主要APIは対応済み。新規API追加時の同時テスト追加ルール化が残課題。 |
 | APIバリデーション統一（zod） | 一部完了 | 中 (5) | `task-completions/expenses/shopping/rules/notices/tasks/houses` は対応。残りAPIへ展開中。 |
 | 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | 型alias追加とAPI境界の正規化を導入。CSV/集計側の監査は継続。 |
 | クエリ/インデックス運用明文化 | 完了 | 中 | `docs/firestore-query-index-operations.md` を追加し、運用手順を文書化。 |
+| Discord通知要件定義 | 完了 | 中 | Webhook前提のMVP要件（キュー/再送/冪等/監視/秘匿）を本書に追記。 |
+| Discord通知実装 | 未着手 | 中 | 要件定義済み。`notificationSettings`/`notificationQueue` と送信Worker実装が必要。 |
+| 設定画面ログアウト | 完了 | 低 | `settings` から `signOut()` 実行後に `/login` へ遷移。 |
+| 通知設定の文言整備 | 完了 | 低 | 通知UIの `LINE` 表記を `メール` に統一。 |
 | CSV運用拡張 | 一部完了 | 低 | `task/expenses/shopping` 出力は対応済み。運用向け整備は継続。 |
 | Lint/Format強化 | 未着手 | 低 | ルール厳格化・整形統一はこれから。 |

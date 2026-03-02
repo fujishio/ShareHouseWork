@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, ClipboardList, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -415,6 +416,7 @@ const DEFAULT_CONTRIBUTION: ContributionSettings = {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState<NotificationSettings>(
     DEFAULT_NOTIFICATION_SETTINGS
   );
@@ -432,7 +434,8 @@ export default function SettingsPage() {
   const [contributionError, setContributionError] = useState<string | null>(null);
   const [contributionLoading, setContributionLoading] = useState(false);
   const [contributionLoadError, setContributionLoadError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+  const { user, signOut } = useAuth();
   const currentUserName = user?.displayName ?? HOUSE_MEMBERS[0].name;
   const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
@@ -511,6 +514,18 @@ export default function SettingsPage() {
     setSavedAt(new Date());
   };
 
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace("/login");
+    } catch {
+      showToast({ level: "error", message: "ログアウトに失敗しました" });
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {contributionSaving && <LoadingNotice message="設定を保存中..." />}
@@ -522,18 +537,18 @@ export default function SettingsPage() {
           ) : (
             <BellOff size={18} className="text-stone-400" />
           )}
-          <h2 className="font-bold text-stone-800">LINE通知設定</h2>
+          <h2 className="font-bold text-stone-800">メール通知設定</h2>
         </div>
         <p className="mt-2 text-sm text-stone-500">
-          LINEで受け取りたい通知の粒度を選択できます。
+          メールで受け取りたい通知の粒度を選択できます。
         </p>
         <p className="mt-1 text-xs text-stone-400">{statusMessage}</p>
       </div>
 
       <div className="space-y-2">
         <SettingsToggle
-          title="LINEで通知を受け取る"
-          description="LINEへの通知送信をON/OFFします。"
+          title="メールで通知を受け取る"
+          description="メールへの通知送信をON/OFFします。"
           checked={settings.enabled}
           onChange={(enabled) =>
             updateSettings({
@@ -545,7 +560,7 @@ export default function SettingsPage() {
         />
         <SettingsToggle
           title="重要なお知らせのみ"
-          description="重要フラグが付いた通知だけをLINEに送信します。"
+          description="重要フラグが付いた通知だけをメールに送信します。"
           checked={settings.importantOnly}
           disabled={!settings.enabled}
           onChange={(importantOnly) =>
@@ -686,6 +701,21 @@ export default function SettingsPage() {
             CSV出力
           </a>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
+        <h3 className="text-sm font-bold text-stone-800">アカウント</h3>
+        <p className="mt-1 text-xs text-stone-500">
+          現在のアカウントからログアウトします。
+        </p>
+        <button
+          type="button"
+          onClick={() => { void handleSignOut(); }}
+          disabled={signingOut}
+          className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-60"
+        >
+          {signingOut ? "ログアウト中…" : "ログアウト"}
+        </button>
       </div>
     </div>
   );
