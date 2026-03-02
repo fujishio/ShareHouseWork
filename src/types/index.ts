@@ -9,6 +9,15 @@ export type Member = {
   email?: string;
 };
 
+export type House = {
+  id: string;
+  name: string;
+  description?: string;
+  ownerUid?: string;
+  memberUids: string[];
+  createdAt: IsoDateString;
+};
+
 export type TaskCompletion = {
   id: string;
   taskId: string;
@@ -185,6 +194,11 @@ export type CreateNoticeInput = {
 export type NoticeListResponse = ApiSuccessResponse<Notice[]>;
 export type NoticeCreateResponse = ApiSuccessResponse<Notice>;
 export type NoticeDeleteResponse = ApiSuccessResponse<Notice>;
+
+export type HouseCreateResponse = ApiSuccessResponse<House>;
+export type HouseListResponse = ApiSuccessResponse<House[]>;
+export type HouseMemberAddResponse = ApiSuccessResponse<House>;
+export type UserListResponse = ApiSuccessResponse<Member[]>;
 
 export type RuleCategory =
   | "ゴミ捨て"

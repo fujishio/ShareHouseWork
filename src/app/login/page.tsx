@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 
@@ -89,6 +90,13 @@ export default function LoginPage() {
           >
             {loading ? "ログイン中..." : "ログイン"}
           </button>
+
+          <p className="text-xs text-stone-500 text-center">
+            初めて使う場合は{" "}
+            <Link href="/register" className="text-amber-700 underline">
+              新規登録
+            </Link>
+          </p>
         </form>
       </div>
     </div>
