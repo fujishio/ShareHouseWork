@@ -1,14 +1,19 @@
 import { EXPENSE_CATEGORIES } from "../../domain/expenses/expense-categories.ts";
 import {
-  isTrimmedNonEmpty,
   normalizePurchasedAt,
 } from "../../domain/expenses/expense-api-validation.ts";
+import {
+  zIsoDateString,
+  zNonEmptyTrimmedString,
+} from "../../shared/lib/api-validation.ts";
 import type {
+  ApiErrorResponse,
   AuditLogRecord,
   CreateExpenseInput,
   ExpenseCategory,
   ExpenseRecord,
 } from "../../types/index.ts";
+import { z } from "zod";
 
 type AuthenticatedUser = {
   uid: string;
@@ -43,6 +48,38 @@ export type DeleteExpenseDeps = {
   now: () => string;
 };
 
+const createExpenseSchema = z.object({
+  title: zNonEmptyTrimmedString,
+  amount: z.number().finite().positive(),
+  category: z.enum(EXPENSE_CATEGORIES),
+  purchasedAt: zIsoDateString.or(
+    z.string().transform((value, context) => {
+      const normalized = normalizePurchasedAt(value);
+      if (!normalized) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid purchasedAt date",
+        });
+        return z.NEVER;
+      }
+      return normalized;
+    })
+  ),
+});
+
+const deleteExpenseSchema = z.object({
+  cancelReason: zNonEmptyTrimmedString,
+});
+
+function errorResponse(
+  error: string,
+  status: number,
+  code: string,
+  details?: unknown
+) {
+  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
+}
+
 export async function handleGetExpenses(request: Request, deps: GetExpensesDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
@@ -62,46 +99,48 @@ export async function handleCreateExpense(
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  if (typeof body !== "object" || body === null) {
-    return Response.json({ error: "Missing or invalid fields" }, { status: 400 });
-  }
-
-  const raw = body as Record<string, unknown>;
-  if (
-    typeof raw.title !== "string" ||
-    typeof raw.amount !== "number" ||
-    typeof raw.category !== "string" ||
-    typeof raw.purchasedAt !== "string"
-  ) {
-    return Response.json({ error: "Missing or invalid fields" }, { status: 400 });
-  }
-
-  if (!isTrimmedNonEmpty(raw.title)) {
-    return Response.json({ error: "title is required" }, { status: 400 });
-  }
-
-  if (raw.amount <= 0 || !Number.isFinite(raw.amount)) {
-    return Response.json({ error: "amount must be a positive number" }, { status: 400 });
-  }
-
-  if (!EXPENSE_CATEGORIES.includes(raw.category as ExpenseCategory)) {
-    return Response.json({ error: "Invalid category" }, { status: 400 });
-  }
-
-  const normalizedPurchasedAt = normalizePurchasedAt(raw.purchasedAt);
-  if (!normalizedPurchasedAt) {
-    return Response.json({ error: "Invalid purchasedAt date" }, { status: 400 });
+  const parsed = createExpenseSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    if (firstIssue?.path[0] === "title") {
+      return errorResponse("title is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+    }
+    if (firstIssue?.path[0] === "amount") {
+      return errorResponse(
+        "amount must be a positive number",
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues
+      );
+    }
+    if (firstIssue?.path[0] === "category") {
+      return errorResponse("Invalid category", 400, "VALIDATION_ERROR", parsed.error.issues);
+    }
+    if (firstIssue?.path[0] === "purchasedAt") {
+      return errorResponse(
+        "Invalid purchasedAt date",
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues
+      );
+    }
+    return errorResponse(
+      "Missing or invalid fields",
+      400,
+      "VALIDATION_ERROR",
+      parsed.error.issues
+    );
   }
 
   const input: CreateExpenseInput = {
-    title: raw.title.trim(),
-    amount: raw.amount,
-    category: raw.category as ExpenseCategory,
+    title: parsed.data.title,
+    amount: parsed.data.amount,
+    category: parsed.data.category as ExpenseCategory,
     purchasedBy: actor.name,
-    purchasedAt: normalizedPurchasedAt,
+    purchasedAt: parsed.data.purchasedAt,
   };
 
   const created = await deps.appendExpense(input);
@@ -140,18 +179,16 @@ export async function handleDeleteExpense(
     body = {};
   }
 
-  const raw =
-    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-  const cancelReason = typeof raw.cancelReason === "string" ? raw.cancelReason.trim() : "";
-
-  if (!isTrimmedNonEmpty(cancelReason)) {
-    return Response.json({ error: "cancelReason is required" }, { status: 400 });
+  const parsed = deleteExpenseSchema.safeParse(body);
+  if (!parsed.success) {
+    return errorResponse("cancelReason is required", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
+  const cancelReason = parsed.data.cancelReason;
 
   const canceledAt = deps.now();
   const existing = (await deps.readExpenses()).find((expense) => expense.id === id);
   if (!existing) {
-    return Response.json({ error: "Expense not found" }, { status: 404 });
+    return errorResponse("Expense not found", 404, "EXPENSE_NOT_FOUND");
   }
 
   const updated = await deps.cancelExpense(
@@ -164,7 +201,7 @@ export async function handleDeleteExpense(
   );
 
   if (!updated) {
-    return Response.json({ error: "Expense not found" }, { status: 404 });
+    return errorResponse("Expense not found", 404, "EXPENSE_NOT_FOUND");
   }
 
   if (!existing.canceledAt && updated.canceledAt) {

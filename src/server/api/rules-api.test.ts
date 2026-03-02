@@ -122,7 +122,9 @@ test("POST rules: category不正は400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "Invalid category" });
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid category");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("POST rules: 正常系で監査ログ", async () => {

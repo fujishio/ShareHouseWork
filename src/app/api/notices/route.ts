@@ -3,6 +3,21 @@ import { readNotices, appendNotice } from "@/server/notice-store";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { CreateNoticeInput } from "@/types";
+import { z } from "zod";
+import {
+  zNonEmptyTrimmedString,
+  zTrimmedString,
+} from "@/shared/lib/api-validation";
+
+const createNoticeSchema = z.object({
+  title: zNonEmptyTrimmedString,
+  body: zTrimmedString.default(""),
+  isImportant: z.boolean().optional().default(false),
+});
+
+function badRequest(error: string, code: string, details?: unknown) {
+  return NextResponse.json({ error, code, details }, { status: 400 });
+}
 
 export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
@@ -21,28 +36,26 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return badRequest("Invalid JSON", "INVALID_JSON");
   }
 
-  if (typeof body !== "object" || body === null) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  const raw = body as Record<string, unknown>;
-
-  const title = typeof raw.title === "string" ? raw.title.trim() : "";
-  if (!title) {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
+  const parsed = createNoticeSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === "title") {
+      return badRequest("title is required", "VALIDATION_ERROR", parsed.error.issues);
+    }
+    return badRequest("Invalid body", "VALIDATION_ERROR", parsed.error.issues);
   }
 
   const postedAt = new Date().toISOString();
 
   const input: CreateNoticeInput = {
-    title,
-    body: typeof raw.body === "string" ? raw.body.trim() : "",
+    title: parsed.data.title,
+    body: parsed.data.body,
     postedBy: actor.name,
     postedAt,
-    isImportant: raw.isImportant === true,
+    isImportant: parsed.data.isImportant,
   };
 
   const created = await appendNotice(input);

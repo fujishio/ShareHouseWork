@@ -1,8 +1,15 @@
 import type {
+  ApiErrorResponse,
+  IsoDateTimeString,
   AuditLogRecord,
   Task,
   TaskCompletionRecord,
 } from "../../types/index.ts";
+import {
+  zIsoDateTimeString,
+  zNonEmptyTrimmedString,
+} from "../../shared/lib/api-validation.ts";
+import { z } from "zod";
 
 const VALID_SOURCES = ["app"] as const;
 type ValidSource = (typeof VALID_SOURCES)[number];
@@ -58,22 +65,36 @@ export type CancelTaskCompletionDeps = Pick<
   | "now"
 >;
 
-function parseLimit(raw: string | null): number {
-  if (!raw) return 50;
+const getTaskCompletionsQuerySchema = z.object({
+  from: zIsoDateTimeString.optional(),
+  to: zIsoDateTimeString.optional(),
+  limit: z
+    .preprocess((value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return 50;
+      return numeric;
+    }, z.number())
+    .transform((value) => Math.min(Math.floor(value), 200))
+    .default(50),
+});
 
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 50;
+const createTaskCompletionSchema = z.object({
+  taskId: zNonEmptyTrimmedString,
+  completedAt: zIsoDateTimeString,
+  source: z.literal("app"),
+});
 
-  return Math.min(Math.floor(parsed), 200);
-}
+const cancelTaskCompletionSchema = z.object({
+  cancelReason: zNonEmptyTrimmedString,
+});
 
-function parseDate(raw: string | null): Date | null {
-  if (!raw) return null;
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-
-  return parsed;
+function errorResponse(
+  error: string,
+  status: number,
+  code: string,
+  details?: unknown
+) {
+  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
 }
 
 export async function handleGetTaskCompletions(
@@ -84,23 +105,39 @@ export async function handleGetTaskCompletions(
   if (!actor) return deps.unauthorizedResponse();
 
   const { searchParams } = new URL(request.url);
-  const from = parseDate(searchParams.get("from"));
-  const to = parseDate(searchParams.get("to"));
-  const limit = parseLimit(searchParams.get("limit"));
+  const queryInput: Record<string, string> = {};
+  const fromRaw = searchParams.get("from");
+  const toRaw = searchParams.get("to");
+  const limitRaw = searchParams.get("limit");
+  if (fromRaw) queryInput.from = fromRaw;
+  if (toRaw) queryInput.to = toRaw;
+  if (limitRaw) queryInput.limit = limitRaw;
 
-  if (searchParams.get("from") && !from) {
-    return Response.json(
-      { error: "Invalid from query. Use ISO date string." },
-      { status: 400 }
-    );
+  const parsedQuery = getTaskCompletionsQuerySchema.safeParse(queryInput);
+  if (!parsedQuery.success) {
+    const firstIssue = parsedQuery.error.issues[0];
+    if (firstIssue?.path[0] === "from") {
+      return errorResponse(
+        "Invalid from query. Use ISO date string.",
+        400,
+        "VALIDATION_ERROR",
+        parsedQuery.error.issues
+      );
+    }
+    if (firstIssue?.path[0] === "to") {
+      return errorResponse(
+        "Invalid to query. Use ISO date string.",
+        400,
+        "VALIDATION_ERROR",
+        parsedQuery.error.issues
+      );
+    }
+    return errorResponse("Invalid limit query.", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
   }
 
-  if (searchParams.get("to") && !to) {
-    return Response.json(
-      { error: "Invalid to query. Use ISO date string." },
-      { status: 400 }
-    );
-  }
+  const from = parsedQuery.data.from ? new Date(parsedQuery.data.from) : null;
+  const to = parsedQuery.data.to ? new Date(parsedQuery.data.to) : null;
+  const limit = parsedQuery.data.limit;
 
   const records = await deps.readTaskCompletions();
   const filtered = records
@@ -128,45 +165,23 @@ export async function handleCreateTaskCompletion(
   if (!actor) return deps.unauthorizedResponse();
 
   const rawPayload: unknown = await request.json().catch(() => null);
-  if (typeof rawPayload !== "object" || rawPayload === null) {
-    return Response.json(
-      {
-        error:
-          "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)",
-      },
-      { status: 400 }
+  const parsedPayload = createTaskCompletionSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return errorResponse(
+      "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)",
+      400,
+      "VALIDATION_ERROR",
+      parsedPayload.error.issues
     );
   }
-
-  const payload = rawPayload as Record<string, unknown>;
-
-  const taskId = typeof payload.taskId === "string" ? payload.taskId : "";
-  if (!taskId) {
-    return Response.json(
-      { error: "taskId must be a non-empty string." },
-      { status: 400 }
-    );
-  }
-
-  const completedAtRaw =
-    typeof payload.completedAt === "string" ? payload.completedAt : "";
-  const completedAt = new Date(completedAtRaw);
-  if (Number.isNaN(completedAt.getTime())) {
-    return Response.json(
-      { error: "completedAt must be a valid ISO date string." },
-      { status: 400 }
-    );
-  }
-
-  const source = typeof payload.source === "string" ? payload.source : "";
-  if (!VALID_SOURCES.includes(source as ValidSource)) {
-    return Response.json({ error: "source must be app." }, { status: 400 });
-  }
+  const taskId = parsedPayload.data.taskId;
+  const completedAt = parsedPayload.data.completedAt as IsoDateTimeString;
+  const source = parsedPayload.data.source as ValidSource;
 
   const tasks = await deps.readTasks();
   const task = tasks.find((item) => item.id === taskId);
   if (!task) {
-    return Response.json({ error: "taskId does not exist." }, { status: 404 });
+    return errorResponse("taskId does not exist.", 404, "TASK_NOT_FOUND");
   }
 
   const created = await deps.appendTaskCompletion({
@@ -174,8 +189,8 @@ export async function handleCreateTaskCompletion(
     taskName: task.name,
     points: task.points,
     completedBy: actor.name,
-    completedAt: completedAt.toISOString(),
-    source: source as ValidSource,
+    completedAt,
+    source,
   });
 
   await deps.appendAuditLog({
@@ -207,36 +222,29 @@ export async function handleCancelTaskCompletion(
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  if (typeof body !== "object" || body === null) {
-    return Response.json(
-      { error: "Invalid payload. Required: cancelReason(string)" },
-      { status: 400 }
+  const parsedBody = cancelTaskCompletionSchema.safeParse(body);
+  if (!parsedBody.success) {
+    return errorResponse(
+      "cancelReason is required.",
+      400,
+      "VALIDATION_ERROR",
+      parsedBody.error.issues
     );
   }
-
-  const raw = body as Record<string, unknown>;
-  const cancelReason =
-    typeof raw.cancelReason === "string" ? raw.cancelReason.trim() : "";
-
-  if (!cancelReason) {
-    return Response.json({ error: "cancelReason is required." }, { status: 400 });
-  }
+  const cancelReason = parsedBody.data.cancelReason;
 
   const existing = (await deps.readTaskCompletions()).find(
     (record) => record.id === id
   );
   if (!existing) {
-    return Response.json({ error: "Task completion not found." }, { status: 404 });
+    return errorResponse("Task completion not found.", 404, "TASK_COMPLETION_NOT_FOUND");
   }
 
   if (existing.canceledAt) {
-    return Response.json(
-      { error: "Task completion is already canceled." },
-      { status: 409 }
-    );
+    return errorResponse("Task completion is already canceled.", 409, "TASK_COMPLETION_ALREADY_CANCELED");
   }
 
   const canceledAt = deps.now();
@@ -248,7 +256,7 @@ export async function handleCancelTaskCompletion(
   );
 
   if (!updated) {
-    return Response.json({ error: "Task completion not found." }, { status: 404 });
+    return errorResponse("Task completion not found.", 404, "TASK_COMPLETION_NOT_FOUND");
   }
 
   await deps.appendAuditLog({

@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { listUsers, upsertUser } from "@/server/user-store";
-import type { UserListResponse } from "@/types";
+import type { ApiErrorResponse, UserListResponse } from "@/types";
+import { z } from "zod";
+import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
 
 export const runtime = "nodejs";
+
+const upsertUserSchema = z.object({
+  uid: zNonEmptyTrimmedString,
+  name: zNonEmptyTrimmedString,
+  color: zNonEmptyTrimmedString,
+  email: zNonEmptyTrimmedString,
+});
 
 export async function GET() {
   const users = await listUsers();
@@ -14,23 +23,28 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { status: 400 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
-  if (typeof body !== "object" || body === null) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  const parsed = upsertUserSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "uid, name, color, email are required",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.issues,
+      },
+      { status: 400 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
-  const raw = body as Record<string, unknown>;
-  const uid = typeof raw.uid === "string" ? raw.uid.trim() : "";
-  const name = typeof raw.name === "string" ? raw.name.trim() : "";
-  const color = typeof raw.color === "string" ? raw.color.trim() : "";
-  const email = typeof raw.email === "string" ? raw.email.trim() : "";
-
-  if (!uid || !name || !color || !email) {
-    return NextResponse.json({ error: "uid, name, color, email are required" }, { status: 400 });
-  }
-
-  const created = await upsertUser(uid, { name, color, email });
+  const created = await upsertUser(parsed.data.uid, {
+    name: parsed.data.name,
+    color: parsed.data.color,
+    email: parsed.data.email,
+  });
   return NextResponse.json({ data: created }, { status: 201 });
 }

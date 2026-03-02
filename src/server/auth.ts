@@ -34,5 +34,8 @@ export async function verifyRequest(request: Request): Promise<AuthenticatedUser
 }
 
 export function unauthorizedResponse(message = "Unauthorized") {
-  return Response.json({ error: message }, { status: 401 });
+  return Response.json(
+    { error: message, code: "UNAUTHORIZED" },
+    { status: 401 }
+  );
 }

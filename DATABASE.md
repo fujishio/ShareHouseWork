@@ -177,14 +177,16 @@ erDiagram
 
 注記:
 - 上記は単一フィールドクエリのみ。Firestore の自動単一フィールドインデックスで通常対応可能。
+- 複合インデックスが必要なクエリ追加時の運用は `docs/firestore-query-index-operations.md` を参照。
 
 ## 5. 実装ルール（運用）
 - 論理削除: `tasks`, `rules`, `notices` は `deletedAt` で管理。
 - 取消: `taskCompletions`, `expenses`, `shoppingItems` は `canceledAt` 系で管理。
 - 履歴系 `*By` / `actor` は表示名のスナップショット固定（UID 再解決はしない）。
-- 日付フォーマットは混在:
-  - 日時: ISO8601（例 `2026-03-02T08:15:30.000Z`）
-  - 日付: `YYYY-MM-DD`（例 `2026-03-02`）
+- 日付運用ルール:
+  - 日時（時刻を保持する項目）: ISO8601（例 `2026-03-02T08:15:30.000Z`）
+  - 日付（日のみを扱う項目）: `YYYY-MM-DD`（例 `2026-03-02`）
+  - API受信値は境界で即時正規化して保存する（内部比較は正規化後の値のみを使用）。
 
 ## 6. `tasks` デフォルト初期データ（seed）
 `tasks` テーブル定義（`name/category/points/frequencyDays/deletedAt`）に合わせた seed 一覧。

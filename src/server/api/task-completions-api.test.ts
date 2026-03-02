@@ -83,7 +83,8 @@ test("GET: 未認証は401", async () => {
   );
 
   assert.equal(response.status, 401);
-  assert.deepEqual(await readJson(response), { error: "Unauthorized" });
+  const body = (await readJson(response)) as { error?: string };
+  assert.equal(body.error, "Unauthorized");
 });
 
 test("GET: from/to/filter/sort/limit が適用される", async () => {
@@ -141,9 +142,9 @@ test("GET: 不正なfromクエリは400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await readJson(response), {
-    error: "Invalid from query. Use ISO date string.",
-  });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid from query. Use ISO date string.");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("POST: 不正payloadは400", async () => {
@@ -158,10 +159,12 @@ test("POST: 不正payloadは400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await readJson(response), {
-    error:
-      "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)",
-  });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(
+    body.error,
+    "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)"
+  );
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("POST: 存在しないtaskIdは404", async () => {
@@ -180,7 +183,9 @@ test("POST: 存在しないtaskIdは404", async () => {
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(await readJson(response), { error: "taskId does not exist." });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "taskId does not exist.");
+  assert.equal(body.code, "TASK_NOT_FOUND");
 });
 
 test("POST: 正常系で完了記録と監査ログを作成", async () => {
@@ -239,7 +244,9 @@ test("PATCH: cancelReasonが空は400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await readJson(response), { error: "cancelReason is required." });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "cancelReason is required.");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("PATCH: 対象なしは404", async () => {
@@ -256,7 +263,9 @@ test("PATCH: 対象なしは404", async () => {
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(await readJson(response), { error: "Task completion not found." });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "Task completion not found.");
+  assert.equal(body.code, "TASK_COMPLETION_NOT_FOUND");
 });
 
 test("PATCH: 既に取消済みは409", async () => {
@@ -288,9 +297,9 @@ test("PATCH: 既に取消済みは409", async () => {
   );
 
   assert.equal(response.status, 409);
-  assert.deepEqual(await readJson(response), {
-    error: "Task completion is already canceled.",
-  });
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "Task completion is already canceled.");
+  assert.equal(body.code, "TASK_COMPLETION_ALREADY_CANCELED");
 });
 
 test("PATCH: 正常系で取消と監査ログを作成", async () => {

@@ -1,15 +1,21 @@
 import { EXPENSE_CATEGORIES } from "../../domain/expenses/expense-categories.ts";
 import {
   getJstDateString,
-  isTrimmedNonEmpty,
   normalizeShoppingDate,
 } from "../../domain/shopping/shopping-api-validation.ts";
+import {
+  zIsoDateString,
+  zNonEmptyTrimmedString,
+  zTrimmedString,
+} from "../../shared/lib/api-validation.ts";
 import type {
+  ApiErrorResponse,
   AuditLogRecord,
   CreateShoppingItemInput,
   ExpenseCategory,
   ShoppingItem,
 } from "../../types/index.ts";
+import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
 type AuthenticatedUser = {
@@ -59,6 +65,43 @@ export type DeleteShoppingDeps = {
   now: () => string;
 };
 
+const createShoppingSchema = z.object({
+  name: zNonEmptyTrimmedString,
+  quantity: zTrimmedString.default("1"),
+  memo: zTrimmedString.default(""),
+  category: z.enum(EXPENSE_CATEGORIES).optional(),
+  addedAt: z
+    .string()
+    .optional()
+    .transform((value, context) => {
+      if (!value) return getJstDateString();
+
+      const normalized = normalizeShoppingDate(value);
+      if (!normalized) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid addedAt date",
+        });
+        return z.NEVER;
+      }
+      return normalized;
+    })
+    .pipe(zIsoDateString),
+});
+
+const patchShoppingSchema = z.object({
+  uncheck: z.boolean().optional(),
+});
+
+function errorResponse(
+  error: string,
+  status: number,
+  code: string,
+  details?: unknown
+) {
+  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
+}
+
 export async function handleGetShoppingItems(request: Request, deps: GetShoppingDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
@@ -78,44 +121,25 @@ export async function handleCreateShoppingItem(
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    typeof (body as Record<string, unknown>).name !== "string"
-  ) {
-    return Response.json({ error: "name is required" }, { status: 400 });
+  const parsed = createShoppingSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    if (firstIssue?.path[0] === "addedAt") {
+      return errorResponse("Invalid addedAt date", 400, "VALIDATION_ERROR", parsed.error.issues);
+    }
+    return errorResponse("name is required", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
-
-  const raw = body as Record<string, unknown>;
-  const normalizedName = String(raw.name).trim();
-  if (!isTrimmedNonEmpty(normalizedName)) {
-    return Response.json({ error: "name is required" }, { status: 400 });
-  }
-
-  const normalizedAddedAt =
-    typeof raw.addedAt === "string"
-      ? normalizeShoppingDate(raw.addedAt)
-      : getJstDateString();
-  if (!normalizedAddedAt) {
-    return Response.json({ error: "Invalid addedAt date" }, { status: 400 });
-  }
-
-  const rawCategory = raw.category;
-  const category =
-    typeof rawCategory === "string" && EXPENSE_CATEGORIES.includes(rawCategory as ExpenseCategory)
-      ? (rawCategory as ExpenseCategory)
-      : undefined;
 
   const input: CreateShoppingItemInput = {
-    name: normalizedName,
-    quantity: typeof raw.quantity === "string" ? raw.quantity.trim() : "1",
-    memo: typeof raw.memo === "string" ? raw.memo.trim() : "",
-    category,
+    name: parsed.data.name,
+    quantity: parsed.data.quantity,
+    memo: parsed.data.memo,
+    category: parsed.data.category as ExpenseCategory | undefined,
     addedBy: actor.name,
-    addedAt: normalizedAddedAt,
+    addedAt: parsed.data.addedAt,
   };
 
   const created = await deps.appendShoppingItem(input);
@@ -151,21 +175,23 @@ export async function handlePatchShoppingItem(
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  const raw =
-    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+  const parsed = patchShoppingSchema.safeParse(body);
+  if (!parsed.success) {
+    return errorResponse("Invalid JSON", 400, "VALIDATION_ERROR", parsed.error.issues);
+  }
 
   const existing = (await deps.readShoppingItems()).find((item) => item.id === id);
   if (!existing) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
 
-  if (raw.uncheck === true) {
+  if (parsed.data.uncheck === true) {
     const updated = await deps.uncheckShoppingItem(id);
     if (!updated) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+      return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
     }
 
     if (existing.checkedAt && !existing.canceledAt) {
@@ -187,7 +213,7 @@ export async function handlePatchShoppingItem(
 
   const updated = await deps.checkShoppingItem(id, { checkedBy: actor.name }, checkedAt);
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   if (!existing.checkedAt && !existing.canceledAt && updated.checkedAt) {
@@ -219,14 +245,14 @@ export async function handleDeleteShoppingItem(
 
   const existing = (await deps.readShoppingItems()).find((item) => item.id === id);
   if (!existing) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   const canceledAt = getJstDateString();
 
   const updated = await deps.cancelShoppingItem(id, actor.name, canceledAt);
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   if (!existing.canceledAt && updated.canceledAt) {

@@ -5,7 +5,13 @@ import {
 } from "@/server/contribution-settings-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { OWNER_MEMBER_NAME } from "@/shared/constants/house";
-import type { ContributionSettings } from "@/types";
+import type { ApiErrorResponse, ContributionSettings } from "@/types";
+import { z } from "zod";
+
+const updateContributionSettingsSchema = z.object({
+  monthlyAmountPerPerson: z.number().finite().positive(),
+  memberCount: z.number().int().min(1),
+});
 
 export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
@@ -21,42 +27,57 @@ export async function POST(request: Request) {
 
   if (actor.name !== OWNER_MEMBER_NAME) {
     return NextResponse.json(
-      { error: "Only the house owner can update contribution settings" },
+      {
+        error: "Only the house owner can update contribution settings",
+        code: "FORBIDDEN",
+      },
       { status: 403 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    typeof (body as ContributionSettings).monthlyAmountPerPerson !== "number" ||
-    typeof (body as ContributionSettings).memberCount !== "number"
-  ) {
-    return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
-  }
-
-  const input = body as ContributionSettings;
-
-  if (input.monthlyAmountPerPerson <= 0 || !Number.isFinite(input.monthlyAmountPerPerson)) {
     return NextResponse.json(
-      { error: "monthlyAmountPerPerson must be a positive number" },
+      { error: "Invalid JSON", code: "INVALID_JSON" },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
 
-  if (input.memberCount < 1 || !Number.isInteger(input.memberCount)) {
+  const parsed = updateContributionSettingsSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    if (firstIssue?.path[0] === "monthlyAmountPerPerson") {
+      return NextResponse.json(
+        {
+          error: "monthlyAmountPerPerson must be a positive number",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.issues,
+        },
+        { status: 400 }
+      ) as NextResponse<ApiErrorResponse>;
+    }
+    if (firstIssue?.path[0] === "memberCount") {
+      return NextResponse.json(
+        {
+          error: "memberCount must be a positive integer",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.issues,
+        },
+        { status: 400 }
+      ) as NextResponse<ApiErrorResponse>;
+    }
     return NextResponse.json(
-      { error: "memberCount must be a positive integer" },
+      {
+        error: "Missing or invalid fields",
+        code: "VALIDATION_ERROR",
+        details: parsed.error.issues,
+      },
       { status: 400 }
-    );
+    ) as NextResponse<ApiErrorResponse>;
   }
+  const input: ContributionSettings = parsed.data;
 
   await writeContributionSettings(input);
   return NextResponse.json({ data: input });

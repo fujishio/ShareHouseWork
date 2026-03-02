@@ -39,14 +39,20 @@ export async function GET(request: Request) {
 
   if (searchParams.get("from") && !from) {
     return NextResponse.json(
-      { error: "Invalid from query. Use ISO date string." },
+      {
+        error: "Invalid from query. Use ISO date string.",
+        code: "VALIDATION_ERROR",
+      },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
 
   if (searchParams.get("to") && !to) {
     return NextResponse.json(
-      { error: "Invalid to query. Use ISO date string." },
+      {
+        error: "Invalid to query. Use ISO date string.",
+        code: "VALIDATION_ERROR",
+      },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }

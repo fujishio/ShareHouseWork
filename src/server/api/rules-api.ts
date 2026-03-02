@@ -1,10 +1,16 @@
 import type {
+  ApiErrorResponse,
   AuditLogRecord,
   CreateRuleInput,
   Rule,
   RuleCategory,
   UpdateRuleInput,
 } from "../../types/index.ts";
+import { z } from "zod";
+import {
+  zNonEmptyTrimmedString,
+  zTrimmedString,
+} from "../../shared/lib/api-validation.ts";
 
 const VALID_CATEGORIES: RuleCategory[] = [
   "ゴミ捨て",
@@ -13,6 +19,14 @@ const VALID_CATEGORIES: RuleCategory[] = [
   "来客",
   "その他",
 ];
+
+const ruleCategorySchema = z.enum(VALID_CATEGORIES as [RuleCategory, ...RuleCategory[]]);
+const createRuleSchema = z.object({
+  title: zNonEmptyTrimmedString,
+  body: zTrimmedString.default(""),
+  category: ruleCategorySchema,
+});
+const updateRuleSchema = createRuleSchema;
 
 type Params = { params: Promise<{ id: string }> };
 type AuthenticatedUser = {
@@ -59,6 +73,15 @@ export type DeleteRuleDeps = {
   now: () => string;
 };
 
+function errorResponse(
+  error: string,
+  status: number,
+  code: string,
+  details?: unknown
+) {
+  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
+}
+
 export async function handleGetRules(request: Request, deps: GetRulesDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
@@ -76,32 +99,23 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  if (typeof body !== "object" || body === null) {
-    return Response.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  const raw = body as Record<string, unknown>;
-
-  const title = typeof raw.title === "string" ? raw.title.trim() : "";
-  if (!title) {
-    return Response.json({ error: "title is required" }, { status: 400 });
-  }
-
-  const body_ = typeof raw.body === "string" ? raw.body.trim() : "";
-
-  const category = raw.category as RuleCategory;
-  if (!VALID_CATEGORIES.includes(category)) {
-    return Response.json({ error: "Invalid category" }, { status: 400 });
+  const parsed = createRuleSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    if (firstIssue?.path[0] === "title") {
+      return errorResponse("title is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+    }
+    return errorResponse("Invalid category", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
 
   const createdAt = deps.now();
   const input: CreateRuleInput = {
-    title,
-    body: body_,
-    category,
+    title: parsed.data.title,
+    body: parsed.data.body,
+    category: parsed.data.category,
     createdBy: actor.name,
     createdAt,
   };
@@ -113,7 +127,11 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
     actor: actor.name,
     source: "app",
     createdAt: deps.now(),
-    details: { ruleId: created.id, title: created.title, category },
+    details: {
+      ruleId: created.id,
+      title: created.title,
+      category: parsed.data.category,
+    },
   });
 
   return Response.json({ data: created }, { status: 201 });
@@ -133,35 +151,28 @@ export async function handleUpdateRule(
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
   }
 
-  if (typeof body !== "object" || body === null) {
-    return Response.json({ error: "Invalid body" }, { status: 400 });
+  const parsed = updateRuleSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    if (firstIssue?.path[0] === "title") {
+      return errorResponse("title is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+    }
+    return errorResponse("Invalid category", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
-
-  const raw = body as Record<string, unknown>;
-
-  const title = typeof raw.title === "string" ? raw.title.trim() : "";
-  if (!title) {
-    return Response.json({ error: "title is required" }, { status: 400 });
-  }
-
-  if (typeof raw.category !== "string" || !VALID_CATEGORIES.includes(raw.category as RuleCategory)) {
-    return Response.json({ error: "Invalid category" }, { status: 400 });
-  }
-  const category = raw.category as RuleCategory;
 
   const input: UpdateRuleInput = {
-    title,
-    body: typeof raw.body === "string" ? raw.body.trim() : "",
-    category,
+    title: parsed.data.title,
+    body: parsed.data.body,
+    category: parsed.data.category,
     updatedAt: deps.now(),
   };
 
   const updated = await deps.updateRule(id, input);
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
   await deps.appendAuditLog({
@@ -169,7 +180,7 @@ export async function handleUpdateRule(
     actor: actor.name,
     source: "app",
     createdAt: deps.now(),
-    details: { ruleId: id, title: updated.title, category },
+    details: { ruleId: id, title: updated.title, category: parsed.data.category },
   });
 
   return Response.json({ data: updated });
@@ -187,7 +198,7 @@ export async function handleAcknowledgeRule(
 
   const updated = await deps.acknowledgeRule(id, actor.name);
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
   await deps.appendAuditLog({
@@ -215,7 +226,7 @@ export async function handleDeleteRule(
   const updated = await deps.deleteRule(id, actor.name, deletedAt);
 
   if (!updated) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
   await deps.appendAuditLog({

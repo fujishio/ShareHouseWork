@@ -1,12 +1,12 @@
 import type { ExpenseCategory } from "@/types";
 
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+export const EXPENSE_CATEGORIES = [
   "水道・光熱費",
   "食費",
   "消耗品",
   "日用品",
   "その他",
-];
+] as const satisfies readonly ExpenseCategory[];
 
 export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   "水道・光熱費": "#60a5fa", // blue-400

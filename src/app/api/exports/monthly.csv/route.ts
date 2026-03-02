@@ -3,6 +3,7 @@ import { readExpenses } from "@/server/expense-store";
 import { readShoppingItems } from "@/server/shopping-store";
 import { buildMonthlyOperationsCsv } from "@/server/monthly-export";
 import { NextResponse } from "next/server";
+import type { ApiErrorResponse } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,10 @@ export async function GET(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "failed to build monthly csv";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { error: message, code: "EXPORT_CSV_FAILED" },
+      { status: 400 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   return new NextResponse(csv, {

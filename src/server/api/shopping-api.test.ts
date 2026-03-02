@@ -93,7 +93,9 @@ test("POST shopping: name不足は400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "name is required" });
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "name is required");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("POST shopping: 正常系で作成と監査ログ", async () => {

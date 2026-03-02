@@ -23,8 +23,8 @@
 | テスト | **52 pass / 0 fail** |
 | 型チェック | `npx tsc --noEmit` 通過 |
 | 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
-| API入力検証 | 手書きバリデーション中心（zod未導入） |
-| 日付運用 | ISO8601 と `YYYY-MM-DD` が混在（`DATABASE.md` 記載どおり） |
+| API入力検証 | zod導入を拡大（`task-completions/expenses/shopping/rules/notices/tasks/houses` 適用済み） |
+| 日付運用 | 日時（ISO8601）/日付（`YYYY-MM-DD`）を用途別に運用し、API境界で正規化 |
 | CI | `npm test` + `npm run build` 実行 |
 
 ---
@@ -101,29 +101,28 @@
 
 ### B. APIバリデーションの統一（zod）
 
-**現状**
-- ルートごとに手書きバリデーションで実装。
-- 文字列長や enum 制約がルートごとに散在。
+**対応状況（2026-03-02）**
+- `task-completions` / `expenses` / `shopping` / `rules` / `notices` / `tasks` / `houses` API に zod スキーマを導入。
+- `shared/lib/api-validation.ts` に共通スキーマ（trim, ISO日付, ISO日時）を追加。
+- エラー形式を段階統一（主要APIで `{ error, code, details }` を返却）。
 
-**対応**
-- `domain/*` もしくは `shared/*` に zod スキーマを集約。
-- 共通エラー形式を定義（例: `{ error, code, details }`）。
-- `DATABASE.md` の field 定義（型・必須）と API バリデーションを 1:1 で対応させる。
+**残課題**
+- 他APIへの展開（例: 認可なし公開エンドポイントの整理を含む）。
+- エラー形式の完全統一（全ルートで `details` を一律化）。
 
 ### C. 日付フォーマットの扱いを明示し、混在バグを予防
 
-**現状**
-- 設計上、日時（ISO8601）と日付（`YYYY-MM-DD`）が混在。
-- 実装上は妥当だが、境界（比較/ソート/CSV）で事故が起きやすい。
+**対応状況（2026-03-02）**
+- `types/index.ts` に `IsoDateTimeString` / `IsoDateString` / `YearMonthString` を追加。
+- `shared/lib/date-normalization.ts` で日付・日時の正規化関数を共通化。
+- `DATABASE.md` に API境界での正規化ルールを追記。
 
-**対応**
-- `types/index.ts` で用途別の型 alias を明確化（例: `IsoDateTimeString`, `IsoDateString`）。
-- API境界で正規化を必須化（入力即正規化）。
-- CSV/集計ロジックで日時・日付を混在比較しない規約を追加。
+**残課題**
+- CSV/集計の比較ルール監査（混在比較の自動検知）。
 
 ### G. インデックス/クエリ運用の明文化
-- `DATABASE.md` の主要クエリに対し、必要インデックスと運用手順を `docs/` に追加。
-- 本番で追加が必要な複合インデックスが出た場合の更新手順を固定化。
+- `docs/firestore-query-index-operations.md` を追加。
+- 複合インデックス追加の判断基準と本番反映手順を固定化。
 
 ---
 
@@ -160,10 +159,9 @@
 
 ## 8. 次の着手順（推奨）
 1. F: API統合テストを追加
-2. B + C: zod統一と日付型/正規化ルールをセットで導入
-3. G: インデックス/クエリ運用を `docs/` に明文化
-4. H: CSVエクスポートの運用手順を `docs/` に明文化
-5. I: Lint/Format強化
+2. B + C: zod統一を `notices/tasks/houses` へ展開
+3. H: CSVエクスポートの運用手順を `docs/` に明文化
+4. I: Lint/Format強化
 
 ---
 
@@ -184,8 +182,8 @@ DB移行・認証基盤刷新を除く、現時点の作業進捗です。
 | `actor.name` 永続化方針の明文化 | 完了 | 高 (2) | 記録時の表示名スナップショット固定を採用（再解決なし）。 |
 | 監査ログの全CUD対応 | 完了 | 高 (3) | `rules/notices/task-completions/expenses/shopping` のCUDログを実装。 |
 | API統合テスト | 完了 | 高 (4) | `task-completions/expenses/shopping/rules` の統合テストを追加済み。 |
-| APIバリデーション統一（zod） | 未着手 | 中 (5) | 手書きバリデーション中心。 |
-| 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | ユーティリティ整備済み。型とAPI境界の統一は未完。 |
-| クエリ/インデックス運用明文化 | 未着手 | 中 | `DATABASE.md` はあるが運用手順化は未実施。 |
+| APIバリデーション統一（zod） | 一部完了 | 中 (5) | `task-completions/expenses/shopping/rules/notices/tasks/houses` は対応。残りAPIへ展開中。 |
+| 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | 型alias追加とAPI境界の正規化を導入。CSV/集計側の監査は継続。 |
+| クエリ/インデックス運用明文化 | 完了 | 中 | `docs/firestore-query-index-operations.md` を追加し、運用手順を文書化。 |
 | CSV運用拡張 | 一部完了 | 低 | `task/expenses/shopping` 出力は対応済み。運用向け整備は継続。 |
 | Lint/Format強化 | 未着手 | 低 | ルール厳格化・整形統一はこれから。 |

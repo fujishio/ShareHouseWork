@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { createHouse, listHouses } from "@/server/house-store";
-import type { HouseCreateResponse, HouseListResponse } from "@/types";
+import type { ApiErrorResponse, HouseCreateResponse, HouseListResponse } from "@/types";
+import { z } from "zod";
+import {
+  zNonEmptyTrimmedString,
+  zTrimmedString,
+} from "@/shared/lib/api-validation";
 
 export const runtime = "nodejs";
+
+const createHouseSchema = z.object({
+  name: zNonEmptyTrimmedString,
+  description: zTrimmedString.optional(),
+  ownerUid: zTrimmedString.optional(),
+});
 
 export async function GET() {
   const houses = await listHouses();
@@ -14,26 +25,31 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { status: 400 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
-  if (typeof body !== "object" || body === null) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  }
-
-  const raw = body as Record<string, unknown>;
-  const name = typeof raw.name === "string" ? raw.name.trim() : "";
-  const description = typeof raw.description === "string" ? raw.description.trim() : "";
-  const ownerUid = typeof raw.ownerUid === "string" ? raw.ownerUid.trim() : "";
-
-  if (!name) {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+  const parsed = createHouseSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === "name") {
+      return NextResponse.json(
+        { error: "name is required", code: "VALIDATION_ERROR", details: parsed.error.issues },
+        { status: 400 }
+      ) as NextResponse<ApiErrorResponse>;
+    }
+    return NextResponse.json(
+      { error: "Invalid body", code: "VALIDATION_ERROR", details: parsed.error.issues },
+      { status: 400 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   const created = await createHouse({
-    name,
-    description: description || undefined,
-    ownerUid: ownerUid || undefined,
+    name: parsed.data.name,
+    description: parsed.data.description || undefined,
+    ownerUid: parsed.data.ownerUid || undefined,
   });
   return NextResponse.json({ data: created }, { status: 201 }) as NextResponse<HouseCreateResponse>;
 }

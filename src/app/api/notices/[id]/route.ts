@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deleteNotice } from "@/server/notice-store";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import type { ApiErrorResponse } from "@/types";
 
 export async function DELETE(
   request: Request,
@@ -16,7 +17,10 @@ export async function DELETE(
   const updated = await deleteNotice(id, actor.name, deletedAt);
 
   if (!updated) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Not found", code: "NOTICE_NOT_FOUND" },
+      { status: 404 }
+    ) as NextResponse<ApiErrorResponse>;
   }
 
   await appendAuditLog({

@@ -1,4 +1,6 @@
+export type IsoDateTimeString = string;
 export type IsoDateString = string;
+export type YearMonthString = string;
 export type MoneyYen = number;
 export type HousePoints = number;
 
@@ -15,7 +17,7 @@ export type House = {
   description?: string;
   ownerUid?: string;
   memberUids: string[];
-  createdAt: IsoDateString;
+  createdAt: IsoDateTimeString;
 };
 
 export type TaskCompletion = {
@@ -24,7 +26,7 @@ export type TaskCompletion = {
   taskName: string;
   points: HousePoints;
   completedBy: string;
-  completedAt: IsoDateString;
+  completedAt: IsoDateTimeString;
   source: TaskCompletionSource;
 };
 
@@ -36,9 +38,9 @@ export type TaskCompletionRecord = {
   taskName: string;
   points: HousePoints;
   completedBy: string;
-  completedAt: IsoDateString;
+  completedAt: IsoDateTimeString;
   source: TaskCompletionSource;
-  canceledAt?: IsoDateString;
+  canceledAt?: IsoDateTimeString;
   canceledBy?: string;
   cancelReason?: string;
 };
@@ -46,12 +48,14 @@ export type TaskCompletionRecord = {
 export type CreateTaskCompletionInput = {
   taskId: string;
   completedBy: string;
-  completedAt: IsoDateString;
+  completedAt: IsoDateTimeString;
   source: TaskCompletionSource;
 };
 
 export type ApiErrorResponse = {
   error: string;
+  code?: string;
+  details?: unknown;
 };
 
 export type ApiSuccessResponse<T> = {
@@ -83,7 +87,7 @@ export type AuditLogRecord = {
   action: AuditAction;
   actor: string;
   source: "app" | "system";
-  createdAt: IsoDateString;
+  createdAt: IsoDateTimeString;
   details: Record<string, string | number | boolean | null>;
 };
 
@@ -115,7 +119,7 @@ export type ExpenseRecord = {
   category: ExpenseCategory;
   purchasedBy: string;
   purchasedAt: IsoDateString;
-  canceledAt?: IsoDateString;
+  canceledAt?: IsoDateTimeString;
   canceledBy?: string;
   cancelReason?: string;
 };
@@ -139,7 +143,7 @@ export type ContributionSettings = {
 };
 
 export type ContributionSettingsHistoryRecord = ContributionSettings & {
-  effectiveMonth: string; // YYYY-MM
+  effectiveMonth: YearMonthString;
 };
 
 export type ShoppingItem = {
@@ -183,9 +187,9 @@ export type Notice = {
   title: string;
   body: string;
   postedBy: string;
-  postedAt: IsoDateString;
+  postedAt: IsoDateTimeString;
   isImportant: boolean;
-  deletedAt?: IsoDateString;
+  deletedAt?: IsoDateTimeString;
   deletedBy?: string;
 };
 
@@ -193,7 +197,7 @@ export type CreateNoticeInput = {
   title: string;
   body: string;
   postedBy: string;
-  postedAt: IsoDateString;
+  postedAt: IsoDateTimeString;
   isImportant: boolean;
 };
 
@@ -219,10 +223,10 @@ export type Rule = {
   body: string;
   category: RuleCategory;
   createdBy: string;
-  createdAt: IsoDateString;
-  updatedAt?: IsoDateString;
+  createdAt: IsoDateTimeString;
+  updatedAt?: IsoDateTimeString;
   acknowledgedBy?: string[];
-  deletedAt?: IsoDateString;
+  deletedAt?: IsoDateTimeString;
   deletedBy?: string;
 };
 
@@ -231,14 +235,14 @@ export type CreateRuleInput = {
   body: string;
   category: RuleCategory;
   createdBy: string;
-  createdAt: IsoDateString;
+  createdAt: IsoDateTimeString;
 };
 
 export type UpdateRuleInput = {
   title: string;
   body: string;
   category: RuleCategory;
-  updatedAt: IsoDateString;
+  updatedAt: IsoDateTimeString;
 };
 
 export type RuleListResponse = ApiSuccessResponse<Rule[]>;
@@ -265,7 +269,7 @@ export type Task = {
   points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
   frequencyDays: number; // ideal interval between completions
-  deletedAt?: IsoDateString;
+  deletedAt?: IsoDateTimeString;
 };
 
 export type CreateTaskInput = {

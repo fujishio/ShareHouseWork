@@ -89,7 +89,9 @@ test("POST expenses: 不正categoryは400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "Invalid category" });
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid category");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("POST expenses: 正常系で監査ログを追加", async () => {
@@ -126,7 +128,9 @@ test("DELETE expenses: cancelReason不足は400", async () => {
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "cancelReason is required" });
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "cancelReason is required");
+  assert.equal(body.code, "VALIDATION_ERROR");
 });
 
 test("DELETE expenses: 正常系で取消と監査ログを追加", async () => {
