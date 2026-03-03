@@ -28,37 +28,30 @@
 
 ---
 
-### TASK-L: 認証なし公開エンドポイントへの `verifyRequest()` 追加（最優先・セキュリティ）
+### ~~TASK-L: 認証なし公開エンドポイントへの `verifyRequest()` 追加~~ ✅ 完了
 
-**発見日: 2026-03-03**
+**完了日: 2026-03-03**
 
-以下の GET エンドポイントが `verifyRequest()` を呼んでおらず、未認証で全データにアクセス可能。
+以下の GET エンドポイントに `verifyRequest()` + `unauthorizedResponse()` を追加済み。
 
-| ファイル | 問題 |
+| ファイル | 対応内容 |
 |---|---|
-| `src/app/api/exports/monthly.csv/route.ts` | 全月次データが認証なしでダウンロード可能 |
-| `src/app/api/tasks/route.ts` | タスク一覧が認証なしで取得可能 |
-| `src/app/api/users/route.ts` | 全ユーザー情報（名前・メール・色）が認証なしで取得可能 |
-| `src/app/api/houses/route.ts` | 全ハウス情報が認証なしで取得可能 |
+| `src/app/api/exports/monthly.csv/route.ts` | GET に `verifyRequest()` 追加 |
+| `src/app/api/tasks/route.ts` | GET に `verifyRequest()` 追加 |
+| `src/app/api/users/route.ts` | GET に `verifyRequest()` 追加 |
+| `src/app/api/houses/route.ts` | GET に `verifyRequest()` 追加 |
 
-**作業内容**
-- 上記 4 ファイルの GET ハンドラーに `verifyRequest()` を追加する
-- `/api/users` POST と `/api/houses` POST は Firebase Auth 登録フロー（トークン取得直後）で呼ばれる可能性があるため、設計意図をコメントで明記するか同様に認証を追加する
-- 修正後、既存テスト（`npm test`）が通ることを確認する
+`/api/users` POST と `/api/houses` POST は登録フロー用として意図的に認証なし（コメントで明記済み）。
 
 ---
 
-### TASK-M: `/api/exports/monthly.csv` の `month` パラメータ zod バリデーション追加
+### ~~TASK-M: `/api/exports/monthly.csv` の `month` パラメータ zod バリデーション追加~~ ✅ 完了
 
-**発見日: 2026-03-03**
+**完了日: 2026-03-03**
 
-`resolveMonth()` が `YYYY-MM` 形式を検証せず、`2024-13` や `invalid` などの不正値が
-そのまま `buildMonthlyOperationsCsv()` に渡される。
-
-**作業内容**
-- `src/app/api/exports/monthly.csv/route.ts` に zod スキーマを追加し、`month` クエリパラメータが `YYYY-MM` 形式であることを検証する
-- 不正値の場合は `{ error, code: "VALIDATION_ERROR", details }` で 400 を返す
-- TASK-L と同時に対応することを推奨
+`src/app/api/exports/monthly.csv/route.ts` に `monthQuerySchema` を追加済み。
+`YYYY-MM` 形式（`/^\d{4}-(0[1-9]|1[0-2])$/`）を zod regex で検証し、
+不正値の場合は `{ error, code: "VALIDATION_ERROR", details }` で 400 を返す。
 
 ---
 
@@ -194,8 +187,8 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | ID | タイトル | 優先度 | 状態 |
 |----|---------|--------|------|
 | TASK-1 | CI から不要な NEXTAUTH 環境変数を削除 | 高 | ✅ 完了 |
-| **TASK-L** | **認証なし GET エンドポイントへの `verifyRequest()` 追加** | **高（最優先）** | **未着手** |
-| **TASK-M** | **`/exports/monthly.csv` の `month` パラメータ zod バリデーション** | **高** | **未着手** |
+| TASK-L | 認証なし GET エンドポイントへの `verifyRequest()` 追加 | 高（最優先） | ✅ 完了 |
+| TASK-M | `/exports/monthly.csv` の `month` パラメータ zod バリデーション | 高 | ✅ 完了 |
 | TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | 未着手 |
 | TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | 未着手 |
 | TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | 未着手 |

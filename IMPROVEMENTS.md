@@ -28,7 +28,7 @@
 | API入力検証 | zod導入を拡大（`task-completions/expenses/shopping/rules/notices/tasks/houses` 適用済み） |
 | 日付運用 | 日時（ISO8601）/日付（`YYYY-MM-DD`）を用途別に運用し、API境界で正規化 |
 | CI | `npm test` + `npm run build` 実行。不要な NEXTAUTH 環境変数を削除済み |
-| **認証なし公開エンドポイント** | **`/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET が未認証でアクセス可能（要対応）** |
+| 認証なし公開エンドポイント | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加済み（2026-03-03 対応完了） |
 
 ---
 
@@ -225,13 +225,15 @@
 | `npm test` 52件 pass | 完了 |
 | `npx tsc --noEmit` 通過 | 完了 |
 | CI の不要な NEXTAUTH 環境変数削除 | 完了（2026-03-03） |
+| L: 認証なしエンドポイント修正（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses` GET） | 完了（2026-03-03） |
+| M: `/exports/monthly.csv` の `month` パラメータ zod バリデーション追加 | 完了（2026-03-03） |
 
 ---
 
 ## 8. 次の着手順（推奨）
-1. **L + M**: 認証なしエンドポイントの修正 + `/exports/monthly.csv` の month バリデーション追加（セキュリティ最優先）
+1. ~~**L + M**: 認証なしエンドポイントの修正 + `/exports/monthly.csv` の month バリデーション追加~~ **完了（2026-03-03）**
 2. E: Firestore Emulator のルールテストを追加（最小権限化の回帰防止）
-3. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一（`audit-logs`, `exports/monthly.csv` が残存）
+3. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一（`audit-logs` が残存）
 4. K: Discord 通知の MVP 実装（設定・キュー・非同期送信）
 5. H: CSVエクスポートの運用手順を `docs/` に明文化
 6. I: Lint/Format強化
@@ -262,8 +264,8 @@ DB移行・認証基盤刷新を除く、現時点の作業進捗です。
 | クエリ/インデックス運用明文化 | 完了 | 中 | `docs/firestore-query-index-operations.md` を追加し、運用手順を文書化。 |
 | Discord通知要件定義 | 完了 | 中 | Webhook前提のMVP要件（キュー/再送/冪等/監視/秘匿）を本書に追記。 |
 | Discord通知実装 | 未着手 | 中 | 要件定義済み。`notificationSettings`/`notificationQueue` と送信Worker実装が必要。 |
-| 認証なしエンドポイントの修正（L） | 未着手 | **高（最優先）** | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加が必要。 |
-| `exports/monthly.csv` の month バリデーション（M） | 未着手 | **高** | `YYYY-MM` 形式チェックなし。L と同時対応推奨。 |
+| 認証なしエンドポイントの修正（L） | 完了 | 高（最優先） | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加済み（2026-03-03）。 |
+| `exports/monthly.csv` の month バリデーション（M） | 完了 | 高 | `YYYY-MM` 形式の zod バリデーション追加済み（2026-03-03）。L と同時対応。 |
 | CI の NEXTAUTH 環境変数削除 | 完了 | 高 | `ci.yml` から不要な `NEXTAUTH_SECRET` / `NEXTAUTH_URL` を削除済み（2026-03-03）。 |
 | 設定画面ログアウト | 完了 | 低 | `settings` から `signOut()` 実行後に `/login` へ遷移。 |
 | 通知設定の文言整備 | 完了 | 低 | 通知UIの `LINE` 表記を `メール` に統一。 |

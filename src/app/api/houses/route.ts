@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHouse, listHouses } from "@/server/house-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { ApiErrorResponse, HouseCreateResponse, HouseListResponse } from "@/types";
 import { z } from "zod";
 import {
@@ -16,12 +17,16 @@ const createHouseSchema = z.object({
   joinPassword: zTrimmedString.optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const houses = await listHouses();
   return NextResponse.json({ data: houses }) as NextResponse<HouseListResponse>;
 }
 
 export async function POST(request: Request) {
+  // Registration flow can call this before session token is available.
   let body: unknown;
   try {
     body = await request.json();

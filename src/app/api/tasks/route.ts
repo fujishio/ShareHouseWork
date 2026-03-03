@@ -23,7 +23,10 @@ const createTaskSchema = z.object({
   frequencyDays: z.coerce.number().int().min(1),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const tasks = await readTasks();
   return NextResponse.json({ data: tasks }) as NextResponse<TaskListResponse>;
 }

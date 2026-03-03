@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listUsers, upsertUser } from "@/server/user-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { ApiErrorResponse, UserListResponse } from "@/types";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
@@ -13,12 +14,16 @@ const upsertUserSchema = z.object({
   email: zNonEmptyTrimmedString,
 });
 
-export async function GET() {
+export async function GET(request: Request) {
+  const actor = await verifyRequest(request).catch(() => null);
+  if (!actor) return unauthorizedResponse();
+
   const users = await listUsers();
   return NextResponse.json({ data: users }) as NextResponse<UserListResponse>;
 }
 
 export async function POST(request: Request) {
+  // Registration flow can call this before session token is available.
   let body: unknown;
   try {
     body = await request.json();
