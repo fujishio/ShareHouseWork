@@ -13,7 +13,7 @@
 | Zod バリデーション | task-completions/expenses/shopping/rules/notices/tasks/houses 適用済み | ✅ 一致（ハンドラー層含め適用済み） |
 | Firestore セキュリティルール | クライアント直接 read/write 禁止済み | ✅ 一致（`allow read, write: if false;`） |
 | Discord 通知 | 未着手（要件定義済み） | ✅ 一致（未実装） |
-| Lint/Format 強化 | 未着手 | ✅ 一致（カスタム設定ファイルなし） |
+| Lint/Format 強化 | 実装済み | ✅ 一致（`eslint.config.mjs` / `.prettierrc` 追加済み） |
 | Emulator ルールテスト | 追加予定 | ✅ 一致（未実装） |
 | **CI 環境変数** | 記載なし | ⚠️ **齟齬あり**：`ci.yml` に `NEXTAUTH_SECRET` / `NEXTAUTH_URL` が残存（NextAuth 未使用のため不要な残骸） |
 | **旧 TASKS.md 内容** | — | ⚠️ **齟齬あり**：LINE 連携・Prisma Schema など廃止済みの設計が残存 → 本ファイルで上書き |
@@ -81,16 +81,26 @@
 
 ---
 
-### TASK-4: CSV/集計の日付比較ロジック監査
+### ~~TASK-4: CSV/集計の日付比較ロジック監査~~ ✅ 完了
 
-**背景**
-`IsoDateTimeString` / `IsoDateString` / `YearMonthString` 型エイリアスは整備済みだが、
-CSV エクスポートや月次集計での日付比較に混在バグが残る可能性がある。（IMPROVEMENTS.md §5.C）
+**完了日: 2026-03-03**
 
-**作業内容**
-- `src/server/monthly-export.ts` の日付比較ロジックを読んで、型混在がないか確認する
-- `src/domain/expenses/calculate-monthly-expense-summary.ts` の比較処理を確認する
-- 混在・バグがあれば修正し、テストケースを追加する
+**調査結果**
+- `calculate-monthly-expense-summary.ts`: バグなし。`purchasedAt` は date-only `YYYY-MM-DD` が保証されており、月比較ロジックも正確。
+- `monthly-export.ts`: **UTC/JST タイムゾーンバグを発見・修正済み**（下記参照）
+
+**修正内容**
+
+| ファイル | バグ | 修正 |
+|---------|------|------|
+| `src/server/monthly-export.ts` | `completedAt.startsWith(month)` が UTC month prefix で比較 → 毎月1日 00:00〜08:59 JST 完了分が前月CSVに漏れる | `toJstMonthKey(new Date(record.completedAt)) === month` に変更 |
+| `src/domain/shopping/shopping-api-validation.ts` | datetime 文字列を `toISOString().slice(0,10)` (UTC日付) に変換 → JST日付と乖離 | `getJstDateString(date)` に変更 |
+| `src/domain/expenses/expense-api-validation.ts` | 同上 | 同上 |
+
+**追加テスト**
+- `monthly-export.test.ts`: UTC 前月・JST 当月の境界ケース（`2026-01-31T15:30:00.000Z` = JST 2/1 00:30 が 2026-02 CSV に含まれること）
+- `shopping-api-validation.test.ts`: JST 基準の日付正規化テストに更新
+- `expense-api-validation.test.ts`: UTC/JST 境界ケース（`2026-02-25T01:30:00.000+09:00` → `"2026-02-25"`）
 
 ---
 
@@ -182,8 +192,8 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | TASK-M | `/exports/monthly.csv` の `month` パラメータ zod バリデーション | 高 | ✅ 完了 |
 | TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | ✅ 完了 |
 | TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | ✅ 完了 |
-| TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | 未着手 |
+| TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | ✅ 完了 |
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
 | TASK-6 | CSV エクスポート運用手順を docs/ に明文化 | 低 | 未着手 |
-| TASK-7 | Lint / Format 強化 | 低 | 未着手 |
+| TASK-7 | Lint / Format 強化 | 低 | ✅ 完了 |
 | TASK-8 | PWA / オフライン対応 | 低 | 後段再評価 |

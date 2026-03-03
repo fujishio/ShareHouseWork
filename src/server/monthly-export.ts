@@ -1,4 +1,5 @@
 import type { ExpenseRecord, ShoppingItem, TaskCompletionRecord } from "@/types";
+import { toJstMonthKey } from "../shared/lib/time.ts";
 
 type MemberSummary = {
   member: string;
@@ -36,7 +37,11 @@ export function buildMonthlyOperationsCsv(
   }
 
   const monthlyTaskCompletions = taskCompletions
-    .filter((record) => record.completedAt.startsWith(month))
+    .filter((record) => {
+      const date = new Date(record.completedAt);
+      if (Number.isNaN(date.getTime())) return false;
+      return toJstMonthKey(date) === month;
+    })
     .sort((a, b) => a.completedAt.localeCompare(b.completedAt));
 
   const summaryHeader = toCsvRow([

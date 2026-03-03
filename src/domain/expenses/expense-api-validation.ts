@@ -1,4 +1,5 @@
 import { normalizeIsoDateString } from "../../shared/lib/date-normalization.ts";
+import { getJstDateString } from "../../shared/lib/time.ts";
 
 export function isTrimmedNonEmpty(value: string): boolean {
   return value.trim().length > 0;
@@ -11,5 +12,5 @@ export function normalizePurchasedAt(value: string): string | null {
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return getJstDateString(date);
 }

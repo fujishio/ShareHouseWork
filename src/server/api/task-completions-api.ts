@@ -11,8 +11,7 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { z } from "zod";
 
-const VALID_SOURCES = ["app"] as const;
-type ValidSource = (typeof VALID_SOURCES)[number];
+type ValidSource = "app";
 
 type AuthenticatedActor = {
   uid: string;

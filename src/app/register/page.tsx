@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import { apiFetch } from "@/shared/lib/fetch-client";
 import AppLogo from "@/components/AppLogo";
 import ColorPicker from "@/components/ColorPicker";
-import FormInput, { INPUT_CLASS } from "@/components/FormInput";
+import FormInput from "@/components/FormInput";
 import PasswordInput from "@/components/PasswordInput";
 import { PRESET_COLORS } from "@/shared/constants/house";
 

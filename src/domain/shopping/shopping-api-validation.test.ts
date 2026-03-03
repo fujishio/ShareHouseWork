@@ -16,10 +16,16 @@ test("normalizeShoppingDate: YYYY-MM-DD を受け入れる", () => {
   assert.equal(normalizeShoppingDate("2026-02-25"), "2026-02-25");
 });
 
-test("normalizeShoppingDate: ISO日時を日付へ正規化する", () => {
+test("normalizeShoppingDate: ISO日時はJST基準の日付へ正規化する", () => {
+  // 2026-02-25T01:23:45.000+09:00 = JST Feb 25 → YYYY-MM-DD should be 2026-02-25
   assert.equal(
     normalizeShoppingDate("2026-02-25T01:23:45.000+09:00"),
-    "2026-02-24"
+    "2026-02-25"
+  );
+  // 2026-02-24T16:00:00.000Z = UTC Feb 24 but JST Feb 25 01:00 → should be 2026-02-25
+  assert.equal(
+    normalizeShoppingDate("2026-02-24T16:00:00.000Z"),
+    "2026-02-25"
   );
 });
 

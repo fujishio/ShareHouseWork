@@ -53,7 +53,7 @@ const expenses: ExpenseRecord[] = [
     amount: 12000,
     category: "水道・光熱費",
     purchasedBy: "あなた",
-    purchasedAt: "2026-02-05T10:00:00.000Z",
+    purchasedAt: "2026-02-05",
   },
   {
     id: "2",
@@ -61,7 +61,7 @@ const expenses: ExpenseRecord[] = [
     amount: 5000,
     category: "食費",
     purchasedBy: "パートナー",
-    purchasedAt: "2026-03-01T10:00:00.000Z",
+    purchasedAt: "2026-03-01",
   },
 ];
 
@@ -116,6 +116,29 @@ test("empty month returns N/A row", () => {
   assert.match(csv, /2026-04,N\/A,0,0,0,,/);
   assert.match(csv, /2026-04,N\/A,,0,,,,false,,,/);
   assert.match(csv, /2026-04,N\/A,,,,,,none,,,,/);
+});
+
+test("completedAt in UTC previous month but JST current month is included", () => {
+  // 2026-01-31T15:30:00.000Z = Feb 1 00:30 JST → should appear in 2026-02 CSV
+  const boundaryCaseCompletions: TaskCompletionRecord[] = [
+    {
+      id: "b1",
+      taskId: "t1",
+      taskName: "A",
+      points: 5,
+      completedBy: "あなた",
+      completedAt: "2026-01-31T15:30:00.000Z",
+      source: "app",
+    },
+  ];
+  const csv = buildMonthlyOperationsCsv({
+    month: "2026-02",
+    taskCompletions: boundaryCaseCompletions,
+    expenses: [],
+    shoppingItems: [],
+  });
+  assert.match(csv, /2026-02,あなた,1,5,1,/);
+  assert.match(csv, /2026-02,TOTAL,1,5,1,/);
 });
 
 test("invalid month format throws", () => {

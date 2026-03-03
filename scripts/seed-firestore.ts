@@ -461,7 +461,7 @@ async function main() {
     reset: process.argv.includes("--reset"),
   });
 
-  console.log("Seed completed.");
+  process.stdout.write("Seed completed.\n");
 }
 
 main().catch((error) => {
