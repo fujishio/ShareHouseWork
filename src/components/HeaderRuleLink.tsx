@@ -1,18 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { BookOpen } from "lucide-react";
 
-const PUBLIC_PATHS = ["/login", "/register"];
-
 export default function HeaderRuleLink() {
-  const pathname = usePathname();
-
-  if (PUBLIC_PATHS.includes(pathname)) {
-    return null;
-  }
-
   return (
     <Link
       href="/rules"

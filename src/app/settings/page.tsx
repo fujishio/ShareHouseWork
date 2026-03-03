@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, ClipboardList, Pencil, Plus, Trash2, Users, Wallet, X } from "lucide-react";
+import { Bell, BellOff, ClipboardList, Palette, Pencil, Plus, Trash2, Users, Wallet, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
+import ColorPicker from "@/components/ColorPicker";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   saveNotificationSettings,
@@ -406,6 +407,112 @@ function TaskInlineForm({
       >
         {saving ? "保存中…" : "保存"}
       </button>
+    </div>
+  );
+}
+
+function ProfileColorSection() {
+  const { user } = useAuth();
+  const [currentColor, setCurrentColor] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [takenColors, setTakenColors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [housesRes, usersRes] = await Promise.all([
+        apiFetch("/api/houses"),
+        apiFetch("/api/users"),
+      ]);
+      if (!housesRes.ok || !usersRes.ok) {
+        setLoadError("プロフィール情報の取得に失敗しました");
+        return;
+      }
+      const housesJson = (await housesRes.json()) as HouseListResponse;
+      const usersJson = (await usersRes.json()) as UserListResponse;
+      const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
+      const me = usersJson.data.find((u) => u.id === user.uid);
+      if (me) {
+        setCurrentColor(me.color);
+        setSelectedColor(me.color);
+      }
+      if (myHouse) {
+        const otherColors = usersJson.data
+          .filter((u) => myHouse.memberUids.includes(u.id) && u.id !== user.uid)
+          .map((u) => u.color);
+        setTakenColors(otherColors);
+      }
+    } catch {
+      setLoadError("通信エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  const saveColor = async () => {
+    if (!selectedColor || selectedColor === currentColor) return;
+    setSaving(true);
+    try {
+      const res = await apiFetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: selectedColor }),
+      });
+      if (!res.ok) {
+        const message = await getApiErrorMessage(res, "カラーの更新に失敗しました");
+        showToast({ level: "error", message });
+        return;
+      }
+      setCurrentColor(selectedColor);
+      showToast({ level: "success", message: "テーマカラーを更新しました" });
+    } catch {
+      showToast({ level: "error", message: "通信エラーが発生しました" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasChanged = selectedColor !== null && selectedColor !== currentColor;
+
+  return (
+    <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Palette size={18} className="text-amber-500" />
+        <h3 className="text-sm font-bold text-stone-800">テーマカラー</h3>
+      </div>
+      <p className="text-xs text-stone-500 mb-3">
+        プロフィールに使用するカラーを選択します。同じハウスの他のメンバーが使用中のカラーは選べません。
+      </p>
+
+      {loading && <LoadingNotice message="プロフィールを読み込み中..." />}
+      {loadError && (
+        <RetryNotice message={loadError} actionLabel="再取得" onRetry={() => { void loadData(); }} disabled={loading} />
+      )}
+
+      {!loading && !loadError && selectedColor && (
+        <div className="space-y-3">
+          <ColorPicker
+            value={selectedColor}
+            onChange={setSelectedColor}
+            takenColors={takenColors}
+          />
+          <button
+            type="button"
+            onClick={() => { void saveColor(); }}
+            disabled={saving || !hasChanged}
+            className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
+          >
+            {saving ? "保存中…" : "保存する"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -824,6 +931,8 @@ export default function SettingsPage() {
           </p>
         )}
       </div>
+
+      <ProfileColorSection />
 
       <TaskManagementSection />
 
