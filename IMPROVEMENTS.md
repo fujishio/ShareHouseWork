@@ -58,81 +58,37 @@
 
 ---
 
-## 4. 優先度: 高（先に着手）
+## 4. 高優先度 完了済み項目（設計記録）
 
-### L. 認証なし公開エンドポイントの修正（新規・最優先）
+> タスクの状態管理・着手順は [Tasks.md](Tasks.md) を参照。
 
-**発見日: 2026-03-03**
+### L. ✅ 認証なし公開エンドポイントの修正（2026-03-03）
 
-以下のエンドポイントが `verifyRequest()` を呼んでおらず、未認証でアクセス可能な状態。
+GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses`）に `verifyRequest()` を追加。
+`/api/users` POST と `/api/houses` POST は登録フロー用として意図的に認証なし（コメントで明記済み）。
 
-| ルートファイル | メソッド | 問題 |
-|---|---|---|
-| `src/app/api/exports/monthly.csv/route.ts` | GET | 月次CSVデータ全件が認証なしでダウンロード可能 |
-| `src/app/api/tasks/route.ts` | GET | タスク一覧が認証なしで取得可能 |
-| `src/app/api/users/route.ts` | GET | 全ユーザー情報（名前・メール・色）が認証なしで取得可能 |
-| `src/app/api/houses/route.ts` | GET | 全ハウス情報が認証なしで取得可能 |
+### M. ✅ `/api/exports/monthly.csv` の `month` パラメータ zod バリデーション（2026-03-03）
 
-**補足: POST の扱い**
-- `/api/users` POST と `/api/houses` POST も認証なしだが、登録フロー（Firebase Auth トークン取得直後）で使用している可能性がある。
-- 設計意図を確認した上で対応方針（認証追加 or 意図的公開の明文化）を決める。
+`monthQuerySchema` を追加し `YYYY-MM` 形式（`/^\d{4}-(0[1-9]|1[0-2])$/`）を検証。
+不正値は `{ error, code: "VALIDATION_ERROR", details }` で 400 を返す。
 
-**対応方針**
-- 上記 GET エンドポイントに `verifyRequest()` を追加する。
-- POST については設計意図をコメントで明記するか、同様に認証を追加する。
+### E. ✅ Firestore セキュリティルールの最小権限化（2026-03-03）
 
----
+- クライアントからの Firestore 直接 read/write を禁止（API経由のみ）。
+- `firestore.rules.test.ts` による Emulator ルールテストを追加。
+- CI に `npm run test:firestore-rules` ステップを追加。
 
-### M. `/api/exports/monthly.csv` の `month` パラメータ検証漏れ（新規）
+### D. ✅ `actor.name` 永続化方針の明文化（2026-03-02）
 
-**発見日: 2026-03-03**
+履歴の `actor.name` / `*By` は「記録時の表示名スナップショットを固定保存」。後日の表示名変更時に既存履歴は再解決しない。`DATABASE.md` / `Overview.md` に反映済み。
 
-`src/app/api/exports/monthly.csv/route.ts` の `resolveMonth()` は `YYYY-MM` 形式を検証せず、
-不正な値（例: `2024-13`, `invalid`）がそのまま `buildMonthlyOperationsCsv()` に渡される。
+### A. ✅ 監査ログの対象を全 CUD に拡張
 
-**対応方針**
-- `/api/exports/monthly.csv` の GET に zod バリデーションを追加し、`month` が `YYYY-MM` 形式であることを検証する。
-- 認証追加（項目 L）と同時に対応する。
+`rules` / `notices` / `taskCompletions` / `expenses` / `shoppingItems` の全 CUD に `appendAuditLog` を実装済み。既取消/既チェック状態の再実行では重複ログを抑止。
 
----
+### F. ✅ API統合テストの運用継続
 
-### E. Firestore セキュリティルールの最小権限化
-
-**現状（対応前）**
-- `request.auth != null` で広く read/write 可能。
-
-**対応状況**
-- クライアントからの Firestore 直接 read/write を禁止（API経由のみ）に変更済み。
-- 次段で Emulator ルールテストを追加予定。
-
-### D. `actor.name` 永続化方針の明文化
-
-**決定（2026-03-02）**
-- 履歴の `actor.name` / `*By` は「記録時の表示名スナップショットを固定保存」する。
-- 後日の表示名変更時に、既存履歴の表示名は再解決しない。
-
-**対応**
-- `DATABASE.md` / `Overview.md` に方針を反映。
-- 監査ログ・履歴APIの実装は現行方針（固定保存）に合わせて維持。
-
-### A. 監査ログの対象を全 CUD に拡張
-
-**現状（対応後）**
-- 実装済み:
-  - `rules`: 作成/更新/確認/削除
-  - `notices`: 作成/削除
-  - `taskCompletions`: 作成/取消
-  - `expenses`: 作成/取消
-  - `shoppingItems`: 作成/チェック/取消/未購入戻し
-
-**対応状況**
-- `expenses` / `shopping` API に `appendAuditLog` を追加済み。
-- `AuditAction` を不足分まで拡張済み。
-- 重複ログ抑止のため、既取消/既チェック状態の再実行では監査ログを追加しないよう調整。
-
-### F. API統合テストの運用継続
-- 主要 API（`task-completions`, `expenses`, `shopping`, `rules`）は正常系/異常系の統合テスト追加済み。
-- 今後は新規 API 追加時の同時テスト追加を運用ルール化する。
+主要 API（`task-completions`, `expenses`, `shopping`, `rules`）の正常系/異常系テストを追加済み。新規 API 追加時の同時テスト追加を運用ルールとして継続。
 
 ---
 
@@ -147,7 +103,6 @@
 
 **残課題**
 - `/api/audit-logs/route.ts`: `parseLimit()` / `parseDate()` の手動バリデーションを zod に置き換える。エラーレスポンスに `details` を追加する。
-- `/api/exports/monthly.csv/route.ts`: `month` クエリパラメータの zod バリデーションを追加する（項目 M と統合）。
 - エラー形式の完全統一（全ルートで `details` を一律化）。特に `audit-logs` と `notices/[id]` の 404 レスポンスが未統一。
 
 ### C. 日付フォーマットの扱いを明示し、混在バグを予防
@@ -227,47 +182,11 @@
 | CI の不要な NEXTAUTH 環境変数削除 | 完了（2026-03-03） |
 | L: 認証なしエンドポイント修正（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses` GET） | 完了（2026-03-03） |
 | M: `/exports/monthly.csv` の `month` パラメータ zod バリデーション追加 | 完了（2026-03-03） |
+| E: Firestore Emulator ルールテスト追加（`firestore.rules.test.ts` + CI ステップ） | 完了（2026-03-03） |
 
 ---
 
-## 8. 次の着手順（推奨）
-1. ~~**L + M**: 認証なしエンドポイントの修正 + `/exports/monthly.csv` の month バリデーション追加~~ **完了（2026-03-03）**
-2. E: Firestore Emulator のルールテストを追加（最小権限化の回帰防止）
-3. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一（`audit-logs` が残存）
-4. K: Discord 通知の MVP 実装（設定・キュー・非同期送信）
-5. H: CSVエクスポートの運用手順を `docs/` に明文化
-6. I: Lint/Format強化
-
----
-
-## 9. 直近の確認ログ
+## 8. 直近の確認ログ（2026-03-03）
 - `npm test`: 52 pass / 0 fail
 - `npx tsc --noEmit`: エラーなし
-- CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行（NEXTAUTH 環境変数削除済み）
-- 実装調査（2026-03-03）: `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に認証なしを確認
-
----
-
-## 10. 対象内タスクの進捗
-
-DB移行・認証基盤刷新を除く、現時点の作業進捗です。
-
-| 項目 | 進捗 | 推奨優先度 | 補足 |
-|---|---|---|---|
-| Firestore ルール最小権限化 | 完了 | 高 (1) | クライアントからの Firestore 直接 read/write を禁止（API経由のみ）。 |
-| `actor.name` 永続化方針の明文化 | 完了 | 高 (2) | 記録時の表示名スナップショット固定を採用（再解決なし）。 |
-| 監査ログの全CUD対応 | 完了 | 高 (3) | `rules/notices/task-completions/expenses/shopping` のCUDログを実装。 |
-| API統合テスト | 完了 | 高 (4) | `task-completions/expenses/shopping/rules` の統合テストを追加済み。 |
-| API統合テスト運用 | 一部完了 | 高 (4) | 主要APIは対応済み。新規API追加時の同時テスト追加ルール化が残課題。 |
-| APIバリデーション統一（zod） | 一部完了 | 中 (5) | `task-completions/expenses/shopping/rules/notices/tasks/houses` は対応。残りAPIへ展開中。 |
-| 日付型/正規化ルール整備 | 一部完了 | 中 (5, Bとセット) | 型alias追加とAPI境界の正規化を導入。CSV/集計側の監査は継続。 |
-| クエリ/インデックス運用明文化 | 完了 | 中 | `docs/firestore-query-index-operations.md` を追加し、運用手順を文書化。 |
-| Discord通知要件定義 | 完了 | 中 | Webhook前提のMVP要件（キュー/再送/冪等/監視/秘匿）を本書に追記。 |
-| Discord通知実装 | 未着手 | 中 | 要件定義済み。`notificationSettings`/`notificationQueue` と送信Worker実装が必要。 |
-| 認証なしエンドポイントの修正（L） | 完了 | 高（最優先） | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加済み（2026-03-03）。 |
-| `exports/monthly.csv` の month バリデーション（M） | 完了 | 高 | `YYYY-MM` 形式の zod バリデーション追加済み（2026-03-03）。L と同時対応。 |
-| CI の NEXTAUTH 環境変数削除 | 完了 | 高 | `ci.yml` から不要な `NEXTAUTH_SECRET` / `NEXTAUTH_URL` を削除済み（2026-03-03）。 |
-| 設定画面ログアウト | 完了 | 低 | `settings` から `signOut()` 実行後に `/login` へ遷移。 |
-| 通知設定の文言整備 | 完了 | 低 | 通知UIの `LINE` 表記を `メール` に統一。 |
-| CSV運用拡張 | 一部完了 | 低 | `task/expenses/shopping` 出力は対応済み。運用向け整備は継続。 |
-| Lint/Format強化 | 未着手 | 低 | ルール厳格化・整形統一はこれから。 |
+- CI: `npm test` + `npm run test:firestore-rules` + `npm run build` を実行（NEXTAUTH 環境変数削除済み）

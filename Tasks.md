@@ -55,19 +55,15 @@
 
 ---
 
-### TASK-2: Firestore Emulator でのセキュリティルールテスト追加
+### ~~TASK-2: Firestore Emulator でのセキュリティルールテスト追加~~ ✅ 完了
 
-**背景**
-`firestore.rules` は「全拒否（`allow read, write: if false`）」ルールに設定済みだが、
-回帰テストが存在しない。将来のルール変更で意図しない権限付与が発生するリスクがある。
-（IMPROVEMENTS.md §4.E「次段で Emulator ルールテストを追加予定」）
+**完了日: 2026-03-03**
 
-**作業内容**
-- `@firebase/rules-unit-testing` を開発依存として追加
-- `firestore.rules.test.ts` を作成し以下を確認するテストを実装する:
-  - 認証済みユーザーがクライアント SDK で直接読み取りしようとすると拒否される
-  - 未認証ユーザーが直接書き込みしようとすると拒否される
-- CI に Emulator テストステップを追加する（または既存 `npm test` に統合する）
+- `firestore.rules.test.ts` を作成済み:
+  - 認証済みユーザーのクライアント SDK 直接読み取りが拒否されることを確認
+  - 未認証ユーザーの直接書き込みが拒否されることを確認
+- CI（`.github/workflows/ci.yml`）に `Run Firestore rules tests` ステップ（`npm run test:firestore-rules`）を追加済み
+- `package.json` に `test:firestore-rules` スクリプト（Emulator 起動 → テスト実行）を追加済み
 
 ---
 
@@ -189,7 +185,7 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | TASK-1 | CI から不要な NEXTAUTH 環境変数を削除 | 高 | ✅ 完了 |
 | TASK-L | 認証なし GET エンドポイントへの `verifyRequest()` 追加 | 高（最優先） | ✅ 完了 |
 | TASK-M | `/exports/monthly.csv` の `month` パラメータ zod バリデーション | 高 | ✅ 完了 |
-| TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | 未着手 |
+| TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | ✅ 完了 |
 | TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | 未着手 |
 | TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | 未着手 |
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
