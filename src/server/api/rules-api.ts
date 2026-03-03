@@ -11,6 +11,7 @@ import {
   zTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import { RULE_CATEGORIES } from "../../shared/constants/rule.ts";
+import { logAppAuditEvent } from "./audit-log-service.ts";
 
 const ruleCategorySchema = z.enum(RULE_CATEGORIES);
 const createRuleSchema = z.object({
@@ -114,11 +115,9 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
 
   const created = await deps.appendRule(input);
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "rule_created",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: {
       ruleId: created.id,
       title: created.title,
@@ -167,11 +166,9 @@ export async function handleUpdateRule(
     return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "rule_updated",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: { ruleId: id, title: updated.title, category: parsed.data.category },
   });
 
@@ -193,11 +190,9 @@ export async function handleAcknowledgeRule(
     return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "rule_acknowledged",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: { ruleId: id, title: updated.title },
   });
 
@@ -221,11 +216,9 @@ export async function handleDeleteRule(
     return errorResponse("Not found", 404, "RULE_NOT_FOUND");
   }
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "rule_deleted",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: { ruleId: id, title: updated.title },
   });
 

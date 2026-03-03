@@ -1,5 +1,9 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { TaskCompletionRecord } from "@/types";
+import {
+  addCollectionDoc,
+  readCollection,
+  updateCollectionDocConditionally,
+} from "@/server/store-utils";
 
 const COLLECTION = "taskCompletions";
 
@@ -19,26 +23,23 @@ function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskComp
 }
 
 export async function readTaskCompletions(): Promise<TaskCompletionRecord[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db
-    .collection(COLLECTION)
-    .orderBy("completedAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) => docToRecord(doc.id, doc.data()));
+  return readCollection({
+    collection: COLLECTION,
+    orderBy: { field: "completedAt", direction: "desc" },
+    mapDoc: docToRecord,
+  });
 }
 
 export async function appendTaskCompletion(
   record: Omit<TaskCompletionRecord, "id">
 ): Promise<TaskCompletionRecord> {
-  const db = getAdminFirestore();
   const data = {
     ...record,
     canceledAt: record.canceledAt ?? null,
     canceledBy: record.canceledBy ?? null,
     cancelReason: record.cancelReason ?? null,
   };
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToRecord(ref.id, data);
+  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
 }
 
 export async function cancelTaskCompletion(
@@ -47,15 +48,12 @@ export async function cancelTaskCompletion(
   cancelReason: string,
   canceledAt: string
 ): Promise<TaskCompletionRecord | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(completionId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  if (data.canceledAt) return docToRecord(completionId, data);
-
-  const updated = { canceledAt, canceledBy, cancelReason };
-  await ref.update(updated);
-  return docToRecord(completionId, { ...data, ...updated });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: completionId,
+    shouldUpdate: (data) => !data.canceledAt,
+    updates: { canceledAt, canceledBy, cancelReason },
+    onGuardFail: "return-existing",
+    mapDoc: docToRecord,
+  });
 }

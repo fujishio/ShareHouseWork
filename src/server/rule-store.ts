@@ -1,5 +1,10 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Rule, CreateRuleInput, UpdateRuleInput } from "@/types";
+import { getAdminFirestore } from "@/lib/firebase-admin";
+import {
+  addCollectionDoc,
+  readCollection,
+  updateCollectionDocConditionally,
+} from "@/server/store-utils";
 
 const COLLECTION = "rules";
 
@@ -19,34 +24,32 @@ function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
 }
 
 export async function readRules(): Promise<Rule[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db
-    .collection(COLLECTION)
-    .orderBy("createdAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) => docToRule(doc.id, doc.data()));
+  return readCollection({
+    collection: COLLECTION,
+    orderBy: { field: "createdAt", direction: "desc" },
+    mapDoc: docToRule,
+  });
 }
 
 export async function appendRule(input: CreateRuleInput): Promise<Rule> {
-  const db = getAdminFirestore();
   const data = {
     ...input,
     acknowledgedBy: [],
     deletedAt: null,
     deletedBy: null,
   };
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToRule(ref.id, data);
+  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRule });
 }
 
 export async function updateRule(ruleId: string, input: UpdateRuleInput): Promise<Rule | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(ruleId);
-  const doc = await ref.get();
-  if (!doc.exists || doc.data()?.deletedAt) return null;
-
-  await ref.update({ ...input });
-  return docToRule(ruleId, { ...doc.data(), ...input });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: ruleId,
+    shouldUpdate: (data) => !data.deletedAt,
+    updates: { ...input },
+    onGuardFail: "return-null",
+    mapDoc: docToRule,
+  });
 }
 
 export async function acknowledgeRule(ruleId: string, memberName: string): Promise<Rule | null> {
@@ -68,15 +71,12 @@ export async function deleteRule(
   deletedBy: string,
   deletedAt: string
 ): Promise<Rule | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(ruleId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  if (data.deletedAt) return docToRule(ruleId, data);
-
-  const updated = { deletedAt, deletedBy };
-  await ref.update(updated);
-  return docToRule(ruleId, { ...data, ...updated });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: ruleId,
+    shouldUpdate: (data) => !data.deletedAt,
+    updates: { deletedAt, deletedBy },
+    onGuardFail: "return-existing",
+    mapDoc: docToRule,
+  });
 }

@@ -9,6 +9,7 @@ import {
   zNonEmptyTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import { z } from "zod";
+import { logAppAuditEvent } from "./audit-log-service.ts";
 
 type AuthenticatedActor = {
   uid: string;
@@ -187,11 +188,9 @@ export async function handleCreateTaskCompletion(
     source,
   });
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "task_completion_created",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: {
       taskId: created.taskId,
       taskName: created.taskName,
@@ -253,10 +252,9 @@ export async function handleCancelTaskCompletion(
     return errorResponse("Task completion not found.", 404, "TASK_COMPLETION_NOT_FOUND");
   }
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "task_completion_canceled",
     actor: actor.name,
-    source: "app",
     createdAt: canceledAt,
     details: {
       completionId: updated.id,

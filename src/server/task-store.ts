@@ -1,5 +1,9 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "@/types";
+import {
+  addCollectionDoc,
+  readCollection,
+  updateCollectionDocConditionally,
+} from "@/server/store-utils";
 
 const COLLECTION = "tasks";
 
@@ -15,38 +19,36 @@ function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
 }
 
 export async function readTasks(): Promise<Task[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db
-    .collection(COLLECTION)
-    .where("deletedAt", "==", null)
-    .get();
-  return snapshot.docs.map((doc) => docToTask(doc.id, doc.data()));
+  return readCollection({
+    collection: COLLECTION,
+    whereEquals: [{ field: "deletedAt", value: null }],
+    mapDoc: docToTask,
+  });
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-  const db = getAdminFirestore();
   const data = { ...input, deletedAt: null };
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToTask(ref.id, data);
+  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToTask });
 }
 
 export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(taskId);
-  const doc = await ref.get();
-  if (!doc.exists || doc.data()?.deletedAt) return null;
-
-  await ref.update({ ...input });
-  return docToTask(taskId, { ...doc.data(), ...input });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: taskId,
+    shouldUpdate: (data) => !data.deletedAt,
+    updates: { ...input },
+    onGuardFail: "return-null",
+    mapDoc: docToTask,
+  });
 }
 
 export async function deleteTask(taskId: string, deletedAt: string): Promise<Task | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(taskId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-  if (doc.data()?.deletedAt) return docToTask(taskId, doc.data()!);
-
-  await ref.update({ deletedAt });
-  return docToTask(taskId, { ...doc.data(), deletedAt });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: taskId,
+    shouldUpdate: (data) => !data.deletedAt,
+    updates: { deletedAt },
+    onGuardFail: "return-existing",
+    mapDoc: docToTask,
+  });
 }

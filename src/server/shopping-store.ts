@@ -1,5 +1,9 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { ShoppingItem, CreateShoppingItemInput, CheckShoppingItemInput } from "@/types";
+import {
+  addCollectionDoc,
+  readCollection,
+  updateCollectionDocConditionally,
+} from "@/server/store-utils";
 
 const COLLECTION = "shoppingItems";
 
@@ -20,16 +24,14 @@ function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingIt
 }
 
 export async function readShoppingItems(): Promise<ShoppingItem[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db
-    .collection(COLLECTION)
-    .orderBy("addedAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) => docToItem(doc.id, doc.data()));
+  return readCollection({
+    collection: COLLECTION,
+    orderBy: { field: "addedAt", direction: "desc" },
+    mapDoc: docToItem,
+  });
 }
 
 export async function appendShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
-  const db = getAdminFirestore();
   const data = {
     ...input,
     category: input.category ?? null,
@@ -38,8 +40,7 @@ export async function appendShoppingItem(input: CreateShoppingItemInput): Promis
     canceledAt: null,
     canceledBy: null,
   };
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToItem(ref.id, data);
+  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToItem });
 }
 
 export async function checkShoppingItem(
@@ -47,27 +48,25 @@ export async function checkShoppingItem(
   input: CheckShoppingItemInput,
   checkedAt: string
 ): Promise<ShoppingItem | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(itemId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  if (data.checkedAt || data.canceledAt) return docToItem(itemId, data);
-
-  const updated = { checkedBy: input.checkedBy, checkedAt };
-  await ref.update(updated);
-  return docToItem(itemId, { ...data, ...updated });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: itemId,
+    shouldUpdate: (data) => !data.checkedAt && !data.canceledAt,
+    updates: { checkedBy: input.checkedBy, checkedAt },
+    onGuardFail: "return-existing",
+    mapDoc: docToItem,
+  });
 }
 
 export async function uncheckShoppingItem(itemId: string): Promise<ShoppingItem | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(itemId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  await ref.update({ checkedBy: null, checkedAt: null });
-  return docToItem(itemId, { ...doc.data(), checkedBy: null, checkedAt: null });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: itemId,
+    shouldUpdate: () => true,
+    updates: { checkedBy: null, checkedAt: null },
+    onGuardFail: "return-null",
+    mapDoc: docToItem,
+  });
 }
 
 export async function cancelShoppingItem(
@@ -75,15 +74,12 @@ export async function cancelShoppingItem(
   canceledBy: string,
   canceledAt: string
 ): Promise<ShoppingItem | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(itemId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  if (data.canceledAt) return docToItem(itemId, data);
-
-  const updated = { canceledAt, canceledBy };
-  await ref.update(updated);
-  return docToItem(itemId, { ...data, ...updated });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: itemId,
+    shouldUpdate: (data) => !data.canceledAt,
+    updates: { canceledAt, canceledBy },
+    onGuardFail: "return-existing",
+    mapDoc: docToItem,
+  });
 }

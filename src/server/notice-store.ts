@@ -1,5 +1,9 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { Notice, CreateNoticeInput } from "@/types";
+import {
+  addCollectionDoc,
+  readCollection,
+  updateCollectionDocConditionally,
+} from "@/server/store-utils";
 
 const COLLECTION = "notices";
 
@@ -17,23 +21,20 @@ function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
 }
 
 export async function readNotices(): Promise<Notice[]> {
-  const db = getAdminFirestore();
-  const snapshot = await db
-    .collection(COLLECTION)
-    .orderBy("postedAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) => docToNotice(doc.id, doc.data()));
+  return readCollection({
+    collection: COLLECTION,
+    orderBy: { field: "postedAt", direction: "desc" },
+    mapDoc: docToNotice,
+  });
 }
 
 export async function appendNotice(input: CreateNoticeInput): Promise<Notice> {
-  const db = getAdminFirestore();
   const data = {
     ...input,
     deletedAt: null,
     deletedBy: null,
   };
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToNotice(ref.id, data);
+  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToNotice });
 }
 
 export async function deleteNotice(
@@ -41,15 +42,12 @@ export async function deleteNotice(
   deletedBy: string,
   deletedAt: string
 ): Promise<Notice | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(noticeId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-
-  const data = doc.data()!;
-  if (data.deletedAt) return docToNotice(noticeId, data);
-
-  const updated = { deletedAt, deletedBy };
-  await ref.update(updated);
-  return docToNotice(noticeId, { ...data, ...updated });
+  return updateCollectionDocConditionally({
+    collection: COLLECTION,
+    id: noticeId,
+    shouldUpdate: (data) => !data.deletedAt,
+    updates: { deletedAt, deletedBy },
+    onGuardFail: "return-existing",
+    mapDoc: docToNotice,
+  });
 }

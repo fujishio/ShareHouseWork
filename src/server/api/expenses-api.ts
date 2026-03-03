@@ -13,6 +13,7 @@ import type {
   ExpenseRecord,
 } from "../../types/index.ts";
 import { z } from "zod";
+import { logAppAuditEvent } from "./audit-log-service.ts";
 
 type AuthenticatedUser = {
   uid: string;
@@ -144,11 +145,9 @@ export async function handleCreateExpense(
 
   const created = await deps.appendExpense(input);
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "expense_created",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: {
       expenseId: created.id,
       title: created.title,
@@ -204,10 +203,9 @@ export async function handleDeleteExpense(
   }
 
   if (!existing.canceledAt && updated.canceledAt) {
-    await deps.appendAuditLog({
+    await logAppAuditEvent(deps, {
       action: "expense_canceled",
       actor: actor.name,
-      source: "app",
       createdAt: canceledAt,
       details: {
         expenseId: updated.id,

@@ -27,6 +27,11 @@
   - `readJson<T>` にガード適用を拡張し、主要レスポンスで実行時境界を追加
   - `TaskCategory` / `RuleCategory` / `ExpenseCategory` の重複定義を共通定数へ集約
   - レスポンスガードを `shared/lib/response-guards.ts` へ集約
+- Phase 2: 完了
+  - `src/server/store-utils.ts` を追加し、`*-store.ts` の重複 CRUD（read/add/条件付き更新）を集約
+  - `src/server/api/audit-log-service.ts` を追加し、監査ログ書き込みをサービス化
+  - `tasks` / `notices` API を `src/server/api/*` に移行し、route はオーケストレーション専用化
+  - `src/server/api/tasks-api.test.ts` / `notices-api.test.ts` を追加
 
 ### Notes
 - `npx tsc --noEmit` は通過済み。

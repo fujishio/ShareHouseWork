@@ -15,6 +15,7 @@ import type {
   ShoppingItem,
 } from "../../types/index.ts";
 import { z } from "zod";
+import { logAppAuditEvent } from "./audit-log-service.ts";
 
 type Params = { params: Promise<{ id: string }> };
 type AuthenticatedUser = {
@@ -143,11 +144,9 @@ export async function handleCreateShoppingItem(
 
   const created = await deps.appendShoppingItem(input);
 
-  await deps.appendAuditLog({
+  await logAppAuditEvent(deps, {
     action: "shopping_created",
     actor: actor.name,
-    source: "app",
-    createdAt: deps.now(),
     details: {
       shoppingItemId: created.id,
       name: created.name,
@@ -194,11 +193,9 @@ export async function handlePatchShoppingItem(
     }
 
     if (existing.checkedAt && !existing.canceledAt) {
-      await deps.appendAuditLog({
+      await logAppAuditEvent(deps, {
         action: "shopping_unchecked",
         actor: actor.name,
-        source: "app",
-        createdAt: deps.now(),
         details: {
           shoppingItemId: updated.id,
           name: updated.name,
@@ -216,11 +213,9 @@ export async function handlePatchShoppingItem(
   }
 
   if (!existing.checkedAt && !existing.canceledAt && updated.checkedAt) {
-    await deps.appendAuditLog({
+    await logAppAuditEvent(deps, {
       action: "shopping_checked",
       actor: actor.name,
-      source: "app",
-      createdAt: deps.now(),
       details: {
         shoppingItemId: updated.id,
         name: updated.name,
@@ -255,11 +250,9 @@ export async function handleDeleteShoppingItem(
   }
 
   if (!existing.canceledAt && updated.canceledAt) {
-    await deps.appendAuditLog({
+    await logAppAuditEvent(deps, {
       action: "shopping_canceled",
       actor: actor.name,
-      source: "app",
-      createdAt: deps.now(),
       details: {
         shoppingItemId: updated.id,
         name: updated.name,
