@@ -4,9 +4,8 @@ import { readShoppingItems } from "@/server/shopping-store";
 import { buildMonthlyOperationsCsv } from "@/server/monthly-export";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { NextResponse } from "next/server";
-import type { ApiErrorResponse } from "@/types";
 import { z } from "zod";
-import { createApiError } from "@/shared/lib/api-validation";
+import { errorJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -26,14 +25,12 @@ export async function GET(request: Request) {
     month: searchParams.get("month") ?? undefined,
   });
   if (!parsedQuery.success) {
-    return NextResponse.json(
-      createApiError(
-        "Invalid month query. Use YYYY-MM format.",
-        "VALIDATION_ERROR",
-        parsedQuery.error.issues
-      ),
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid month query. Use YYYY-MM format.",
+      "VALIDATION_ERROR",
+      400,
+      parsedQuery.error.issues
+    );
   }
   const month = parsedQuery.data.month ?? new Date().toISOString().slice(0, 7);
 
@@ -48,10 +45,7 @@ export async function GET(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "failed to build monthly csv";
-    return NextResponse.json(
-      createApiError(message, "EXPORT_CSV_FAILED", { cause: message }),
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(message, "EXPORT_CSV_FAILED", 400, { cause: message });
   }
 
   return new NextResponse(csv, {

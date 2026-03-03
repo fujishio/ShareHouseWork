@@ -7,12 +7,14 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft } from "lucide-react";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isApiErrorBody } from "@/shared/lib/response-guards";
 import AppLogo from "@/components/AppLogo";
 import ColorPicker from "@/components/ColorPicker";
 import FormInput from "@/components/FormInput";
 import PasswordInput from "@/components/PasswordInput";
 import { PRESET_COLORS } from "@/shared/constants/house";
+import type { PresetColor } from "@/shared/constants/house";
 
 const DEFAULT_COLOR = PRESET_COLORS[0];
 
@@ -20,8 +22,13 @@ type Mode = "create" | "join";
 
 async function readErrorMessage(response: Response): Promise<string> {
   try {
-    const body = (await response.json()) as { error?: string };
-    if (body.error) return body.error;
+    const body = await readJson<{ error?: string }>(response, isApiErrorBody);
+    if (
+      typeof body.error === "string" &&
+      body.error
+    ) {
+      return body.error;
+    }
   } catch {
     // ignore parse error
   }
@@ -38,7 +45,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [color, setColor] = useState(DEFAULT_COLOR);
+  const [color, setColor] = useState<PresetColor>(DEFAULT_COLOR);
   const [houseName, setHouseName] = useState("");
   const [joinPassword, setJoinPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

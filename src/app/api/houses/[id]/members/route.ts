@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { addHouseMember } from "@/server/house-store";
 import { getUser } from "@/server/user-store";
-import type { ApiErrorResponse, HouseMemberAddResponse } from "@/types";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -22,36 +21,29 @@ export async function POST(request: Request, { params }: Params) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid JSON",
+      "INVALID_JSON",
+      400,
+      "Request body must be valid JSON."
+    );
   }
 
   const parsed = addHouseMemberSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "userUid is required", code: "VALIDATION_ERROR", details: parsed.error.issues },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("userUid is required", "VALIDATION_ERROR", 400, parsed.error.issues);
   }
   const { userUid } = parsed.data;
 
   const user = await getUser(userUid);
   if (!user) {
-    return NextResponse.json(
-      { error: "User not found", code: "USER_NOT_FOUND", details: { userUid } },
-      { status: 404 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("User not found", "USER_NOT_FOUND", 404, { userUid });
   }
 
   const updated = await addHouseMember(id, userUid);
   if (!updated) {
-    return NextResponse.json(
-      { error: "House not found", code: "HOUSE_NOT_FOUND", details: { houseId: id } },
-      { status: 404 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("House not found", "HOUSE_NOT_FOUND", 404, { houseId: id });
   }
 
-  return NextResponse.json({ data: updated }) as NextResponse<HouseMemberAddResponse>;
+  return successJson(updated);
 }

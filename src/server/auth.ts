@@ -24,7 +24,11 @@ export async function verifyRequest(request: Request): Promise<AuthenticatedUser
 
   const db = getAdminFirestore();
   const userDoc = await db.collection("users").doc(decoded.uid).get();
-  const name = userDoc.exists ? (userDoc.data()?.name as string) : (decoded.email ?? decoded.uid);
+  const rawName = userDoc.exists ? userDoc.data()?.name : undefined;
+  const name =
+    typeof rawName === "string" && rawName.trim()
+      ? rawName
+      : (decoded.email ?? decoded.uid);
 
   return {
     uid: decoded.uid,

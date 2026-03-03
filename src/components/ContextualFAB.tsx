@@ -15,6 +15,11 @@ type FABConfig = {
   modalTitle: string;
 };
 
+function getActiveHtmlElement(): HTMLElement | null {
+  const active = document.activeElement;
+  return active instanceof HTMLElement ? active : null;
+}
+
 function getFABConfig(pathname: string): FABConfig | null {
   if (pathname === "/" || pathname === "/tasks") {
     return {
@@ -81,7 +86,7 @@ export default function ContextualFAB() {
       return;
     }
 
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    previousFocusRef.current = getActiveHtmlElement();
     const modal = modalRef.current;
     if (!modal) return;
 
@@ -112,7 +117,7 @@ export default function ContextualFAB() {
 
       const first = elements[0];
       const last = elements[elements.length - 1];
-      const active = document.activeElement as HTMLElement | null;
+      const active = getActiveHtmlElement();
 
       if (event.shiftKey && active === first) {
         event.preventDefault();

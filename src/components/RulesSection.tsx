@@ -8,15 +8,11 @@ import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { MEMBER_NAMES } from "@/shared/constants/house";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isDataObjectResponse } from "@/shared/lib/response-guards";
+import { RULE_CATEGORIES, isRuleCategory } from "@/shared/constants/rule";
 
-const CATEGORY_ORDER: RuleCategory[] = [
-  "ゴミ捨て",
-  "騒音",
-  "共用部",
-  "来客",
-  "その他",
-];
+const CATEGORY_ORDER: RuleCategory[] = [...RULE_CATEGORIES];
 
 const CATEGORY_EMOJI: Record<RuleCategory, string> = {
   "ゴミ捨て": "🗑",
@@ -35,9 +31,7 @@ function isRuleConfirmed(rule: Rule): boolean {
   return requiredMembers.every((m) => rule.acknowledgedBy!.includes(m));
 }
 
-type Props = {
-  initialRules: Rule[];
-};
+type Props = { initialRules: Rule[] };
 
 export default function RulesSection({ initialRules }: Props) {
   const router = useRouter();
@@ -88,7 +82,10 @@ export default function RulesSection({ initialRules }: Props) {
         });
         return;
       }
-      const { data } = await response.json();
+      const { data } = await readJson<{ data: Rule }>(
+        response,
+        isDataObjectResponse<Rule>
+      );
       setRules((prev) => prev.map((r) => (r.id === rule.id ? data : r)));
       showToast({ level: "success", message: "確認済みに更新しました" });
     } catch {
@@ -154,7 +151,10 @@ export default function RulesSection({ initialRules }: Props) {
         });
         return;
       }
-      const { data } = await response.json();
+      const { data } = await readJson<{ data: Rule }>(
+        response,
+        isDataObjectResponse<Rule>
+      );
       setRules((prev) =>
         prev.map((r) => (r.id === editingRule.id ? data : r))
       );
@@ -276,9 +276,11 @@ export default function RulesSection({ initialRules }: Props) {
                         />
                         <select
                           value={editCategory}
-                          onChange={(e) =>
-                            setEditCategory(e.target.value as RuleCategory)
-                          }
+                          onChange={(e) => {
+                            if (isRuleCategory(e.target.value)) {
+                              setEditCategory(e.target.value);
+                            }
+                          }}
                           className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
                         >
                           {CATEGORY_ORDER.map((cat) => (

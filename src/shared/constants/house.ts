@@ -13,6 +13,18 @@ export const PRESET_COLORS = [
 
 export type PresetColor = (typeof PRESET_COLORS)[number];
 
+export function isPresetColor(color: string): color is PresetColor {
+  return PRESET_COLORS.some((presetColor) => presetColor === color);
+}
+
+export function toPresetColor(
+  color: string | null | undefined,
+  fallback: PresetColor = PRESET_COLORS[0]
+): PresetColor {
+  if (!color) return fallback;
+  return isPresetColor(color) ? color : fallback;
+}
+
 export const HOUSE_MEMBERS: Member[] = [
   { id: "1", name: "家主", color: "#d97706" },
   { id: "2", name: "パートナー", color: "#57534e" },

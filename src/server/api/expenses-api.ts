@@ -10,7 +10,6 @@ import type {
   ApiErrorResponse,
   AuditLogRecord,
   CreateExpenseInput,
-  ExpenseCategory,
   ExpenseRecord,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -138,7 +137,7 @@ export async function handleCreateExpense(
   const input: CreateExpenseInput = {
     title: parsed.data.title,
     amount: parsed.data.amount,
-    category: parsed.data.category as ExpenseCategory,
+    category: parsed.data.category,
     purchasedBy: actor.name,
     purchasedAt: parsed.data.purchasedAt,
   };

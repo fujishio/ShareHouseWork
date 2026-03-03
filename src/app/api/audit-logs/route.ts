@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
 import { readAuditLogs } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
-import type { ApiErrorResponse, AuditLogsListResponse } from "@/types";
 import { z } from "zod";
-import { createApiError } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -26,14 +24,12 @@ export async function GET(request: Request) {
     limit: searchParams.get("limit") ?? undefined,
   });
   if (!parsedQuery.success) {
-    return NextResponse.json(
-      createApiError(
-        "Invalid query parameters. from/to must be valid dates; limit must be 1-500.",
-        "VALIDATION_ERROR",
-        parsedQuery.error.issues
-      ),
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid query parameters. from/to must be valid dates; limit must be 1-500.",
+      "VALIDATION_ERROR",
+      400,
+      parsedQuery.error.issues
+    );
   }
   const { from, to, action, limit } = parsedQuery.data;
 
@@ -58,5 +54,5 @@ export async function GET(request: Request) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
 
-  return NextResponse.json({ data: filtered }, { status: 200 }) as NextResponse<AuditLogsListResponse>;
+  return successJson(filtered, { status: 200 });
 }

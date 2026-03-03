@@ -3,7 +3,6 @@ import type {
   AuditLogRecord,
   CreateRuleInput,
   Rule,
-  RuleCategory,
   UpdateRuleInput,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -11,16 +10,9 @@ import {
   zNonEmptyTrimmedString,
   zTrimmedString,
 } from "../../shared/lib/api-validation.ts";
+import { RULE_CATEGORIES } from "../../shared/constants/rule.ts";
 
-const VALID_CATEGORIES: RuleCategory[] = [
-  "ゴミ捨て",
-  "騒音",
-  "共用部",
-  "来客",
-  "その他",
-];
-
-const ruleCategorySchema = z.enum(VALID_CATEGORIES as [RuleCategory, ...RuleCategory[]]);
+const ruleCategorySchema = z.enum(RULE_CATEGORIES);
 const createRuleSchema = z.object({
   title: zNonEmptyTrimmedString,
   body: zTrimmedString.default(""),

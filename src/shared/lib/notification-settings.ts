@@ -7,6 +7,19 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   importantOnly: false,
 };
 
+function isNotificationSettingsLike(value: unknown): value is Partial<NotificationSettings> {
+  if (!value || typeof value !== "object") return false;
+  const enabled = Reflect.get(value, "enabled");
+  const importantOnly = Reflect.get(value, "importantOnly");
+  if (enabled !== undefined && typeof enabled !== "boolean") {
+    return false;
+  }
+  if (importantOnly !== undefined && typeof importantOnly !== "boolean") {
+    return false;
+  }
+  return true;
+}
+
 function hasStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -22,7 +35,8 @@ export function loadNotificationSettings(): NotificationSettings {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
+    const parsedUnknown: unknown = JSON.parse(raw);
+    const parsed = isNotificationSettingsLike(parsedUnknown) ? parsedUnknown : {};
     return {
       enabled:
         typeof parsed.enabled === "boolean"

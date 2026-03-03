@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, ClipboardList, Palette, Pencil, Plus, Trash2, Users, Wallet, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
+import {
+  HOUSE_MEMBERS,
+  OWNER_MEMBER_NAME,
+  isPresetColor,
+  toPresetColor,
+} from "@/shared/constants/house";
+import { TASK_CATEGORIES, isTaskCategory } from "@/shared/constants/task";
+import type { PresetColor } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
 import ColorPicker from "@/components/ColorPicker";
 import {
@@ -11,20 +18,25 @@ import {
   saveNotificationSettings,
   loadNotificationSettings,
 } from "@/shared/lib/notification-settings";
-import type { ContributionSettings, House, Member, HouseListResponse, NotificationSettings, Task, TaskCategory, TaskListResponse, ApiErrorResponse, UserListResponse } from "@/types";
+import type {
+  ContributionSettings,
+  House,
+  Member,
+  HouseListResponse,
+  NotificationSettings,
+  Task,
+  TaskCategory,
+  TaskListResponse,
+  UserListResponse,
+} from "@/types";
 import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import {
+  isContributionSettingsResponse,
+  isDataArrayResponse,
+} from "@/shared/lib/response-guards";
 import { showToast } from "@/shared/lib/toast";
-
-const TASK_CATEGORIES: TaskCategory[] = [
-  "炊事・洗濯",
-  "水回りの掃除",
-  "共用部の掃除",
-  "ゴミ捨て",
-  "買い出し",
-  "季節・不定期",
-];
 
 function SettingsToggle({
   title,
@@ -101,8 +113,8 @@ function TaskManagementSection() {
         setLoadError(message);
         return;
       }
-      const json = (await res.json()) as TaskListResponse | ApiErrorResponse;
-      if ("data" in json) setTasks(json.data);
+      const json = await readJson<TaskListResponse>(res, isDataArrayResponse<Task>);
+      setTasks(json.data);
     } catch {
       setLoadError("通信エラーが発生しました");
     } finally {
@@ -368,7 +380,12 @@ function TaskInlineForm({
       </div>
       <select
         value={form.category}
-        onChange={(e) => onChange({ ...form, category: e.target.value as TaskCategory })}
+        onChange={(e) =>
+          onChange({
+            ...form,
+            category: isTaskCategory(e.target.value) ? e.target.value : form.category,
+          })
+        }
         className="w-full rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
       >
         {TASK_CATEGORIES.map((cat) => (
@@ -413,9 +430,9 @@ function TaskInlineForm({
 
 function ProfileColorSection() {
   const { user } = useAuth();
-  const [currentColor, setCurrentColor] = useState<string | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [takenColors, setTakenColors] = useState<string[]>([]);
+  const [currentColor, setCurrentColor] = useState<PresetColor | null>(null);
+  const [selectedColor, setSelectedColor] = useState<PresetColor | null>(null);
+  const [takenColors, setTakenColors] = useState<PresetColor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -433,18 +450,26 @@ function ProfileColorSection() {
         setLoadError("プロフィール情報の取得に失敗しました");
         return;
       }
-      const housesJson = (await housesRes.json()) as HouseListResponse;
-      const usersJson = (await usersRes.json()) as UserListResponse;
+      const housesJson = await readJson<HouseListResponse>(
+        housesRes,
+        isDataArrayResponse<House>
+      );
+      const usersJson = await readJson<UserListResponse>(
+        usersRes,
+        isDataArrayResponse<Member>
+      );
       const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
       const me = usersJson.data.find((u) => u.id === user.uid);
       if (me) {
-        setCurrentColor(me.color);
-        setSelectedColor(me.color);
+        const myColor = toPresetColor(me.color);
+        setCurrentColor(myColor);
+        setSelectedColor(myColor);
       }
       if (myHouse) {
         const otherColors = usersJson.data
           .filter((u) => myHouse.memberUids.includes(u.id) && u.id !== user.uid)
-          .map((u) => u.color);
+          .map((u) => u.color)
+          .filter(isPresetColor);
         setTakenColors(otherColors);
       }
     } catch {
@@ -542,8 +567,14 @@ function MemberManagementSection() {
         setLoadError("メンバー情報の取得に失敗しました");
         return;
       }
-      const housesJson = (await housesRes.json()) as HouseListResponse;
-      const usersJson = (await usersRes.json()) as UserListResponse;
+      const housesJson = await readJson<HouseListResponse>(
+        housesRes,
+        isDataArrayResponse<House>
+      );
+      const usersJson = await readJson<UserListResponse>(
+        usersRes,
+        isDataArrayResponse<Member>
+      );
       const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
       setHouse(myHouse);
       if (myHouse) {
@@ -703,7 +734,10 @@ export default function SettingsPage() {
         showToast({ level: "error", message });
         return;
       }
-      const json = (await response.json()) as { data: ContributionSettings };
+      const json = await readJson<{ data: ContributionSettings }>(
+        response,
+        isContributionSettingsResponse
+      );
       setContributionAmount(String(json.data.monthlyAmountPerPerson));
       setContributionMemberCount(String(json.data.memberCount));
     } catch {

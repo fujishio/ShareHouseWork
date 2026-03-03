@@ -1,7 +1,10 @@
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { EXPENSE_CATEGORY_COLORS } from "@/domain/expenses/expense-categories";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_COLORS,
+} from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory, ExpenseRecord } from "@/types";
 
 type Props = {
@@ -11,17 +14,23 @@ type Props = {
 export default function ExpenseCategoryChart({ expenses }: Props) {
   const activeExpenses = expenses.filter((e) => !e.canceledAt);
 
-  const totals = activeExpenses.reduce<Partial<Record<ExpenseCategory, number>>>(
+  const totals = activeExpenses.reduce<Record<ExpenseCategory, number>>(
     (acc, expense) => {
-      acc[expense.category] = (acc[expense.category] ?? 0) + expense.amount;
+      acc[expense.category] += expense.amount;
       return acc;
     },
-    {}
+    {
+      "水道・光熱費": 0,
+      "食費": 0,
+      "消耗品": 0,
+      "日用品": 0,
+      "その他": 0,
+    }
   );
 
-  const data = (Object.entries(totals) as [ExpenseCategory, number][])
-    .filter(([, amount]) => amount > 0)
-    .map(([category, amount]) => ({ name: category, value: amount }));
+  const data = EXPENSE_CATEGORIES
+    .map((category) => ({ name: category, value: totals[category] }))
+    .filter((entry) => entry.value > 0);
 
   if (data.length === 0) {
     return (
@@ -47,7 +56,7 @@ export default function ExpenseCategoryChart({ expenses }: Props) {
             {data.map((entry) => (
               <Cell
                 key={entry.name}
-                fill={EXPENSE_CATEGORY_COLORS[entry.name as ExpenseCategory] ?? "#94a3b8"}
+                fill={EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8"}
               />
             ))}
           </Pie>
@@ -63,7 +72,7 @@ export default function ExpenseCategoryChart({ expenses }: Props) {
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
               style={{
                 backgroundColor:
-                  EXPENSE_CATEGORY_COLORS[entry.name as ExpenseCategory] ?? "#94a3b8",
+                  EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8",
               }}
             />
             <span className="truncate">{entry.name}</span>

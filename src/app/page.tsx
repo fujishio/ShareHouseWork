@@ -1,4 +1,4 @@
-import ContributionWidget from "@/components/ContributionWidget";
+import ContributionWidgetWrapper from "@/components/ContributionWidgetWrapper";
 import ExpenseWidget from "@/components/ExpenseWidget";
 import GreetingSection from "@/components/GreetingSection";
 import NoticesWidget from "@/components/NoticesWidget";
@@ -9,9 +9,9 @@ import { readTaskCompletions } from "@/server/task-completions-store";
 import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
+import { listUsers } from "@/server/user-store";
 import { toJstMonthKey } from "@/shared/lib/time";
-import { HOUSE_MEMBERS } from "@/shared/constants/house";
-import type { ContributionData, TaskCompletionRecord } from "@/types";
+import type { ContributionData, Member, TaskCompletionRecord } from "@/types";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -20,7 +20,7 @@ function toLabelFromMonthKey(monthKey: string): string {
   return `${year}年${Number(month)}月`;
 }
 
-function computeContributionData(records: TaskCompletionRecord[], now: Date): ContributionData[] {
+function computeContributionData(records: TaskCompletionRecord[], users: Member[], now: Date): ContributionData[] {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY);
   const pointsByName: Record<string, number> = {};
 
@@ -32,7 +32,7 @@ function computeContributionData(records: TaskCompletionRecord[], now: Date): Co
     pointsByName[record.completedBy] = (pointsByName[record.completedBy] ?? 0) + record.points;
   }
 
-  return HOUSE_MEMBERS
+  return users
     .map((member) => ({
       member,
       totalPoints: pointsByName[member.name] ?? 0,
@@ -44,20 +44,18 @@ export default async function HomePage() {
   const now = new Date();
   const currentMonthKey = toJstMonthKey(now);
 
-  const [completions, allExpenses, contributionHistory, allNotices] = await Promise.all([
+  const [completions, allExpenses, contributionHistory, allNotices, users] = await Promise.all([
     readTaskCompletions(),
     readExpenses(),
     readContributionSettingsHistory(),
     readNotices(),
+    listUsers(),
   ]);
 
   const latestByTask = getLatestCompletionByTask(completions);
   const priorityTasks = getPrioritizedTasks(latestByTask, now);
 
-  const contributionData = computeContributionData(completions, now);
-  const currentUser = HOUSE_MEMBERS[0];
-  const myContribution = contributionData.find((d) => d.member.id === currentUser.id);
-  const myRank = contributionData.findIndex((d) => d.member.id === currentUser.id) + 1;
+  const contributionData = computeContributionData(completions, users, now);
 
   const summary = calculateMonthlyExpenseSummary(currentMonthKey, allExpenses, contributionHistory);
   const expenseSummary = {
@@ -79,12 +77,7 @@ export default async function HomePage() {
       <GreetingSection />
 
       {/* Contribution widget */}
-      <ContributionWidget
-        data={contributionData}
-        myPoints={myContribution?.totalPoints ?? 0}
-        myRank={myRank || 1}
-        currentUserId={currentUser.id}
-      />
+      <ContributionWidgetWrapper data={contributionData} />
 
       {/* Priority tasks */}
       <RecentTasksWidget tasks={priorityTasks} />

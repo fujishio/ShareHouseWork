@@ -7,14 +7,22 @@ import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
 import { apiFetch } from "@/shared/lib/fetch-client";
+import {
+  RULE_CATEGORIES,
+  isRuleCategory,
+} from "@/shared/constants/rule";
 
-const CATEGORIES: { value: RuleCategory; label: string }[] = [
-  { value: "ゴミ捨て", label: "🗑 ゴミ捨て" },
-  { value: "騒音", label: "🔇 騒音" },
-  { value: "共用部", label: "🏠 共用部" },
-  { value: "来客", label: "🚪 来客" },
-  { value: "その他", label: "📋 その他" },
-];
+const CATEGORY_EMOJI: Record<RuleCategory, string> = {
+  "ゴミ捨て": "🗑",
+  "騒音": "🔇",
+  "共用部": "🏠",
+  "来客": "🚪",
+  "その他": "📋",
+};
+
+const CATEGORIES: { value: RuleCategory; label: string }[] = RULE_CATEGORIES.map(
+  (value) => ({ value, label: `${CATEGORY_EMOJI[value]} ${value}` })
+);
 
 type Props = {
   onClose: () => void;
@@ -109,7 +117,11 @@ export default function RuleFormModal({ onClose }: Props) {
           <select
             id="modal-rule-category"
             value={category}
-            onChange={(e) => setCategory(e.target.value as RuleCategory)}
+            onChange={(e) => {
+              if (isRuleCategory(e.target.value)) {
+                setCategory(e.target.value);
+              }
+            }}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
           >
             {CATEGORIES.map((cat) => (

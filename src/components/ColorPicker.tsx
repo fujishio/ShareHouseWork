@@ -2,11 +2,12 @@
 
 import { Check } from "lucide-react";
 import { PRESET_COLORS } from "@/shared/constants/house";
+import type { PresetColor } from "@/shared/constants/house";
 
 type Props = {
-  value: string;
-  onChange: (color: string) => void;
-  takenColors?: string[];
+  value: PresetColor;
+  onChange: (color: PresetColor) => void;
+  takenColors?: PresetColor[];
 };
 
 export default function ColorPicker({ value, onChange, takenColors = [] }: Props) {

@@ -1,4 +1,5 @@
 import type { Task, TaskCategory } from "../../types/index.ts";
+import { TASK_CATEGORIES } from "../../shared/constants/task.ts";
 
 export const TASK_DEFINITIONS: Record<
   TaskCategory,
@@ -56,13 +57,12 @@ export const TASK_DEFINITIONS: Record<
 };
 
 let nextTaskId = 1;
-export const TASKS: Task[] = Object.entries(TASK_DEFINITIONS).flatMap(
-  ([category, tasks]) =>
-    tasks.map((task) => ({
-      id: String(nextTaskId++),
-      name: task.name,
-      points: task.points,
-      category: category as TaskCategory,
-      frequencyDays: task.frequencyDays,
-    }))
+export const TASKS: Task[] = TASK_CATEGORIES.flatMap((category) =>
+  TASK_DEFINITIONS[category].map((task) => ({
+    id: String(nextTaskId++),
+    name: task.name,
+    points: task.points,
+    category,
+    frequencyDays: task.frequencyDays,
+  }))
 );

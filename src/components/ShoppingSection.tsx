@@ -3,11 +3,16 @@
 import { useState } from "react";
 import { Check, Trash2, RotateCcw } from "lucide-react";
 import type { ShoppingItem, ExpenseCategory } from "@/types";
-import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
+import {
+  DEFAULT_EXPENSE_CATEGORY,
+  EXPENSE_CATEGORIES,
+  isExpenseCategory,
+} from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isDataObjectResponse } from "@/shared/lib/response-guards";
 
 type Props = {
   initialItems: ShoppingItem[];
@@ -53,7 +58,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
   const [pendingCheckItem, setPendingCheckItem] = useState<ShoppingItem | null>(null);
   const [pendingAmount, setPendingAmount] = useState("");
-  const [pendingCategory, setPendingCategory] = useState<ExpenseCategory>("消耗品");
+  const [pendingCategory, setPendingCategory] = useState<ExpenseCategory>(DEFAULT_EXPENSE_CATEGORY);
 
   const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
   const checkedItems = items
@@ -72,7 +77,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   function openCheckDialog(item: ShoppingItem) {
     setPendingCheckItem(item);
     setPendingAmount("");
-    setPendingCategory(item.category ?? "消耗品");
+    setPendingCategory(item.category ?? DEFAULT_EXPENSE_CATEGORY);
   }
 
   async function handleConfirmCheck(addToExpenses: boolean) {
@@ -93,7 +98,10 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         });
         return;
       }
-      const checkJson = (await checkResponse.json()) as { data: ShoppingItem };
+      const checkJson = await readJson<{ data: ShoppingItem }>(
+        checkResponse,
+        isDataObjectResponse<ShoppingItem>
+      );
       setItems((prev) => prev.map((i) => (i.id === item.id ? checkJson.data : i)));
 
       if (addToExpenses) {
@@ -142,7 +150,10 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         });
         return;
       }
-      const json = (await response.json()) as { data: ShoppingItem };
+      const json = await readJson<{ data: ShoppingItem }>(
+        response,
+        isDataObjectResponse<ShoppingItem>
+      );
       setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
       showToast({ level: "success", message: "未購入に戻しました" });
     } catch {
@@ -165,7 +176,10 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         });
         return;
       }
-      const json = (await response.json()) as { data: ShoppingItem };
+      const json = await readJson<{ data: ShoppingItem }>(
+        response,
+        isDataObjectResponse<ShoppingItem>
+      );
       setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
       showToast({ level: "success", message: "項目を削除しました" });
     } catch {
@@ -217,7 +231,11 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
               </label>
               <select
                 value={pendingCategory}
-                onChange={(e) => setPendingCategory(e.target.value as ExpenseCategory)}
+                onChange={(e) => {
+                  if (isExpenseCategory(e.target.value)) {
+                    setPendingCategory(e.target.value);
+                  }
+                }}
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
                 {EXPENSE_CATEGORIES.map((cat) => (

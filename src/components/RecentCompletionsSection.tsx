@@ -9,7 +9,8 @@ import type {
 import { formatRelativeTime } from "@/shared/lib/time";
 import { ErrorNotice, LoadingNotice } from "./RequestStatus";
 import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isApiErrorBody, isDataObjectResponse } from "@/shared/lib/response-guards";
 
 type CancelDraft = {
   cancelReasonType: "wrong_entry" | "incomplete" | "other";
@@ -24,6 +25,14 @@ const DEFAULT_DRAFT: CancelDraft = {
 type Props = {
   initialRecords: TaskCompletionRecord[];
 };
+
+function isCompletionCancelResult(
+  value: unknown
+): value is TaskCompletionCancelResponse | ApiErrorResponse {
+  return (
+    isDataObjectResponse<TaskCompletionRecord>(value) || isApiErrorBody(value)
+  );
+}
 
 export default function RecentCompletionsSection({ initialRecords }: Props) {
   const [records, setRecords] = useState(initialRecords);
@@ -76,10 +85,9 @@ export default function RecentCompletionsSection({ initialRecords }: Props) {
         }),
       });
 
-      const result = (await response.json().catch(() => null)) as
-        | TaskCompletionCancelResponse
-        | ApiErrorResponse
-        | null;
+      const result = await readJson<
+        TaskCompletionCancelResponse | ApiErrorResponse
+      >(response, isCompletionCancelResult).catch(() => null);
 
       if (!response.ok || !result || !("data" in result)) {
         throw new Error(

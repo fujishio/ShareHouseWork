@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
 import { createHouse, listHouses } from "@/server/house-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
-import type { ApiErrorResponse, HouseCreateResponse, HouseListResponse } from "@/types";
 import { z } from "zod";
 import {
   zNonEmptyTrimmedString,
   zTrimmedString,
 } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -22,7 +21,7 @@ export async function GET(request: Request) {
   if (!actor) return unauthorizedResponse();
 
   const houses = await listHouses();
-  return NextResponse.json({ data: houses }) as NextResponse<HouseListResponse>;
+  return successJson(houses);
 }
 
 export async function POST(request: Request) {
@@ -31,25 +30,21 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid JSON",
+      "INVALID_JSON",
+      400,
+      "Request body must be valid JSON."
+    );
   }
 
   const parsed = createHouseSchema.safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     if (issue?.path[0] === "name") {
-      return NextResponse.json(
-        { error: "name is required", code: "VALIDATION_ERROR", details: parsed.error.issues },
-        { status: 400 }
-      ) as NextResponse<ApiErrorResponse>;
+      return errorJson("name is required", "VALIDATION_ERROR", 400, parsed.error.issues);
     }
-    return NextResponse.json(
-      { error: "Invalid body", code: "VALIDATION_ERROR", details: parsed.error.issues },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("Invalid body", "VALIDATION_ERROR", 400, parsed.error.issues);
   }
 
   const created = await createHouse({
@@ -58,5 +53,5 @@ export async function POST(request: Request) {
     ownerUid: parsed.data.ownerUid || undefined,
     joinPassword: parsed.data.joinPassword || undefined,
   });
-  return NextResponse.json({ data: created }, { status: 201 }) as NextResponse<HouseCreateResponse>;
+  return successJson(created, { status: 201 });
 }

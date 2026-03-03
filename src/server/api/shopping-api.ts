@@ -12,7 +12,6 @@ import type {
   ApiErrorResponse,
   AuditLogRecord,
   CreateShoppingItemInput,
-  ExpenseCategory,
   ShoppingItem,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -137,7 +136,7 @@ export async function handleCreateShoppingItem(
     name: parsed.data.name,
     quantity: parsed.data.quantity,
     memo: parsed.data.memo,
-    category: parsed.data.category as ExpenseCategory | undefined,
+    category: parsed.data.category,
     addedBy: actor.name,
     addedAt: parsed.data.addedAt,
   };

@@ -8,14 +8,22 @@ import type {
   Task,
   TaskCompletionCreateResponse,
   TaskListResponse,
+  TaskCompletionRecord,
 } from "@/types";
 import { LoadingNotice } from "@/components/RequestStatus";
 import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isApiErrorBody, isDataObjectResponse } from "@/shared/lib/response-guards";
 
-type Props = {
-  onClose: () => void;
-};
+type Props = { onClose: () => void };
+
+function isCompletionCreateResult(
+  value: unknown
+): value is TaskCompletionCreateResponse | ApiErrorResponse {
+  return (
+    isDataObjectResponse<TaskCompletionRecord>(value) || isApiErrorBody(value)
+  );
+}
 
 export default function TaskCompleteModal({ onClose }: Props) {
   const router = useRouter();
@@ -32,7 +40,7 @@ export default function TaskCompleteModal({ onClose }: Props) {
 
   useEffect(() => {
     apiFetch("/api/tasks")
-      .then((res) => res.json() as Promise<TaskListResponse | ApiErrorResponse>)
+      .then((res) => readJson<TaskListResponse | ApiErrorResponse>(res))
       .then((json) => {
         if ("data" in json) {
           setTasks(json.data);
@@ -75,12 +83,11 @@ export default function TaskCompleteModal({ onClose }: Props) {
         }),
       });
 
-      const result = (await response.json().catch(() => null)) as
-        | TaskCompletionCreateResponse
-        | ApiErrorResponse
-        | null;
+      const result = await readJson<
+        TaskCompletionCreateResponse | ApiErrorResponse
+      >(response, isCompletionCreateResult).catch(() => null);
 
-      if (!response.ok) {
+      if (!response.ok || !result || !("data" in result)) {
         throw new Error(
           result && "error" in result ? result.error : "完了報告の保存に失敗しました"
         );

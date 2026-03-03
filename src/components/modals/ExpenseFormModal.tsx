@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
+import {
+  DEFAULT_EXPENSE_CATEGORY,
+  EXPENSE_CATEGORIES,
+  isExpenseCategory,
+} from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory } from "@/types";
 import { ErrorNotice } from "@/components/RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
@@ -18,7 +22,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>("消耗品");
+  const [category, setCategory] = useState<ExpenseCategory>(DEFAULT_EXPENSE_CATEGORY);
   const [purchasedAt, setPurchasedAt] = useState(toLocalDateInputValue);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -127,7 +131,11 @@ export default function ExpenseFormModal({ onClose }: Props) {
           <select
             id="modal-expense-category"
             value={category}
-            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+            onChange={(e) => {
+              if (isExpenseCategory(e.target.value)) {
+                setCategory(e.target.value);
+              }
+            }}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
           >
             {EXPENSE_CATEGORIES.map((cat) => (

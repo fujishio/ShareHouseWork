@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isDataArrayResponse } from "@/shared/lib/response-guards";
 import { formatJpDate, getGreeting } from "@/shared/lib/time";
-import type { UserListResponse } from "@/types";
+import type { Member, UserListResponse } from "@/types";
 
 export default function GreetingSection() {
   const { user } = useAuth();
@@ -13,7 +14,7 @@ export default function GreetingSection() {
   useEffect(() => {
     if (!user) return;
     apiFetch("/api/users")
-      .then((res) => res.json() as Promise<UserListResponse>)
+      .then((res) => readJson<UserListResponse>(res, isDataArrayResponse<Member>))
       .then((data) => {
         const me = data.data.find((u) => u.id === user.uid);
         if (me) setName(me.name);

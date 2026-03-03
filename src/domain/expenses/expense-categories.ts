@@ -8,6 +8,12 @@ export const EXPENSE_CATEGORIES = [
   "その他",
 ] as const satisfies readonly ExpenseCategory[];
 
+export const DEFAULT_EXPENSE_CATEGORY: ExpenseCategory = "消耗品";
+
+export function isExpenseCategory(value: string): value is ExpenseCategory {
+  return EXPENSE_CATEGORIES.some((category) => category === value);
+}
+
 export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   "水道・光熱費": "#60a5fa", // blue-400
   "食費": "#34d399",         // emerald-400

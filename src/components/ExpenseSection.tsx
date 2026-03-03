@@ -7,12 +7,10 @@ import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
 import { getApiErrorMessage } from "@/shared/lib/api-error";
 import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { apiFetch, readJson } from "@/shared/lib/fetch-client";
+import { isDataObjectResponse } from "@/shared/lib/response-guards";
 
-type Props = {
-  initialExpenses: ExpenseRecord[];
-  currentMonth: string;
-};
+type Props = { initialExpenses: ExpenseRecord[]; currentMonth: string };
 
 function toMonthPrefix(month: string): string {
   return month.slice(0, 7);
@@ -61,7 +59,10 @@ export default function ExpenseSection({ initialExpenses, currentMonth }: Props)
         return;
       }
 
-      const json = (await response.json()) as { data: ExpenseRecord };
+      const json = await readJson<{ data: ExpenseRecord }>(
+        response,
+        isDataObjectResponse<ExpenseRecord>
+      );
       setExpenses((prev) =>
         prev.map((e) => (e.id === expense.id ? json.data : e))
       );

@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { listUsers, upsertUser } from "@/server/user-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
-import type { ApiErrorResponse, UserListResponse } from "@/types";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -19,7 +18,7 @@ export async function GET(request: Request) {
   if (!actor) return unauthorizedResponse();
 
   const users = await listUsers();
-  return NextResponse.json({ data: users }) as NextResponse<UserListResponse>;
+  return successJson(users);
 }
 
 export async function POST(request: Request) {
@@ -28,22 +27,22 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid JSON",
+      "INVALID_JSON",
+      400,
+      "Request body must be valid JSON."
+    );
   }
 
   const parsed = upsertUserSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      {
-        error: "uid, name, color, email are required",
-        code: "VALIDATION_ERROR",
-        details: parsed.error.issues,
-      },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "uid, name, color, email are required",
+      "VALIDATION_ERROR",
+      400,
+      parsed.error.issues
+    );
   }
 
   const created = await upsertUser(parsed.data.uid, {
@@ -51,5 +50,5 @@ export async function POST(request: Request) {
     color: parsed.data.color,
     email: parsed.data.email,
   });
-  return NextResponse.json({ data: created }, { status: 201 });
+  return successJson(created, { status: 201 });
 }

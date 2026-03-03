@@ -1,6 +1,5 @@
 import type {
   ApiErrorResponse,
-  IsoDateTimeString,
   AuditLogRecord,
   Task,
   TaskCompletionRecord,
@@ -10,8 +9,6 @@ import {
   zNonEmptyTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import { z } from "zod";
-
-type ValidSource = "app";
 
 type AuthenticatedActor = {
   uid: string;
@@ -173,9 +170,7 @@ export async function handleCreateTaskCompletion(
       parsedPayload.error.issues
     );
   }
-  const taskId = parsedPayload.data.taskId;
-  const completedAt = parsedPayload.data.completedAt as IsoDateTimeString;
-  const source = parsedPayload.data.source as ValidSource;
+  const { taskId, completedAt, source } = parsedPayload.data;
 
   const tasks = await deps.readTasks();
   const task = tasks.find((item) => item.id === taskId);

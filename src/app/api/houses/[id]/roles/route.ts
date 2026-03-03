@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { getHouse, grantHostRole, revokeHostRole } from "@/server/house-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
-import type { ApiErrorResponse, HouseCreateResponse } from "@/types";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -30,28 +29,24 @@ export async function POST(request: Request, { params }: Params) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid JSON",
+      "INVALID_JSON",
+      400,
+      "Request body must be valid JSON."
+    );
   }
 
   const parsed = rolesSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid body", code: "VALIDATION_ERROR", details: parsed.error.issues },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("Invalid body", "VALIDATION_ERROR", 400, parsed.error.issues);
   }
 
   const { userUid, action } = parsed.data;
 
   const house = await getHouse(id);
   if (!house) {
-    return NextResponse.json(
-      { error: "ハウスが見つかりません", code: "HOUSE_NOT_FOUND", details: { houseId: id } },
-      { status: 404 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("ハウスが見つかりません", "HOUSE_NOT_FOUND", 404, { houseId: id });
   }
 
   if (!house.hostUids.includes(actor.uid)) {
@@ -61,20 +56,14 @@ export async function POST(request: Request, { params }: Params) {
   if (action === "grant") {
     const updated = await grantHostRole(id, userUid);
     if (!updated) {
-      return NextResponse.json(
-        { error: "権限付与に失敗しました", code: "GRANT_FAILED", details: { houseId: id, userUid } },
-        { status: 500 }
-      ) as NextResponse<ApiErrorResponse>;
+      return errorJson("権限付与に失敗しました", "GRANT_FAILED", 500, { houseId: id, userUid });
     }
-    return NextResponse.json({ data: updated }) as NextResponse<HouseCreateResponse>;
+    return successJson(updated);
   } else {
     const updated = await revokeHostRole(id, userUid);
     if (!updated) {
-      return NextResponse.json(
-        { error: "最後のホストは削除できません", code: "LAST_HOST", details: { houseId: id, userUid } },
-        { status: 400 }
-      ) as NextResponse<ApiErrorResponse>;
+      return errorJson("最後のホストは削除できません", "LAST_HOST", 400, { houseId: id, userUid });
     }
-    return NextResponse.json({ data: updated }) as NextResponse<HouseCreateResponse>;
+    return successJson(updated);
   }
 }

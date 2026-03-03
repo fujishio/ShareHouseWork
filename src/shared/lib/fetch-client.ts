@@ -18,3 +18,20 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     },
   });
 }
+
+type JsonGuard<T> = (value: unknown) => value is T;
+
+export async function readJsonUnknown(response: Response): Promise<unknown> {
+  return response.json();
+}
+
+export async function readJson<T>(
+  response: Response,
+  guard?: JsonGuard<T>
+): Promise<T> {
+  const payload = await readJsonUnknown(response);
+  if (guard && !guard(payload)) {
+    throw new Error("Invalid JSON response shape");
+  }
+  return payload as T;
+}

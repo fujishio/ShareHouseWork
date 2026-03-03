@@ -22,19 +22,37 @@ function toneClass(level: ToastLevel) {
   return "border-stone-200 bg-white text-stone-700";
 }
 
+function isToastPayload(value: unknown): value is ToastPayload {
+  if (!value || typeof value !== "object") return false;
+  const message = Reflect.get(value, "message");
+  const level = Reflect.get(value, "level");
+  if (typeof message !== "string") return false;
+  if (
+    level !== undefined &&
+    level !== "success" &&
+    level !== "error" &&
+    level !== "info"
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export default function ToastViewport() {
   const [items, setItems] = useState<ToastItem[]>([]);
 
   useEffect(() => {
     function onToast(event: Event) {
-      const custom = event as CustomEvent<ToastPayload>;
-      const message = custom.detail?.message?.trim();
+      if (!(event instanceof CustomEvent) || !isToastPayload(event.detail)) {
+        return;
+      }
+      const message = event.detail.message.trim();
       if (!message) return;
 
       const next: ToastItem = {
         id: Date.now() + Math.floor(Math.random() * 1000),
         message,
-        level: custom.detail.level ?? "info",
+        level: event.detail.level ?? "info",
       };
 
       setItems((prev) => [next, ...prev].slice(0, MAX_ITEMS));
@@ -44,9 +62,9 @@ export default function ToastViewport() {
     }
 
     const eventName = getToastEventName();
-    window.addEventListener(eventName, onToast as EventListener);
+    window.addEventListener(eventName, onToast);
     return () => {
-      window.removeEventListener(eventName, onToast as EventListener);
+      window.removeEventListener(eventName, onToast);
     };
   }, []);
 

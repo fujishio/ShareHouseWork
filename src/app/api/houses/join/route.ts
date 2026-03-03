@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
 import { findHouseByNameAndJoinPassword, addHouseMember } from "@/server/house-store";
 import { getUser } from "@/server/user-store";
-import type { ApiErrorResponse, HouseMemberAddResponse } from "@/types";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
+import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -18,49 +17,43 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "Invalid JSON",
+      "INVALID_JSON",
+      400,
+      "Request body must be valid JSON."
+    );
   }
 
   const parsed = joinHouseSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid body", code: "VALIDATION_ERROR", details: parsed.error.issues },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("Invalid body", "VALIDATION_ERROR", 400, parsed.error.issues);
   }
 
   const { houseName, joinPassword, userUid } = parsed.data;
 
   const user = await getUser(userUid);
   if (!user) {
-    return NextResponse.json(
-      { error: "ユーザーが見つかりません", code: "USER_NOT_FOUND", details: { userUid } },
-      { status: 404 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("ユーザーが見つかりません", "USER_NOT_FOUND", 404, { userUid });
   }
 
   const house = await findHouseByNameAndJoinPassword(houseName, joinPassword);
   if (!house) {
-    return NextResponse.json(
-      {
-        error: "ハウスが見つかりません。ハウス名か合言葉をご確認ください",
-        code: "HOUSE_NOT_FOUND",
-        details: { houseName },
-      },
-      { status: 404 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson(
+      "ハウスが見つかりません。ハウス名か合言葉をご確認ください",
+      "HOUSE_NOT_FOUND",
+      404,
+      { houseName }
+    );
   }
 
   const updated = await addHouseMember(house.id, userUid);
   if (!updated) {
-    return NextResponse.json(
-      { error: "メンバー追加に失敗しました", code: "MEMBER_ADD_FAILED", details: { houseId: house.id, userUid } },
-      { status: 500 }
-    ) as NextResponse<ApiErrorResponse>;
+    return errorJson("メンバー追加に失敗しました", "MEMBER_ADD_FAILED", 500, {
+      houseId: house.id,
+      userUid,
+    });
   }
 
-  return NextResponse.json({ data: updated }, { status: 200 }) as NextResponse<HouseMemberAddResponse>;
+  return successJson(updated, { status: 200 });
 }
