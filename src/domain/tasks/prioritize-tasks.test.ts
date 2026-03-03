@@ -61,3 +61,8 @@ test("同率時の並び順が決定的である", () => {
   assert.equal(result[0].id, "1");
   assert.equal(result[1].id, "4");
 });
+
+test("limitが0のとき空配列を返す", () => {
+  const result = getPrioritizedTasks({}, NOW, 0);
+  assert.deepEqual(result, []);
+});

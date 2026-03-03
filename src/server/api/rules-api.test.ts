@@ -127,6 +127,23 @@ test("POST rules: category不正は400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("POST rules: 不正JSONは400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateRule(
+    new Request("http://localhost/api/rules", {
+      method: "POST",
+      body: "{",
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid JSON");
+  assert.equal(body.code, "INVALID_JSON");
+});
+
 test("POST rules: 正常系で監査ログ", async () => {
   const { createDeps, auditLogs } = buildDeps();
   const response = await handleCreateRule(
@@ -156,6 +173,50 @@ test("PUT rules: not found は404", async () => {
   );
 
   assert.equal(response.status, 404);
+});
+
+test("PUT rules: title不足は400", async () => {
+  const rules: Rule[] = [
+    {
+      id: "r1",
+      title: "A",
+      body: "",
+      category: "共用部",
+      createdBy: "あなた",
+      createdAt: "2026-03-01",
+    },
+  ];
+
+  const { updateDeps } = buildDeps({ rules });
+  const response = await handleUpdateRule(
+    new Request("http://localhost/api/rules/r1", {
+      method: "PUT",
+      body: JSON.stringify({ title: " ", body: "", category: "共用部" }),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "r1" }) },
+    updateDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "title is required");
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("PATCH rules: not foundは404", async () => {
+  const { acknowledgeDeps } = buildDeps({ rules: [] });
+
+  const response = await handleAcknowledgeRule(
+    new Request("http://localhost/api/rules/r-missing", { method: "PATCH" }),
+    { params: Promise.resolve({ id: "r-missing" }) },
+    acknowledgeDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Not found");
+  assert.equal(body.code, "RULE_NOT_FOUND");
 });
 
 test("PATCH/DELETE rules: 正常系で監査ログ", async () => {

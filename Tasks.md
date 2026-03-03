@@ -9,7 +9,7 @@
 
 | 項目 | IMPROVEMENTS.md の記述 | 実際の状況 |
 |------|----------------------|-----------|
-| テスト件数 | 52 pass / 0 fail | ✅ 一致（`npm test` で確認済み） |
+| テスト件数 | 80 pass / 0 fail | ✅ 一致（`npm test` で確認済み） |
 | Zod バリデーション | task-completions/expenses/shopping/rules/notices/tasks/houses 適用済み | ✅ 一致（ハンドラー層含め適用済み） |
 | Firestore セキュリティルール | クライアント直接 read/write 禁止済み | ✅ 一致（`allow read, write: if false;`） |
 | Discord 通知 | 未着手（要件定義済み） | ✅ 一致（未実装） |
@@ -104,6 +104,19 @@
 
 ---
 
+### ~~TASK-9: Phase 4 Test Strengthening（API/Domain）~~ ✅ 完了
+
+**完了日: 2026-03-03**
+
+**対応内容**
+- `src/server/api/*` の未カバー分岐（`INVALID_JSON` / `VALIDATION_ERROR` / `NOT_FOUND`）をテスト追加
+- `task-completions` の `to` クエリ不正・`limit` 上限制御（200）を検証
+- `calculate-monthly-expense-summary` に取消済み除外・不正 monthKey 例外を追加
+- `prioritize-tasks` に `limit=0` の境界値テストを追加
+- `npm test` で `80 pass / 0 fail` を確認
+
+---
+
 ### TASK-5: Discord 通知 MVP 実装
 
 **背景**
@@ -193,6 +206,7 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | ✅ 完了 |
 | TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | ✅ 完了 |
 | TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | ✅ 完了 |
+| TASK-9 | Phase 4 Test Strengthening（API/Domain） | 中 | ✅ 完了 |
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
 | TASK-6 | CSV エクスポート運用手順を docs/ に明文化 | 低 | ✅ 完了 |
 | TASK-7 | Lint / Format 強化 | 低 | ✅ 完了 |

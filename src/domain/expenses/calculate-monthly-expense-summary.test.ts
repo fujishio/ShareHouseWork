@@ -75,3 +75,44 @@ test("1月は前年から繰越しない（年内繰越のみ）", () => {
   assert.equal(january.monthlyContribution, 20000);
   assert.equal(january.balance, 20000);
 });
+
+test("取消済み支出は集計対象外になる", () => {
+  const history: ContributionSettingsHistoryRecord[] = [
+    { effectiveMonth: "2026-01", monthlyAmountPerPerson: 10000, memberCount: 2 },
+  ];
+  const expenses: ExpenseRecord[] = [
+    {
+      id: "1",
+      title: "通常支出",
+      amount: 3000,
+      category: "日用品",
+      purchasedBy: "家主",
+      purchasedAt: "2026-01-10",
+    },
+    {
+      id: "2",
+      title: "取消済み支出",
+      amount: 8000,
+      category: "日用品",
+      purchasedBy: "家主",
+      purchasedAt: "2026-01-20",
+      canceledAt: "2026-01-21",
+      canceledBy: "家主",
+      cancelReason: "重複",
+    },
+  ];
+
+  const january = calculateMonthlyExpenseSummary("2026-01", expenses, history);
+  assert.equal(january.monthlySpent, 3000);
+  assert.equal(january.balance, 17000);
+});
+
+test("targetMonthKeyが不正な形式なら例外", () => {
+  const history: ContributionSettingsHistoryRecord[] = [
+    { effectiveMonth: "2026-01", monthlyAmountPerPerson: 10000, memberCount: 2 },
+  ];
+
+  assert.throws(() => calculateMonthlyExpenseSummary("2026/01", [], history), {
+    message: "targetMonthKey must be YYYY-MM",
+  });
+});

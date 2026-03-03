@@ -36,6 +36,11 @@
   - `src/app/settings/page.tsx` の肥大化セクションを `src/components/sections/settings/*` へ分割
   - `useProfileColor` / `useHouseMembers` / `useTaskManagement` / `useContributionSettings` を追加し、画面からデータ取得・更新ロジックを分離
   - APIフォーム送信のトースト/エラー処理を `submitApiAction` に共通化し、重複分岐を削減
+- Phase 4: 完了
+  - `src/server/api/*` のバリデーション異常系（`INVALID_JSON` / `VALIDATION_ERROR` / `NOT_FOUND`）テストを拡張
+  - `task-completions` のクエリ境界値（`to` 不正 / `limit` クランプ）テストを追加
+  - ドメイン関数の境界値/異常系（取消済み除外・不正 monthKey・`limit=0`）テストを追加
+  - `npm test`: 80 pass / 0 fail を確認（2026-03-03）
 
 ### Notes
 - `npx tsc --noEmit` は通過済み。
@@ -80,6 +85,7 @@
 - ドメイン関数: 正常系/境界値/異常系テストを追加
 - API: `src/server/api/*` に対する入力バリデーションテストを拡張
 - 主要ページ: クリティカルパス (登録/参加/保存) のコンポーネントテストを追加
+  - 現状: API/ドメインのテスト強化は完了。主要ページのコンポーネントテストは次段で追加予定。
 
 ## Definition of Done
 - `npm run lint`

@@ -82,6 +82,45 @@ test("POST tasks: category不正は400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("POST tasks: 不正JSONは400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateTask(
+    new Request("http://localhost/api/tasks", {
+      method: "POST",
+      body: "{",
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid JSON");
+  assert.equal(body.code, "INVALID_JSON");
+});
+
+test("POST tasks: points不正は400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateTask(
+    new Request("http://localhost/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "掃除",
+        category: "共用部の掃除",
+        points: 0,
+        frequencyDays: 7,
+      }),
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "points must be a positive integer");
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
 test("PATCH tasks: not foundは404", async () => {
   const { updateDeps } = buildDeps({ tasks: [] });
   const response = await handleUpdateTask(
@@ -100,6 +139,20 @@ test("PATCH tasks: not foundは404", async () => {
   );
 
   assert.equal(response.status, 404);
+});
+
+test("DELETE tasks: not foundは404", async () => {
+  const { deleteDeps } = buildDeps({ tasks: [] });
+  const response = await handleDeleteTask(
+    new Request("http://localhost/api/tasks/t-missing", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "t-missing" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Task not found");
+  assert.equal(body.code, "TASK_NOT_FOUND");
 });
 
 test("DELETE tasks: 正常系", async () => {

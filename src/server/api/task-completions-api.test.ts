@@ -147,6 +147,41 @@ test("GET: 不正なfromクエリは400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("GET: 不正なtoクエリは400", async () => {
+  const { deps } = buildDeps();
+  const response = await handleGetTaskCompletions(
+    new Request("http://localhost/api/task-completions?to=abc"),
+    deps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid to query. Use ISO date string.");
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("GET: limitは200にクランプされる", async () => {
+  const completions: TaskCompletionRecord[] = Array.from({ length: 210 }, (_, index) => ({
+    id: `c${index}`,
+    taskId: "t1",
+    taskName: "A",
+    points: 10,
+    completedBy: "あなた",
+    completedAt: `2026-03-${String((index % 28) + 1).padStart(2, "0")}T00:00:00.000Z`,
+    source: "app" as const,
+  }));
+  const { deps } = buildDeps({ completions });
+
+  const response = await handleGetTaskCompletions(
+    new Request("http://localhost/api/task-completions?limit=999"),
+    deps
+  );
+
+  assert.equal(response.status, 200);
+  const body = (await readJson(response)) as { data: TaskCompletionRecord[] };
+  assert.equal(body.data.length, 200);
+});
+
 test("POST: 不正payloadは400", async () => {
   const { deps } = buildDeps();
   const response = await handleCreateTaskCompletion(
@@ -247,6 +282,25 @@ test("PATCH: cancelReasonが空は400", async () => {
   const body = (await readJson(response)) as { error?: string; code?: string };
   assert.equal(body.error, "cancelReason is required.");
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("PATCH: 不正JSONは400", async () => {
+  const { deps } = buildDeps();
+
+  const response = await handleCancelTaskCompletion(
+    new Request("http://localhost/api/task-completions/c1", {
+      method: "PATCH",
+      body: "{",
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "c1" }) },
+    deps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await readJson(response)) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid JSON");
+  assert.equal(body.code, "INVALID_JSON");
 });
 
 test("PATCH: 対象なしは404", async () => {

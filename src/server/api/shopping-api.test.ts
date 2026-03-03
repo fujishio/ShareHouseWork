@@ -98,6 +98,23 @@ test("POST shopping: name不足は400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("POST shopping: addedAt不正は400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateShoppingItem(
+    new Request("http://localhost/api/shopping", {
+      method: "POST",
+      body: JSON.stringify({ name: "洗剤", addedAt: "invalid-date" }),
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid addedAt date");
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
 test("POST shopping: 正常系で作成と監査ログ", async () => {
   const { createDeps, auditLogs } = buildDeps();
   const response = await handleCreateShoppingItem(
@@ -142,6 +159,68 @@ test("PATCH shopping: uncheckで監査ログ", async () => {
   assert.equal(response.status, 200);
   assert.equal(auditLogs.length, 1);
   assert.equal(auditLogs[0]?.action, "shopping_unchecked");
+});
+
+test("PATCH shopping: not foundは404", async () => {
+  const { patchDeps } = buildDeps({ items: [] });
+
+  const response = await handlePatchShoppingItem(
+    new Request("http://localhost/api/shopping/s-missing", {
+      method: "PATCH",
+      body: JSON.stringify({}),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "s-missing" }) },
+    patchDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Not found");
+  assert.equal(body.code, "SHOPPING_NOT_FOUND");
+});
+
+test("PATCH shopping: checkで監査ログ", async () => {
+  const items: ShoppingItem[] = [
+    {
+      id: "s1",
+      name: "洗剤",
+      quantity: "1",
+      memo: "",
+      addedBy: "あなた",
+      addedAt: "2026-03-01",
+    },
+  ];
+  const { patchDeps, auditLogs } = buildDeps({ items });
+
+  const response = await handlePatchShoppingItem(
+    new Request("http://localhost/api/shopping/s1", {
+      method: "PATCH",
+      body: JSON.stringify({}),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "s1" }) },
+    patchDeps
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(auditLogs.length, 1);
+  assert.equal(auditLogs[0]?.action, "shopping_checked");
+});
+
+test("DELETE shopping: not foundは404", async () => {
+  const { deleteDeps } = buildDeps({ items: [] });
+
+  const response = await handleDeleteShoppingItem(
+    new Request("http://localhost/api/shopping/s-missing", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "s-missing" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Not found");
+  assert.equal(body.code, "SHOPPING_NOT_FOUND");
 });
 
 test("DELETE shopping: 正常系で取消と監査ログ", async () => {

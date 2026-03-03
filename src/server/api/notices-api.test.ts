@@ -104,6 +104,37 @@ test("POST notices: title不足は400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("POST notices: 不正JSONは400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateNotice(
+    new Request("http://localhost/api/notices", {
+      method: "POST",
+      body: "{",
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid JSON");
+  assert.equal(body.code, "INVALID_JSON");
+});
+
+test("DELETE notices: not foundは404", async () => {
+  const { deleteDeps } = buildDeps({ notices: [] });
+  const response = await handleDeleteNotice(
+    new Request("http://localhost/api/notices/n-missing", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "n-missing" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Not found");
+  assert.equal(body.code, "NOTICE_NOT_FOUND");
+});
+
 test("POST/DELETE notices: 正常系で監査ログ", async () => {
   const notices: Notice[] = [
     {

@@ -94,6 +94,28 @@ test("POST expenses: 不正categoryは400", async () => {
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
+test("POST expenses: purchasedAt不正は400", async () => {
+  const { createDeps } = buildDeps();
+  const response = await handleCreateExpense(
+    new Request("http://localhost/api/expenses", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "電気代",
+        amount: 1000,
+        category: "水道・光熱費",
+        purchasedAt: "invalid-date",
+      }),
+      headers: { "content-type": "application/json" },
+    }),
+    createDeps
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Invalid purchasedAt date");
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
 test("POST expenses: 正常系で監査ログを追加", async () => {
   const { createDeps, auditLogs } = buildDeps();
   const response = await handleCreateExpense(
@@ -131,6 +153,24 @@ test("DELETE expenses: cancelReason不足は400", async () => {
   const body = (await response.json()) as { error?: string; code?: string };
   assert.equal(body.error, "cancelReason is required");
   assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("DELETE expenses: not foundは404", async () => {
+  const { deleteDeps } = buildDeps({ expenses: [] });
+  const response = await handleDeleteExpense(
+    new Request("http://localhost/api/expenses/e-missing", {
+      method: "DELETE",
+      body: JSON.stringify({ cancelReason: "重複" }),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "e-missing" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Expense not found");
+  assert.equal(body.code, "EXPENSE_NOT_FOUND");
 });
 
 test("DELETE expenses: 正常系で取消と監査ログを追加", async () => {

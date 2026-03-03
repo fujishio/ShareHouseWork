@@ -22,7 +22,7 @@
 | LINE関連 | 実装・設計の主軸ではない（本ドキュメントから削除） |
 | 通知配信 | アプリ内通知は実装済み。外部通知（Discord/メール）は未実装 |
 | 設定画面 | 通知文言をメールに統一、ログアウト導線を追加 |
-| テスト | **52 pass / 0 fail** |
+| テスト | **80 pass / 0 fail** |
 | 型チェック | `npx tsc --noEmit` 通過 |
 | 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
 | API入力検証 | zod導入を拡大（`task-completions/expenses/shopping/rules/notices/tasks/houses` 適用済み） |
@@ -175,7 +175,7 @@ GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/
 | 設定画面のログアウト導線 | 完了 |
 | 通知設定文言のメール統一 | 完了 |
 | `package.json` `"type": "module"` | 完了 |
-| `npm test` 52件 pass | 完了 |
+| `npm test` 80件 pass | 完了 |
 | `npx tsc --noEmit` 通過 | 完了 |
 | CI の不要な NEXTAUTH 環境変数削除 | 完了（2026-03-03） |
 | L: 認証なしエンドポイント修正（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses` GET） | 完了（2026-03-03） |
@@ -186,6 +186,6 @@ GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/
 ---
 
 ## 8. 直近の確認ログ（2026-03-03）
-- `npm test`: 52 pass / 0 fail
+- `npm test`: 80 pass / 0 fail
 - `npx tsc --noEmit`: エラーなし
 - CI: `npm test` + `npm run test:firestore-rules` + `npm run build` を実行（NEXTAUTH 環境変数削除済み）
