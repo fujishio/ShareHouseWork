@@ -32,6 +32,10 @@
   - `src/server/api/audit-log-service.ts` を追加し、監査ログ書き込みをサービス化
   - `tasks` / `notices` API を `src/server/api/*` に移行し、route はオーケストレーション専用化
   - `src/server/api/tasks-api.test.ts` / `notices-api.test.ts` を追加
+- Phase 3: 完了
+  - `src/app/settings/page.tsx` の肥大化セクションを `src/components/sections/settings/*` へ分割
+  - `useProfileColor` / `useHouseMembers` / `useTaskManagement` / `useContributionSettings` を追加し、画面からデータ取得・更新ロジックを分離
+  - APIフォーム送信のトースト/エラー処理を `submitApiAction` に共通化し、重複分岐を削減
 
 ### Notes
 - `npx tsc --noEmit` は通過済み。

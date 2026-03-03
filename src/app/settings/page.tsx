@@ -1,42 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, ClipboardList, Palette, Pencil, Plus, Trash2, Users, Wallet, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Bell, BellOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  HOUSE_MEMBERS,
-  OWNER_MEMBER_NAME,
-  isPresetColor,
-  toPresetColor,
-} from "@/shared/constants/house";
-import { TASK_CATEGORIES, isTaskCategory } from "@/shared/constants/task";
-import type { PresetColor } from "@/shared/constants/house";
+import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
-import ColorPicker from "@/components/ColorPicker";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
-  saveNotificationSettings,
   loadNotificationSettings,
+  saveNotificationSettings,
 } from "@/shared/lib/notification-settings";
-import type {
-  ContributionSettings,
-  House,
-  Member,
-  HouseListResponse,
-  NotificationSettings,
-  Task,
-  TaskCategory,
-  TaskListResponse,
-  UserListResponse,
-} from "@/types";
-import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { apiFetch, readJson } from "@/shared/lib/fetch-client";
-import {
-  isContributionSettingsResponse,
-  isDataArrayResponse,
-} from "@/shared/lib/response-guards";
+import type { NotificationSettings } from "@/types";
+import { LoadingNotice } from "@/components/RequestStatus";
 import { showToast } from "@/shared/lib/toast";
+import { ContributionSettingsSection } from "@/components/sections/settings/ContributionSettingsSection";
+import { ProfileColorSection } from "@/components/sections/settings/ProfileColorSection";
+import { TaskManagementSection } from "@/components/sections/settings/TaskManagementSection";
+import { MemberManagementSection } from "@/components/sections/settings/MemberManagementSection";
 
 function SettingsToggle({
   title,
@@ -52,14 +32,14 @@ function SettingsToggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className={`flex items-start justify-between gap-3 rounded-xl border p-3 ${disabled ? "bg-stone-50 border-stone-200" : "bg-white border-stone-200/60"}`}>
+    <label
+      className={`flex items-start justify-between gap-3 rounded-xl border p-3 ${
+        disabled ? "border-stone-200 bg-stone-50" : "border-stone-200/60 bg-white"
+      }`}
+    >
       <div className="min-w-0">
-        <p className={`text-sm font-semibold ${disabled ? "text-stone-400" : "text-stone-800"}`}>
-          {title}
-        </p>
-        <p className={`mt-0.5 text-xs ${disabled ? "text-stone-300" : "text-stone-500"}`}>
-          {description}
-        </p>
+        <p className={`text-sm font-semibold ${disabled ? "text-stone-400" : "text-stone-800"}`}>{title}</p>
+        <p className={`mt-0.5 text-xs ${disabled ? "text-stone-300" : "text-stone-500"}`}>{description}</p>
       </div>
       <button
         type="button"
@@ -68,725 +48,30 @@ function SettingsToggle({
         aria-label={title}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition-colors ${checked ? "bg-amber-500" : "bg-stone-300"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`relative inline-flex h-7 w-12 items-center rounded-full p-1 transition-colors ${
+          checked ? "bg-amber-500" : "bg-stone-300"
+        } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
         <span
-          className={`h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`}
+          className={`h-5 w-5 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
         />
       </button>
     </label>
   );
 }
 
-type TaskFormState = {
-  name: string;
-  category: TaskCategory;
-  points: string;
-  frequencyDays: string;
-};
-
-const BLANK_FORM: TaskFormState = {
-  name: "",
-  category: "炊事・洗濯",
-  points: "10",
-  frequencyDays: "7",
-};
-
-function TaskManagementSection() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TaskCategory>(TASK_CATEGORIES[0]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<TaskFormState>(BLANK_FORM);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newForm, setNewForm] = useState<TaskFormState>({ ...BLANK_FORM, category: TASK_CATEGORIES[0] });
-  const [saving, setSaving] = useState(false);
-
-  const loadTasks = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await apiFetch("/api/tasks");
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "タスクの取得に失敗しました");
-        setLoadError(message);
-        return;
-      }
-      const json = await readJson<TaskListResponse>(res, isDataArrayResponse<Task>);
-      setTasks(json.data);
-    } catch {
-      setLoadError("通信エラーが発生しました");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void loadTasks(); }, [loadTasks]);
-
-  const tasksByCategory = useMemo(() => {
-    const map = new Map<TaskCategory, Task[]>();
-    for (const cat of TASK_CATEGORIES) map.set(cat, []);
-    for (const task of tasks) {
-      const list = map.get(task.category);
-      if (list) list.push(task);
-    }
-    return map;
-  }, [tasks]);
-
-  const switchTab = (cat: TaskCategory) => {
-    setActiveTab(cat);
-    setEditingId(null);
-    setAddingNew(false);
-    setNewForm({ ...BLANK_FORM, category: cat });
-  };
-
-  const startEdit = (task: Task) => {
-    setEditingId(task.id);
-    setEditForm({
-      name: task.name,
-      category: task.category,
-      points: String(task.points),
-      frequencyDays: String(task.frequencyDays),
-    });
-    setAddingNew(false);
-  };
-
-  const cancelEdit = () => setEditingId(null);
-
-  const saveEdit = async () => {
-    if (!editingId) return;
-    const points = Number(editForm.points);
-    const frequencyDays = Number(editForm.frequencyDays);
-    if (!editForm.name.trim() || !Number.isInteger(points) || points < 1 || !Number.isInteger(frequencyDays) || frequencyDays < 1) return;
-
-    setSaving(true);
-    try {
-      const res = await apiFetch(`/api/tasks/${editingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editForm.name.trim(), category: editForm.category, points, frequencyDays }),
-      });
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "タスクの更新に失敗しました");
-        showToast({ level: "error", message });
-        return;
-      }
-      showToast({ level: "success", message: "タスクを更新しました" });
-      setEditingId(null);
-      await loadTasks();
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deleteTask = async (taskId: string, taskName: string) => {
-    if (!window.confirm(`「${taskName}」を削除しますか？`)) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "タスクの削除に失敗しました");
-        showToast({ level: "error", message });
-        return;
-      }
-      showToast({ level: "success", message: "タスクを削除しました" });
-      await loadTasks();
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveNew = async () => {
-    const points = Number(newForm.points);
-    const frequencyDays = Number(newForm.frequencyDays);
-    if (!newForm.name.trim() || !Number.isInteger(points) || points < 1 || !Number.isInteger(frequencyDays) || frequencyDays < 1) return;
-
-    setSaving(true);
-    try {
-      const res = await apiFetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newForm.name.trim(), category: newForm.category, points, frequencyDays }),
-      });
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "タスクの追加に失敗しました");
-        showToast({ level: "error", message });
-        return;
-      }
-      showToast({ level: "success", message: "タスクを追加しました" });
-      setAddingNew(false);
-      setNewForm({ ...BLANK_FORM, category: activeTab });
-      await loadTasks();
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const activeTasks = tasksByCategory.get(activeTab) ?? [];
-
-  return (
-    <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
-      <div className="flex items-center gap-2 mb-1">
-        <ClipboardList size={18} className="text-amber-500" />
-        <h3 className="text-sm font-bold text-stone-800">タスク管理</h3>
-      </div>
-      <p className="text-xs text-stone-500 mb-3">タスクの追加・編集・削除ができます。</p>
-
-      {loading && <LoadingNotice message="タスクを読み込み中..." />}
-      {loadError && (
-        <RetryNotice message={loadError} actionLabel="再取得" onRetry={() => { void loadTasks(); }} disabled={loading} />
-      )}
-
-      {!loading && !loadError && (
-        <>
-          {/* Category tabs */}
-          <div className="flex gap-1 overflow-x-auto pb-1 mb-3 scrollbar-none">
-            {TASK_CATEGORIES.map((cat) => {
-              const count = tasksByCategory.get(cat)?.length ?? 0;
-              const isActive = cat === activeTab;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => switchTab(cat)}
-                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap ${
-                    isActive
-                      ? "bg-amber-500 text-white"
-                      : "bg-stone-100 text-stone-500 hover:bg-stone-200"
-                  }`}
-                >
-                  {cat}
-                  <span className={`ml-1 ${isActive ? "text-amber-100" : "text-stone-400"}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Task list for active tab */}
-          <div className="space-y-1.5">
-            {activeTasks.map((task) =>
-              editingId === task.id ? (
-                <TaskInlineForm
-                  key={task.id}
-                  form={editForm}
-                  onChange={setEditForm}
-                  onSave={() => { void saveEdit(); }}
-                  onCancel={cancelEdit}
-                  saving={saving}
-                />
-              ) : (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-2 rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-stone-800 truncate">{task.name}</p>
-                    <p className="text-[10px] text-stone-400">{task.points}pts・{task.frequencyDays}日ごと</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(task)}
-                    disabled={saving}
-                    className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-400 hover:text-stone-700 transition-colors disabled:opacity-40"
-                    aria-label={`${task.name}を編集`}
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { void deleteTask(task.id, task.name); }}
-                    disabled={saving}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-500 transition-colors disabled:opacity-40"
-                    aria-label={`${task.name}を削除`}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              )
-            )}
-            {activeTasks.length === 0 && !addingNew && (
-              <p className="text-[11px] text-stone-400 px-1 py-2">タスクなし</p>
-            )}
-          </div>
-
-          {/* Add new task */}
-          <div className="mt-3">
-            {addingNew ? (
-              <TaskInlineForm
-                form={newForm}
-                onChange={setNewForm}
-                onSave={() => { void saveNew(); }}
-                onCancel={() => { setAddingNew(false); setNewForm({ ...BLANK_FORM, category: activeTab }); }}
-                saving={saving}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => { setAddingNew(true); setEditingId(null); setNewForm({ ...BLANK_FORM, category: activeTab }); }}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300 py-2.5 text-sm font-medium text-stone-500 hover:border-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
-              >
-                <Plus size={15} />
-                タスクを追加
-              </button>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function TaskInlineForm({
-  form,
-  onChange,
-  onSave,
-  onCancel,
-  saving,
-}: {
-  form: TaskFormState;
-  onChange: (f: TaskFormState) => void;
-  onSave: () => void;
-  onCancel: () => void;
-  saving: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 space-y-2">
-      <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="タスク名"
-          value={form.name}
-          onChange={(e) => onChange({ ...form, name: e.target.value })}
-          className="flex-1 rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-        />
-        <button
-          type="button"
-          onClick={onCancel}
-          className="p-1.5 rounded-lg hover:bg-stone-200 text-stone-400 transition-colors"
-          aria-label="キャンセル"
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <select
-        value={form.category}
-        onChange={(e) =>
-          onChange({
-            ...form,
-            category: isTaskCategory(e.target.value) ? e.target.value : form.category,
-          })
-        }
-        className="w-full rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-      >
-        {TASK_CATEGORIES.map((cat) => (
-          <option key={cat} value={cat}>{cat}</option>
-        ))}
-      </select>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="block text-[10px] text-stone-500 mb-0.5">ポイント</label>
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={form.points}
-            onChange={(e) => onChange({ ...form, points: e.target.value })}
-            className="w-full rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-          />
-        </div>
-        <div className="flex-1">
-          <label className="block text-[10px] text-stone-500 mb-0.5">頻度（日）</label>
-          <input
-            type="number"
-            min={1}
-            max={365}
-            value={form.frequencyDays}
-            onChange={(e) => onChange({ ...form, frequencyDays: e.target.value })}
-            className="w-full rounded-lg border border-stone-300 px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-          />
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving || !form.name.trim()}
-        className="w-full rounded-lg bg-amber-500 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
-      >
-        {saving ? "保存中…" : "保存"}
-      </button>
-    </div>
-  );
-}
-
-function ProfileColorSection() {
-  const { user } = useAuth();
-  const [currentColor, setCurrentColor] = useState<PresetColor | null>(null);
-  const [selectedColor, setSelectedColor] = useState<PresetColor | null>(null);
-  const [takenColors, setTakenColors] = useState<PresetColor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [housesRes, usersRes] = await Promise.all([
-        apiFetch("/api/houses"),
-        apiFetch("/api/users"),
-      ]);
-      if (!housesRes.ok || !usersRes.ok) {
-        setLoadError("プロフィール情報の取得に失敗しました");
-        return;
-      }
-      const housesJson = await readJson<HouseListResponse>(
-        housesRes,
-        isDataArrayResponse<House>
-      );
-      const usersJson = await readJson<UserListResponse>(
-        usersRes,
-        isDataArrayResponse<Member>
-      );
-      const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
-      const me = usersJson.data.find((u) => u.id === user.uid);
-      if (me) {
-        const myColor = toPresetColor(me.color);
-        setCurrentColor(myColor);
-        setSelectedColor(myColor);
-      }
-      if (myHouse) {
-        const otherColors = usersJson.data
-          .filter((u) => myHouse.memberUids.includes(u.id) && u.id !== user.uid)
-          .map((u) => u.color)
-          .filter(isPresetColor);
-        setTakenColors(otherColors);
-      }
-    } catch {
-      setLoadError("通信エラーが発生しました");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => { void loadData(); }, [loadData]);
-
-  const saveColor = async () => {
-    if (!selectedColor || selectedColor === currentColor) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ color: selectedColor }),
-      });
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "カラーの更新に失敗しました");
-        showToast({ level: "error", message });
-        return;
-      }
-      setCurrentColor(selectedColor);
-      showToast({ level: "success", message: "テーマカラーを更新しました" });
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const hasChanged = selectedColor !== null && selectedColor !== currentColor;
-
-  return (
-    <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Palette size={18} className="text-amber-500" />
-        <h3 className="text-sm font-bold text-stone-800">テーマカラー</h3>
-      </div>
-      <p className="text-xs text-stone-500 mb-3">
-        プロフィールに使用するカラーを選択します。同じハウスの他のメンバーが使用中のカラーは選べません。
-      </p>
-
-      {loading && <LoadingNotice message="プロフィールを読み込み中..." />}
-      {loadError && (
-        <RetryNotice message={loadError} actionLabel="再取得" onRetry={() => { void loadData(); }} disabled={loading} />
-      )}
-
-      {!loading && !loadError && selectedColor && (
-        <div className="space-y-3">
-          <ColorPicker
-            value={selectedColor}
-            onChange={setSelectedColor}
-            takenColors={takenColors}
-          />
-          <button
-            type="button"
-            onClick={() => { void saveColor(); }}
-            disabled={saving || !hasChanged}
-            className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
-          >
-            {saving ? "保存中…" : "保存する"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MemberManagementSection() {
-  const { user } = useAuth();
-  const [house, setHouse] = useState<House | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [housesRes, usersRes] = await Promise.all([
-        apiFetch("/api/houses"),
-        apiFetch("/api/users"),
-      ]);
-      if (!housesRes.ok) {
-        setLoadError("ハウス情報の取得に失敗しました");
-        return;
-      }
-      if (!usersRes.ok) {
-        setLoadError("メンバー情報の取得に失敗しました");
-        return;
-      }
-      const housesJson = await readJson<HouseListResponse>(
-        housesRes,
-        isDataArrayResponse<House>
-      );
-      const usersJson = await readJson<UserListResponse>(
-        usersRes,
-        isDataArrayResponse<Member>
-      );
-      const myHouse = housesJson.data.find((h) => h.memberUids.includes(user.uid)) ?? null;
-      setHouse(myHouse);
-      if (myHouse) {
-        const houseMembers = usersJson.data.filter((u) => myHouse.memberUids.includes(u.id));
-        setMembers(houseMembers);
-      }
-    } catch {
-      setLoadError("通信エラーが発生しました");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => { void loadData(); }, [loadData]);
-
-  const updateRole = async (targetUid: string, action: "grant" | "revoke") => {
-    if (!house) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch(`/api/houses/${house.id}/roles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userUid: targetUid, action }),
-      });
-      if (!res.ok) {
-        const message = await getApiErrorMessage(res, "権限の変更に失敗しました");
-        showToast({ level: "error", message });
-        return;
-      }
-      showToast({
-        level: "success",
-        message: action === "grant" ? "ホスト権限を付与しました" : "ホスト権限を解除しました",
-      });
-      await loadData();
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isCurrentUserHost = house?.hostUids.includes(user?.uid ?? "") ?? false;
-
-  return (
-    <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
-      <div className="flex items-center gap-2 mb-1">
-        <Users size={18} className="text-amber-500" />
-        <h3 className="text-sm font-bold text-stone-800">メンバー管理</h3>
-      </div>
-      <p className="text-xs text-stone-500 mb-3">ハウスメンバーのホスト権限を管理します。</p>
-
-      {loading && <LoadingNotice message="メンバーを読み込み中..." />}
-      {loadError && (
-        <RetryNotice
-          message={loadError}
-          actionLabel="再取得"
-          onRetry={() => { void loadData(); }}
-          disabled={loading}
-        />
-      )}
-
-      {!loading && !loadError && !house && (
-        <p className="text-xs text-stone-400">参加しているハウスが見つかりません。</p>
-      )}
-
-      {!loading && !loadError && house && (
-        <div className="space-y-1.5">
-          {members.map((member) => {
-            const isHost = house.hostUids.includes(member.id);
-            const isSelf = member.id === user?.uid;
-            return (
-              <div
-                key={member.id}
-                className="flex items-center gap-2 rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2"
-              >
-                <div
-                  className="h-6 w-6 shrink-0 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: member.color }}
-                >
-                  {member.name.slice(0, 1)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-stone-800 truncate">
-                    {member.name}
-                    {isSelf && <span className="text-stone-400 font-normal ml-1">(あなた)</span>}
-                  </p>
-                </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    isHost
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-stone-100 text-stone-500"
-                  }`}
-                >
-                  {isHost ? "ホスト" : "メンバー"}
-                </span>
-                {isCurrentUserHost && !isSelf && (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => { void updateRole(member.id, isHost ? "revoke" : "grant"); }}
-                    className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-50 ${
-                      isHost
-                        ? "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                        : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                    }`}
-                  >
-                    {isHost ? "ホストを外す" : "ホストにする"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const DEFAULT_CONTRIBUTION: ContributionSettings = {
-  monthlyAmountPerPerson: 15000,
-  memberCount: HOUSE_MEMBERS.length,
-};
-
 export default function SettingsPage() {
   const router = useRouter();
-  const [settings, setSettings] = useState<NotificationSettings>(
-    DEFAULT_NOTIFICATION_SETTINGS
-  );
+  const [settings, setSettings] = useState<NotificationSettings>(loadNotificationSettings());
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-
-  const [contributionAmount, setContributionAmount] = useState(
-    String(DEFAULT_CONTRIBUTION.monthlyAmountPerPerson)
-  );
-  const [contributionMemberCount, setContributionMemberCount] = useState(
-    String(DEFAULT_CONTRIBUTION.memberCount)
-  );
-  const [contributionSaving, setContributionSaving] = useState(false);
-  const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
-  const [contributionError, setContributionError] = useState<string | null>(null);
-  const [contributionLoading, setContributionLoading] = useState(false);
-  const [contributionLoadError, setContributionLoadError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+
   const { user, signOut } = useAuth();
   const currentUserName = user?.displayName ?? HOUSE_MEMBERS[0].name;
   const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
-
-  const loadContributionSettings = useCallback(async () => {
-    setContributionLoading(true);
-    setContributionLoadError(null);
-    try {
-      const response = await apiFetch("/api/settings/contribution");
-      if (!response.ok) {
-        const message = await getApiErrorMessage(response, "共益費設定の取得に失敗しました");
-        setContributionLoadError(message);
-        showToast({ level: "error", message });
-        return;
-      }
-      const json = await readJson<{ data: ContributionSettings }>(
-        response,
-        isContributionSettingsResponse
-      );
-      setContributionAmount(String(json.data.monthlyAmountPerPerson));
-      setContributionMemberCount(String(json.data.memberCount));
-    } catch {
-      const message = "通信エラーが発生しました";
-      setContributionLoadError(message);
-      showToast({ level: "error", message });
-    } finally {
-      setContributionLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    setSettings(loadNotificationSettings());
-    void loadContributionSettings();
-  }, [loadContributionSettings]);
-
-  async function saveContributionSettings() {
-    if (!canEditContributionSettings) return;
-
-    const amount = Number(contributionAmount);
-    const memberCount = Number(contributionMemberCount);
-
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    if (!Number.isInteger(memberCount) || memberCount < 1) return;
-
-    setContributionSaving(true);
-    setContributionError(null);
-    try {
-      const response = await apiFetch("/api/settings/contribution", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monthlyAmountPerPerson: amount, memberCount }),
-      });
-      if (response.ok) {
-        setContributionSavedAt(new Date());
-        showToast({ level: "success", message: "共益費設定を保存しました" });
-      } else {
-        const message = await getApiErrorMessage(response, "共益費設定の保存に失敗しました");
-        setContributionError(message);
-        showToast({ level: "error", message });
-      }
-    } catch {
-      const message = "通信エラーが発生しました";
-      setContributionError(message);
-      showToast({ level: "error", message });
-    } finally {
-      setContributionSaving(false);
-    }
-  }
 
   const statusMessage = useMemo(() => {
     if (!savedAt) {
@@ -815,9 +100,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      {contributionSaving && <LoadingNotice message="設定を保存中..." />}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">
+      <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2">
           {settings.enabled ? (
             <Bell size={18} className="text-amber-500" />
@@ -826,9 +109,7 @@ export default function SettingsPage() {
           )}
           <h2 className="font-bold text-stone-800">メール通知設定</h2>
         </div>
-        <p className="mt-2 text-sm text-stone-500">
-          メールで受け取りたい通知の粒度を選択できます。
-        </p>
+        <p className="mt-2 text-sm text-stone-500">メールで受け取りたい通知の粒度を選択できます。</p>
         <p className="mt-1 text-xs text-stone-400">{statusMessage}</p>
       </div>
 
@@ -866,105 +147,12 @@ export default function SettingsPage() {
           saveNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
           setSavedAt(new Date());
         }}
-        className="w-full rounded-xl border border-stone-300 bg-white py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+        className="w-full rounded-xl border border-stone-300 bg-white py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50"
       >
         通知設定を初期値に戻す
       </button>
 
-      {/* Contribution settings */}
-      <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Wallet size={18} className="text-amber-500" />
-          <h3 className="text-sm font-bold text-stone-800">共益費設定</h3>
-        </div>
-        {contributionLoading && (
-          <div className="mb-3">
-            <LoadingNotice message="共益費設定を読み込み中..." />
-          </div>
-        )}
-        {contributionLoadError && (
-          <div className="mb-3">
-            <RetryNotice
-              message={contributionLoadError}
-              actionLabel="再取得"
-              onRetry={() => {
-                void loadContributionSettings();
-              }}
-              disabled={contributionLoading}
-            />
-          </div>
-        )}
-        <p className="mt-1 text-xs text-stone-500 mb-3">
-          月次拠出合計 = 1人あたり金額 × 人数 で算出されます。
-          保存した設定は当月から適用されます。
-        </p>
-        {!canEditContributionSettings && (
-          <p className="mb-3 rounded-xl bg-stone-100 px-3 py-2 text-xs text-stone-600">
-            共益費設定は家主のみ変更できます。
-          </p>
-        )}
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div>
-            <label
-              htmlFor="contribution-amount"
-              className="mb-1 block text-xs font-medium text-stone-600"
-            >
-              1人あたり（円/月）
-            </label>
-            <input
-              id="contribution-amount"
-              type="number"
-              min={1}
-              value={contributionAmount}
-              onChange={(e) => setContributionAmount(e.target.value)}
-              disabled={!canEditContributionSettings}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="contribution-members"
-              className="mb-1 block text-xs font-medium text-stone-600"
-            >
-              人数
-            </label>
-            <input
-              id="contribution-members"
-              type="number"
-              min={1}
-              max={20}
-              value={contributionMemberCount}
-              onChange={(e) => setContributionMemberCount(e.target.value)}
-              disabled={!canEditContributionSettings}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            />
-          </div>
-        </div>
-        <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          月次拠出合計:{" "}
-          <span className="font-bold">
-            ¥{(Number(contributionAmount) * Number(contributionMemberCount) || 0).toLocaleString()}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={saveContributionSettings}
-          disabled={contributionSaving || !canEditContributionSettings}
-          className="w-full rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-60"
-        >
-          {contributionSaving ? "保存中…" : "保存する"}
-        </button>
-        {contributionError && (
-          <div className="mt-2">
-            <ErrorNotice message={contributionError} />
-          </div>
-        )}
-        {contributionSavedAt && (
-          <p className="mt-2 text-center text-xs text-stone-400">
-            保存しました
-          </p>
-        )}
-      </div>
+      <ContributionSettingsSection canEdit={canEditContributionSettings} />
 
       <ProfileColorSection />
 
@@ -974,9 +162,7 @@ export default function SettingsPage() {
 
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
         <h3 className="text-sm font-bold text-stone-800">月次データエクスポート</h3>
-        <p className="mt-1 text-xs text-stone-500">
-          運用実績をCSVでダウンロードできます。
-        </p>
+        <p className="mt-1 text-xs text-stone-500">運用実績をCSVでダウンロードできます。</p>
         <div className="mt-3 flex items-center gap-2">
           <input
             type="month"
@@ -994,16 +180,18 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {signingOut && <LoadingNotice message="ログアウト中..." />}
+
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
         <h3 className="text-sm font-bold text-stone-800">アカウント</h3>
-        <p className="mt-1 text-xs text-stone-500">
-          現在のアカウントからログアウトします。
-        </p>
+        <p className="mt-1 text-xs text-stone-500">現在のアカウントからログアウトします。</p>
         <button
           type="button"
-          onClick={() => { void handleSignOut(); }}
+          onClick={() => {
+            void handleSignOut();
+          }}
           disabled={signingOut}
-          className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-60"
+          className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
         >
           {signingOut ? "ログアウト中…" : "ログアウト"}
         </button>
