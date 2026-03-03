@@ -26,6 +26,7 @@ type LabelProps = {
 
 function renderLabel(props: LabelProps) {
   const { cx, cy, midAngle, innerRadius, outerRadius, name, percent } = props;
+  if (percent < 0.1) return null;
   const pct = Math.round(percent * 100);
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -50,11 +51,13 @@ function renderLabel(props: LabelProps) {
 }
 
 export default function ContributionWidget({ data, myPoints, myRank, currentUserId }: Props) {
-  const chartData = data.map((d) => ({
-    name: d.member.id === currentUserId ? "あなた" : d.member.name,
-    value: d.totalPoints,
-    color: d.member.color,
-  }));
+  const chartData = data
+    .filter((d) => d.totalPoints > 0)
+    .map((d) => ({
+      name: d.member.id === currentUserId ? "あなた" : d.member.name,
+      value: d.totalPoints,
+      color: d.member.color,
+    }));
 
   const totalPoints = data.reduce((sum, d) => sum + d.totalPoints, 0);
 

@@ -14,8 +14,8 @@
 | Firestore セキュリティルール | クライアント直接 read/write 禁止済み | ✅ 一致（`allow read, write: if false;`） |
 | Discord 通知 | 未着手（要件定義済み） | ✅ 一致（未実装） |
 | Lint/Format 強化 | 実装済み | ✅ 一致（`eslint.config.mjs` / `.prettierrc` 追加済み） |
-| Emulator ルールテスト | 追加予定 | ✅ 一致（未実装） |
-| **CI 環境変数** | 記載なし | ⚠️ **齟齬あり**：`ci.yml` に `NEXTAUTH_SECRET` / `NEXTAUTH_URL` が残存（NextAuth 未使用のため不要な残骸） |
+| Emulator ルールテスト | 追加予定 | ✅ 実装済み（`firestore.rules.test.ts` + CI `test:firestore-rules`） |
+| **CI 環境変数** | 記載なし | ✅ 不要な `NEXTAUTH_SECRET` / `NEXTAUTH_URL` を削除済み |
 | **旧 TASKS.md 内容** | — | ⚠️ **齟齬あり**：LINE 連携・Prisma Schema など廃止済みの設計が残存 → 本ファイルで上書き |
 
 ---
@@ -142,7 +142,7 @@
 
 ## 優先度：低
 
-### TASK-6: CSV エクスポート運用手順を docs/ に明文化
+### ~~TASK-6: CSV エクスポート運用手順を docs/ に明文化~~ ✅ 完了
 
 **背景**
 `taskCompletions` / `expenses` / `shoppingItems` の月次 CSV 出力は実装済みだが、
@@ -157,7 +157,7 @@
 
 ---
 
-### TASK-7: Lint / Format 強化
+### ~~TASK-7: Lint / Format 強化~~ ✅ 完了
 
 **背景**
 現在は Next.js デフォルトの ESLint 設定のみ。Prettier 設定ファイルも存在しない。（IMPROVEMENTS.md §6.I）
@@ -194,6 +194,52 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | ✅ 完了 |
 | TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | ✅ 完了 |
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
-| TASK-6 | CSV エクスポート運用手順を docs/ に明文化 | 低 | 未着手 |
+| TASK-6 | CSV エクスポート運用手順を docs/ に明文化 | 低 | ✅ 完了 |
 | TASK-7 | Lint / Format 強化 | 低 | ✅ 完了 |
 | TASK-8 | PWA / オフライン対応 | 低 | 後段再評価 |
+
+---
+
+## 本番 Firebase 向け追加タスク（2026-03-03 追記）
+
+### TASK-P1: 本番ビルドエラー修正（register ページの型不整合）
+
+**状態**: 未着手
+
+**内容**
+- `src/app/register/page.tsx` の `color` state を `useState<string>(DEFAULT_COLOR)` に変更し、`ColorPicker` の `onChange` 型と一致させる。
+- `npm run build` を再実行し、ビルド成功を確認する。
+
+### TASK-P2: Firebase 本番デプロイ構成を追加
+
+**状態**: 未着手
+
+**内容**
+- Firebase での実行方式（App Hosting / Hosting + Functions）を確定する。
+- `firebase.json` に本番デプロイ用設定を追加し、emulator 設定と併存できる形に整理する。
+- `.firebaserc` の default プロジェクトを本番 project id に切り替える（`demo-sharehouse-work` 固定を解消）。
+
+### TASK-P3: 本番環境変数・Secret 設定
+
+**状態**: 未着手
+
+**内容**
+- Server: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` を Secret として設定する。
+- Client: `NEXT_PUBLIC_FIREBASE_*` を本番値へ設定し、`NEXT_PUBLIC_USE_FIREBASE_EMULATOR` は本番で無効化する。
+- 公開リポジトリ運用として、実値はコミットせず `.env.example` はサンプル値のみ維持する。
+
+### TASK-P4: Firestore 本番反映手順の固定化
+
+**状態**: 未着手
+
+**内容**
+- `firestore.rules` の本番反映（`firebase deploy --only firestore:rules`）をデプロイ手順に追加する。
+- 将来の複合インデックス追加に備え、`firestore.indexes.json` を管理対象に追加し、`firebase deploy --only firestore:indexes` 手順を確立する。
+
+### TASK-P5: 未認証エンドポイントの悪用対策
+
+**状態**: 未着手
+
+**内容**
+- `/api/users` POST と `/api/houses` POST にレート制限（IP/UID ベース）を追加する。
+- 異常トラフィック検知のため、失敗系の監査ログとアラート条件を定義する。

@@ -1,5 +1,6 @@
 import ContributionWidget from "@/components/ContributionWidget";
 import ExpenseWidget from "@/components/ExpenseWidget";
+import GreetingSection from "@/components/GreetingSection";
 import NoticesWidget from "@/components/NoticesWidget";
 import RecentTasksWidget from "@/components/RecentTasksWidget";
 import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
@@ -8,7 +9,7 @@ import { readTaskCompletions } from "@/server/task-completions-store";
 import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
-import { formatJpDate, getGreeting, toJstMonthKey } from "@/shared/lib/time";
+import { toJstMonthKey } from "@/shared/lib/time";
 import { HOUSE_MEMBERS } from "@/shared/constants/house";
 import type { ContributionData, TaskCompletionRecord } from "@/types";
 
@@ -75,12 +76,7 @@ export default async function HomePage() {
   return (
     <div className="space-y-4">
       {/* Greeting */}
-      <div className="pt-1">
-        <p className="text-stone-400 text-sm">{formatJpDate()}</p>
-        <h2 className="text-xl font-bold text-stone-800 mt-0.5">
-          {getGreeting()}、{currentUser.name}さん
-        </h2>
-      </div>
+      <GreetingSection />
 
       {/* Contribution widget */}
       <ContributionWidget

@@ -1,6 +1,6 @@
 # ShareHouseWork - Directory
 
-最終更新: 2026-03-02
+最終更新: 2026-03-03
 整合基準: `Overview.md`, `DATABASE.md`
 
 ## 1. 現在のファイル構成と役割
@@ -47,6 +47,9 @@
 ├─ src/server/*.test.ts        # サーバーユーティリティのテスト
 ├─ src/types/                  # 型定義
 ├─ scripts/seed-firestore.ts   # Firestore 初期データ投入スクリプト
+├─ docs/
+│  ├─ csv-export-operations.md          # 月次CSVエクスポート運用手順
+│  └─ firestore-query-index-operations.md # Firestore クエリ/インデックス運用手順
 ├─ DATABASE.md                 # Firestore 設計の正本
 ├─ DIRECTORY.md                # ファイル構成と役割（本ファイル）
 ├─ Overview.md                 # プロダクト全体概要
