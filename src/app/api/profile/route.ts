@@ -27,7 +27,7 @@ export async function PATCH(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -43,7 +43,7 @@ export async function PATCH(request: Request) {
   const existing = await getUser(actor.uid);
   if (!existing) {
     return NextResponse.json(
-      { error: "User not found", code: "NOT_FOUND" },
+      { error: "User not found", code: "NOT_FOUND", details: { uid: actor.uid } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }

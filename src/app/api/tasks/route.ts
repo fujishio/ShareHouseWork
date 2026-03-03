@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }

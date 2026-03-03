@@ -69,20 +69,15 @@
 
 ## 優先度：中
 
-### TASK-3: 残 API エンドポイントへの zod 展開とエラー形式統一
+### ~~TASK-3: 残 API エンドポイントへの zod 展開とエラー形式統一~~ ✅ 完了
 
-**背景**
-主要 API には zod が適用済みだが、クエリパラメータ受け取り系の API が手動バリデーション。
-また、エラーレスポンス形式 `{ error, code, details }` の `details` フィールドが全ルートで
-統一されていない。（IMPROVEMENTS.md §5.B）
+**完了日: 2026-03-03**
 
-**残対応ファイル**
-- `src/app/api/audit-logs/route.ts` — `parseLimit()` / `parseDate()` の手動バリデーションを zod に置き換え、エラーレスポンスに `details` を追加する
-- `src/app/api/exports/monthly.csv/route.ts` — month バリデーションは **TASK-M** で対応。エラー形式（`details` フィールド）の統一はここで行う
-
-**エラー形式の統一（全ルート対象）**
-- エラーレスポンスを `{ error: string, code: string, details?: unknown }` に統一する
-- `src/shared/lib/api-validation.ts` の共通ヘルパーを活用する
+**対応内容**
+- `src/app/api/audit-logs/route.ts` の `parseLimit()` / `parseDate()` を zod クエリスキーマに置き換え
+- `src/shared/lib/api-validation.ts` に `apiErrorResponse()` を追加し、共通エラー形式を利用開始
+- `src/app/api/exports/monthly.csv/route.ts` の `EXPORT_CSV_FAILED` 応答を含め、`details` 付きに統一
+- `src/app/api/notices/[id]/route.ts` を含む未統一ルートで `details` フィールドを補完
 
 ---
 
@@ -186,7 +181,7 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 | TASK-L | 認証なし GET エンドポイントへの `verifyRequest()` 追加 | 高（最優先） | ✅ 完了 |
 | TASK-M | `/exports/monthly.csv` の `month` パラメータ zod バリデーション | 高 | ✅ 完了 |
 | TASK-2 | Firestore Emulator でのセキュリティルールテスト追加 | 高 | ✅ 完了 |
-| TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | 未着手 |
+| TASK-3 | 残 API への zod 展開とエラー形式統一 | 中 | ✅ 完了 |
 | TASK-4 | CSV/集計の日付比較ロジック監査 | 中 | 未着手 |
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
 | TASK-6 | CSV エクスポート運用手順を docs/ に明文化 | 低 | 未着手 |

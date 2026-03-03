@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return badRequest("Invalid JSON", "INVALID_JSON");
+    return badRequest("Invalid JSON", "INVALID_JSON", "Request body must be valid JSON.");
   }
 
   const parsed = createNoticeSchema.safeParse(body);

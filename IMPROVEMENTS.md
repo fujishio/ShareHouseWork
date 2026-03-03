@@ -96,14 +96,12 @@ GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/
 
 ### B. APIバリデーションの統一（zod）
 
-**対応状況（2026-03-02）**
+**対応状況（2026-03-03）**
 - `task-completions` / `expenses` / `shopping` / `rules` / `notices` / `tasks` / `houses` API に zod スキーマを導入。
 - `shared/lib/api-validation.ts` に共通スキーマ（trim, ISO日付, ISO日時）を追加。
-- エラー形式を段階統一（主要APIで `{ error, code, details }` を返却）。
-
-**残課題**
-- `/api/audit-logs/route.ts`: `parseLimit()` / `parseDate()` の手動バリデーションを zod に置き換える。エラーレスポンスに `details` を追加する。
-- エラー形式の完全統一（全ルートで `details` を一律化）。特に `audit-logs` と `notices/[id]` の 404 レスポンスが未統一。
+- `shared/lib/api-validation.ts` に `apiErrorResponse()` を追加し、共通エラーレスポンス生成を導入。
+- `/api/audit-logs/route.ts` の `parseLimit()` / `parseDate()` を zod クエリバリデーションに置き換え。
+- エラー形式を `{ error, code, details }` に統一（`audit-logs` / `exports/monthly.csv` / `notices/[id]` を含む未統一ルートを補完）。
 
 ### C. 日付フォーマットの扱いを明示し、混在バグを予防
 
@@ -183,6 +181,7 @@ GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/
 | L: 認証なしエンドポイント修正（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses` GET） | 完了（2026-03-03） |
 | M: `/exports/monthly.csv` の `month` パラメータ zod バリデーション追加 | 完了（2026-03-03） |
 | E: Firestore Emulator ルールテスト追加（`firestore.rules.test.ts` + CI ステップ） | 完了（2026-03-03） |
+| B: APIバリデーションの統一（zod）残課題（`audit-logs`/エラー形式統一） | 完了（2026-03-03） |
 
 ---
 

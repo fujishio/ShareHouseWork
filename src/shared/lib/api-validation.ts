@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ApiErrorResponse } from "@/types";
 import {
   normalizeIsoDateString,
   normalizeIsoDateTimeString,
@@ -46,3 +47,11 @@ export const zYearMonthString = z.string().transform((value, context) => {
   }
   return normalized;
 });
+
+export function createApiError(
+  error: string,
+  code: string,
+  details?: unknown
+): ApiErrorResponse {
+  return { error, code, details };
+}

@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: Params) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -40,7 +40,7 @@ export async function POST(request: Request, { params }: Params) {
   const user = await getUser(userUid);
   if (!user) {
     return NextResponse.json(
-      { error: "User not found", code: "USER_NOT_FOUND" },
+      { error: "User not found", code: "USER_NOT_FOUND", details: { userUid } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -48,7 +48,7 @@ export async function POST(request: Request, { params }: Params) {
   const updated = await addHouseMember(id, userUid);
   if (!updated) {
     return NextResponse.json(
-      { error: "House not found", code: "HOUSE_NOT_FOUND" },
+      { error: "House not found", code: "HOUSE_NOT_FOUND", details: { houseId: id } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }

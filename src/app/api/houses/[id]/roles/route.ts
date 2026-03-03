@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: Params) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: Params) {
   const house = await getHouse(id);
   if (!house) {
     return NextResponse.json(
-      { error: "ハウスが見つかりません", code: "HOUSE_NOT_FOUND" },
+      { error: "ハウスが見つかりません", code: "HOUSE_NOT_FOUND", details: { houseId: id } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: Params) {
     const updated = await grantHostRole(id, userUid);
     if (!updated) {
       return NextResponse.json(
-        { error: "権限付与に失敗しました", code: "GRANT_FAILED" },
+        { error: "権限付与に失敗しました", code: "GRANT_FAILED", details: { houseId: id, userUid } },
         { status: 500 }
       ) as NextResponse<ApiErrorResponse>;
     }
@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: Params) {
     const updated = await revokeHostRole(id, userUid);
     if (!updated) {
       return NextResponse.json(
-        { error: "最後のホストは削除できません", code: "LAST_HOST" },
+        { error: "最後のホストは削除できません", code: "LAST_HOST", details: { houseId: id, userUid } },
         { status: 400 }
       ) as NextResponse<ApiErrorResponse>;
     }

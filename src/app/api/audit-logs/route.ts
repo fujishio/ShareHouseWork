@@ -2,60 +2,40 @@ import { NextResponse } from "next/server";
 import { readAuditLogs } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { ApiErrorResponse, AuditLogsListResponse } from "@/types";
+import { z } from "zod";
+import { createApiError } from "@/shared/lib/api-validation";
 
 export const runtime = "nodejs";
 
-function parseLimit(raw: string | null): number {
-  if (!raw) {
-    return 100;
-  }
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 100;
-  }
-  return Math.min(Math.floor(parsed), 500);
-}
-
-function parseDate(raw: string | null): Date | null {
-  if (!raw) {
-    return null;
-  }
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed;
-}
+const auditLogQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  action: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(100),
+});
 
 export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
 
   const { searchParams } = new URL(request.url);
-  const from = parseDate(searchParams.get("from"));
-  const to = parseDate(searchParams.get("to"));
-  const action = searchParams.get("action");
-  const limit = parseLimit(searchParams.get("limit"));
-
-  if (searchParams.get("from") && !from) {
+  const parsedQuery = auditLogQuerySchema.safeParse({
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+    action: searchParams.get("action") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+  });
+  if (!parsedQuery.success) {
     return NextResponse.json(
-      {
-        error: "Invalid from query. Use ISO date string.",
-        code: "VALIDATION_ERROR",
-      },
+      createApiError(
+        "Invalid query parameters. from/to must be valid dates; limit must be 1-500.",
+        "VALIDATION_ERROR",
+        parsedQuery.error.issues
+      ),
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
-
-  if (searchParams.get("to") && !to) {
-    return NextResponse.json(
-      {
-        error: "Invalid to query. Use ISO date string.",
-        code: "VALIDATION_ERROR",
-      },
-      { status: 400 }
-    ) as NextResponse<ApiErrorResponse>;
-  }
+  const { from, to, action, limit } = parsedQuery.data;
 
   const logs = await readAuditLogs();
   const filtered = logs

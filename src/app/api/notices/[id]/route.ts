@@ -3,6 +3,7 @@ import { deleteNotice } from "@/server/notice-store";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import type { ApiErrorResponse } from "@/types";
+import { createApiError } from "@/shared/lib/api-validation";
 
 export async function DELETE(
   request: Request,
@@ -18,7 +19,7 @@ export async function DELETE(
 
   if (!updated) {
     return NextResponse.json(
-      { error: "Not found", code: "NOTICE_NOT_FOUND" },
+      createApiError("Not found", "NOTICE_NOT_FOUND", { noticeId: id }),
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const user = await getUser(userUid);
   if (!user) {
     return NextResponse.json(
-      { error: "ユーザーが見つかりません", code: "USER_NOT_FOUND" },
+      { error: "ユーザーが見つかりません", code: "USER_NOT_FOUND", details: { userUid } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -45,7 +45,11 @@ export async function POST(request: Request) {
   const house = await findHouseByNameAndJoinPassword(houseName, joinPassword);
   if (!house) {
     return NextResponse.json(
-      { error: "ハウスが見つかりません。ハウス名か合言葉をご確認ください", code: "HOUSE_NOT_FOUND" },
+      {
+        error: "ハウスが見つかりません。ハウス名か合言葉をご確認ください",
+        code: "HOUSE_NOT_FOUND",
+        details: { houseName },
+      },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
   const updated = await addHouseMember(house.id, userUid);
   if (!updated) {
     return NextResponse.json(
-      { error: "メンバー追加に失敗しました", code: "MEMBER_ADD_FAILED" },
+      { error: "メンバー追加に失敗しました", code: "MEMBER_ADD_FAILED", details: { houseId: house.id, userUid } },
       { status: 500 }
     ) as NextResponse<ApiErrorResponse>;
   }

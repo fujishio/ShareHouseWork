@@ -6,6 +6,7 @@ import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { NextResponse } from "next/server";
 import type { ApiErrorResponse } from "@/types";
 import { z } from "zod";
+import { createApiError } from "@/shared/lib/api-validation";
 
 export const runtime = "nodejs";
 
@@ -26,11 +27,11 @@ export async function GET(request: Request) {
   });
   if (!parsedQuery.success) {
     return NextResponse.json(
-      {
-        error: "Invalid month query. Use YYYY-MM format.",
-        code: "VALIDATION_ERROR",
-        details: parsedQuery.error.issues,
-      },
+      createApiError(
+        "Invalid month query. Use YYYY-MM format.",
+        "VALIDATION_ERROR",
+        parsedQuery.error.issues
+      ),
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     const message =
       error instanceof Error ? error.message : "failed to build monthly csv";
     return NextResponse.json(
-      { error: message, code: "EXPORT_CSV_FAILED" },
+      createApiError(message, "EXPORT_CSV_FAILED", { cause: message }),
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }

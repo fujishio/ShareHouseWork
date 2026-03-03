@@ -37,7 +37,7 @@ export async function PATCH(
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -88,7 +88,7 @@ export async function PATCH(
   const updated = await updateTask(id, input);
   if (!updated) {
     return NextResponse.json(
-      { error: "Task not found", code: "TASK_NOT_FOUND" },
+      { error: "Task not found", code: "TASK_NOT_FOUND", details: { taskId: id } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }
@@ -108,7 +108,7 @@ export async function DELETE(
   const deleted = await deleteTask(id, new Date().toISOString());
   if (!deleted) {
     return NextResponse.json(
-      { error: "Task not found", code: "TASK_NOT_FOUND" },
+      { error: "Task not found", code: "TASK_NOT_FOUND", details: { taskId: id } },
       { status: 404 }
     ) as NextResponse<ApiErrorResponse>;
   }

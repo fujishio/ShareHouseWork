@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       {
         error: "Only the house owner can update contribution settings",
         code: "FORBIDDEN",
+        details: { actor: actor.name },
       },
       { status: 403 }
     ) as NextResponse<ApiErrorResponse>;
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     body = await request.json();
   } catch {
     return NextResponse.json(
-      { error: "Invalid JSON", code: "INVALID_JSON" },
+      { error: "Invalid JSON", code: "INVALID_JSON", details: "Request body must be valid JSON." },
       { status: 400 }
     ) as NextResponse<ApiErrorResponse>;
   }
