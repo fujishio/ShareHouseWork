@@ -62,7 +62,7 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 |----|---------|--------|------|
 | TASK-5 | Discord 通知 MVP 実装 | 中 | 未着手 |
 | TASK-8 | PWA / オフライン対応 | 低 | 後段再評価 |
-| TASK-P1 | 本番ビルドエラー修正（register ページの型不整合） | 高 | 未着手 |
+| TASK-P1 | 本番ビルドエラー修正（register ページの型不整合） | 高 | 完了 |
 | TASK-P2 | Firebase 本番デプロイ構成を追加 | 高 | 未着手 |
 | TASK-P3 | 本番環境変数・Secret 設定 | 高 | 未着手 |
 | TASK-P4 | Firestore 本番反映手順の固定化 | 高 | 未着手 |
@@ -74,7 +74,7 @@ IMPROVEMENTS.md §6.J。現時点では優先課題完了後に再評価。
 
 ### TASK-P1: 本番ビルドエラー修正（register ページの型不整合）
 
-**状態**: 未着手
+**状態**: 完了
 
 **内容**
 - `src/app/register/page.tsx` の `color` state を `useState<string>(DEFAULT_COLOR)` に変更し、`ColorPicker` の `onChange` 型と一致させる。
