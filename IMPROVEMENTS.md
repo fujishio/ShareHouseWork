@@ -1,6 +1,6 @@
 # ShareHouseWork 改善案（DATABASE準拠）
 
-最終更新: 2026-03-02
+最終更新: 2026-03-03
 基準ドキュメント: `DATABASE.md`（Firestore設計）
 
 ---
@@ -13,7 +13,7 @@
 
 ---
 
-## 2. 現状サマリー（2026-03-02）
+## 2. 現状サマリー（2026-03-03）
 
 | 項目 | 状態 |
 |------|------|
@@ -27,7 +27,8 @@
 | 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
 | API入力検証 | zod導入を拡大（`task-completions/expenses/shopping/rules/notices/tasks/houses` 適用済み） |
 | 日付運用 | 日時（ISO8601）/日付（`YYYY-MM-DD`）を用途別に運用し、API境界で正規化 |
-| CI | `npm test` + `npm run build` 実行 |
+| CI | `npm test` + `npm run build` 実行。不要な NEXTAUTH 環境変数を削除済み |
+| **認証なし公開エンドポイント** | **`/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET が未認証でアクセス可能（要対応）** |
 
 ---
 
@@ -58,6 +59,42 @@
 ---
 
 ## 4. 優先度: 高（先に着手）
+
+### L. 認証なし公開エンドポイントの修正（新規・最優先）
+
+**発見日: 2026-03-03**
+
+以下のエンドポイントが `verifyRequest()` を呼んでおらず、未認証でアクセス可能な状態。
+
+| ルートファイル | メソッド | 問題 |
+|---|---|---|
+| `src/app/api/exports/monthly.csv/route.ts` | GET | 月次CSVデータ全件が認証なしでダウンロード可能 |
+| `src/app/api/tasks/route.ts` | GET | タスク一覧が認証なしで取得可能 |
+| `src/app/api/users/route.ts` | GET | 全ユーザー情報（名前・メール・色）が認証なしで取得可能 |
+| `src/app/api/houses/route.ts` | GET | 全ハウス情報が認証なしで取得可能 |
+
+**補足: POST の扱い**
+- `/api/users` POST と `/api/houses` POST も認証なしだが、登録フロー（Firebase Auth トークン取得直後）で使用している可能性がある。
+- 設計意図を確認した上で対応方針（認証追加 or 意図的公開の明文化）を決める。
+
+**対応方針**
+- 上記 GET エンドポイントに `verifyRequest()` を追加する。
+- POST については設計意図をコメントで明記するか、同様に認証を追加する。
+
+---
+
+### M. `/api/exports/monthly.csv` の `month` パラメータ検証漏れ（新規）
+
+**発見日: 2026-03-03**
+
+`src/app/api/exports/monthly.csv/route.ts` の `resolveMonth()` は `YYYY-MM` 形式を検証せず、
+不正な値（例: `2024-13`, `invalid`）がそのまま `buildMonthlyOperationsCsv()` に渡される。
+
+**対応方針**
+- `/api/exports/monthly.csv` の GET に zod バリデーションを追加し、`month` が `YYYY-MM` 形式であることを検証する。
+- 認証追加（項目 L）と同時に対応する。
+
+---
 
 ### E. Firestore セキュリティルールの最小権限化
 
@@ -109,8 +146,9 @@
 - エラー形式を段階統一（主要APIで `{ error, code, details }` を返却）。
 
 **残課題**
-- 他APIへの展開（例: 認可なし公開エンドポイントの整理を含む）。
-- エラー形式の完全統一（全ルートで `details` を一律化）。
+- `/api/audit-logs/route.ts`: `parseLimit()` / `parseDate()` の手動バリデーションを zod に置き換える。エラーレスポンスに `details` を追加する。
+- `/api/exports/monthly.csv/route.ts`: `month` クエリパラメータの zod バリデーションを追加する（項目 M と統合）。
+- エラー形式の完全統一（全ルートで `details` を一律化）。特に `audit-logs` と `notices/[id]` の 404 レスポンスが未統一。
 
 ### C. 日付フォーマットの扱いを明示し、混在バグを予防
 
@@ -186,22 +224,25 @@
 | `package.json` `"type": "module"` | 完了 |
 | `npm test` 52件 pass | 完了 |
 | `npx tsc --noEmit` 通過 | 完了 |
+| CI の不要な NEXTAUTH 環境変数削除 | 完了（2026-03-03） |
 
 ---
 
 ## 8. 次の着手順（推奨）
-1. E: Firestore Emulator のルールテストを追加（最小権限化の回帰防止）
-2. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一
-3. K: Discord 通知の MVP 実装（設定・キュー・非同期送信）
-4. H: CSVエクスポートの運用手順を `docs/` に明文化
-5. I: Lint/Format強化
+1. **L + M**: 認証なしエンドポイントの修正 + `/exports/monthly.csv` の month バリデーション追加（セキュリティ最優先）
+2. E: Firestore Emulator のルールテストを追加（最小権限化の回帰防止）
+3. B + C: 残APIへの zod/日付正規化ルール展開とエラー形式統一（`audit-logs`, `exports/monthly.csv` が残存）
+4. K: Discord 通知の MVP 実装（設定・キュー・非同期送信）
+5. H: CSVエクスポートの運用手順を `docs/` に明文化
+6. I: Lint/Format強化
 
 ---
 
 ## 9. 直近の確認ログ
 - `npm test`: 52 pass / 0 fail
 - `npx tsc --noEmit`: エラーなし
-- CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行
+- CI: `.github/workflows/ci.yml` で `npm test` と `npm run build` を実行（NEXTAUTH 環境変数削除済み）
+- 実装調査（2026-03-03）: `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に認証なしを確認
 
 ---
 
@@ -221,6 +262,9 @@ DB移行・認証基盤刷新を除く、現時点の作業進捗です。
 | クエリ/インデックス運用明文化 | 完了 | 中 | `docs/firestore-query-index-operations.md` を追加し、運用手順を文書化。 |
 | Discord通知要件定義 | 完了 | 中 | Webhook前提のMVP要件（キュー/再送/冪等/監視/秘匿）を本書に追記。 |
 | Discord通知実装 | 未着手 | 中 | 要件定義済み。`notificationSettings`/`notificationQueue` と送信Worker実装が必要。 |
+| 認証なしエンドポイントの修正（L） | 未着手 | **高（最優先）** | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加が必要。 |
+| `exports/monthly.csv` の month バリデーション（M） | 未着手 | **高** | `YYYY-MM` 形式チェックなし。L と同時対応推奨。 |
+| CI の NEXTAUTH 環境変数削除 | 完了 | 高 | `ci.yml` から不要な `NEXTAUTH_SECRET` / `NEXTAUTH_URL` を削除済み（2026-03-03）。 |
 | 設定画面ログアウト | 完了 | 低 | `settings` から `signOut()` 実行後に `/login` へ遷移。 |
 | 通知設定の文言整備 | 完了 | 低 | 通知UIの `LINE` 表記を `メール` に統一。 |
 | CSV運用拡張 | 一部完了 | 低 | `task/expenses/shopping` 出力は対応済み。運用向け整備は継続。 |

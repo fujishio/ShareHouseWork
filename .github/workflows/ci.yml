@@ -24,9 +24,8 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run Firestore rules tests
+        run: npm run test:firestore-rules
+
       - name: Build
         run: npm run build
-        env:
-          # Dummy values to satisfy Next.js build without real secrets
-          NEXTAUTH_SECRET: ci-dummy-secret
-          NEXTAUTH_URL: http://localhost:3000
