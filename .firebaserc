@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "demo-sharehouse-work"
-  }
+    "default": "demo-sharehouse-work",
+    "production": "sharehousework"
+  },
+  "targets": {},
+  "etags": {}
 }
