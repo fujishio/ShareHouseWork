@@ -7,7 +7,6 @@ import { errorJson, successJson } from "@/shared/lib/api-response";
 export const runtime = "nodejs";
 
 const upsertUserSchema = z.object({
-  uid: zNonEmptyTrimmedString,
   name: zNonEmptyTrimmedString,
   color: zNonEmptyTrimmedString,
   email: zNonEmptyTrimmedString,
@@ -18,11 +17,19 @@ export async function GET(request: Request) {
   if (!actor) return unauthorizedResponse();
 
   const users = await listUsers();
-  return successJson(users);
+  // Strip email from each user before returning (TASK-P8)
+  const publicUsers = users.map(({ id, name, color }) => ({ id, name, color }));
+  return successJson(publicUsers);
 }
 
 export async function POST(request: Request) {
-  // Registration flow can call this before session token is available.
+  let actor;
+  try {
+    actor = await verifyRequest(request);
+  } catch {
+    return unauthorizedResponse();
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -38,14 +45,14 @@ export async function POST(request: Request) {
   const parsed = upsertUserSchema.safeParse(body);
   if (!parsed.success) {
     return errorJson(
-      "uid, name, color, email are required",
+      "name, color, email are required",
       "VALIDATION_ERROR",
       400,
       parsed.error.issues
     );
   }
 
-  const created = await upsertUser(parsed.data.uid, {
+  const created = await upsertUser(actor.uid, {
     name: parsed.data.name,
     color: parsed.data.color,
     email: parsed.data.email,

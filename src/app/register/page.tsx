@@ -63,29 +63,29 @@ export default function RegisterPage() {
     );
   }
 
-  const createUser = async (uid: string) => {
+  const createUser = async () => {
     const res = await apiFetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, email, name, color }),
+      body: JSON.stringify({ email, name, color }),
     });
     if (!res.ok) throw new Error(await readErrorMessage(res));
   };
 
-  const createHouse = async (uid: string) => {
+  const createHouse = async () => {
     const res = await apiFetch("/api/houses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: houseName, ownerUid: uid, joinPassword }),
+      body: JSON.stringify({ name: houseName, joinPassword }),
     });
     if (!res.ok) throw new Error(await readErrorMessage(res));
   };
 
-  const joinHouse = async (uid: string) => {
+  const joinHouse = async () => {
     const res = await apiFetch("/api/houses/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ houseName, joinPassword, userUid: uid }),
+      body: JSON.stringify({ houseName, joinPassword }),
     });
     if (!res.ok) throw new Error(await readErrorMessage(res));
   };
@@ -103,18 +103,16 @@ export default function RegisterPage() {
     justRegistered.current = true;
 
     try {
-      const authResult = await createUserWithEmailAndPassword(
+      await createUserWithEmailAndPassword(
         getClientAuth(),
         email,
         password
       );
-      const uid = authResult.user.uid;
-
-      await createUser(uid);
+      await createUser();
       if (mode === "create") {
-        await createHouse(uid);
+        await createHouse();
       } else {
-        await joinHouse(uid);
+        await joinHouse();
       }
 
       router.replace("/");

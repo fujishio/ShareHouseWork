@@ -1,5 +1,23 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import type { House } from "@/types";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashJoinPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${hash.toString("hex")}`;
+}
+
+async function verifyJoinPassword(password: string, stored: string): Promise<boolean> {
+  const [salt, hashHex] = stored.split(":");
+  if (!salt || !hashHex) return false;
+  const storedHash = Buffer.from(hashHex, "hex");
+  const derivedHash = (await scryptAsync(password, salt, 64)) as Buffer;
+  return timingSafeEqual(storedHash, derivedHash);
+}
 
 const COLLECTION = "houses";
 
@@ -35,7 +53,8 @@ export async function createHouse(input: CreateHouseInput): Promise<House> {
     createdAt: new Date().toISOString(),
   };
   if (input.joinPassword) {
-    data.joinPassword = input.joinPassword;
+    // Store as scrypt hash, never as plaintext
+    data.joinPasswordHash = await hashJoinPassword(input.joinPassword);
   }
   const ref = await db.collection(COLLECTION).add(data);
   return docToHouse(ref.id, data);
@@ -48,9 +67,13 @@ export async function getHouse(houseId: string): Promise<House | null> {
   return docToHouse(doc.id, doc.data()!);
 }
 
-export async function listHouses(): Promise<House[]> {
+export async function listHouses(uid: string): Promise<House[]> {
   const db = getAdminFirestore();
-  const snapshot = await db.collection(COLLECTION).orderBy("createdAt", "desc").get();
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where("memberUids", "array-contains", uid)
+    .orderBy("createdAt", "desc")
+    .get();
   return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data()));
 }
 
@@ -76,15 +99,19 @@ export async function findHouseByNameAndJoinPassword(
   joinPassword: string
 ): Promise<House | null> {
   const db = getAdminFirestore();
+  // Query by name only, then verify the password hash to prevent timing attacks
   const snapshot = await db
     .collection(COLLECTION)
     .where("name", "==", name)
-    .where("joinPassword", "==", joinPassword)
-    .limit(1)
     .get();
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return docToHouse(doc.id, doc.data());
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    const stored: string | undefined = data.joinPasswordHash;
+    if (stored && await verifyJoinPassword(joinPassword, stored)) {
+      return docToHouse(doc.id, data);
+    }
+  }
+  return null;
 }
 
 export async function grantHostRole(houseId: string, userUid: string): Promise<House | null> {

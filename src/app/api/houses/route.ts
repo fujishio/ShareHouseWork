@@ -12,7 +12,6 @@ export const runtime = "nodejs";
 const createHouseSchema = z.object({
   name: zNonEmptyTrimmedString,
   description: zTrimmedString.optional(),
-  ownerUid: zTrimmedString.optional(),
   joinPassword: zTrimmedString.optional(),
 });
 
@@ -20,12 +19,18 @@ export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
 
-  const houses = await listHouses();
+  const houses = await listHouses(actor.uid);
   return successJson(houses);
 }
 
 export async function POST(request: Request) {
-  // Registration flow can call this before session token is available.
+  let actor;
+  try {
+    actor = await verifyRequest(request);
+  } catch {
+    return unauthorizedResponse();
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
   const created = await createHouse({
     name: parsed.data.name,
     description: parsed.data.description || undefined,
-    ownerUid: parsed.data.ownerUid || undefined,
+    ownerUid: actor.uid,
     joinPassword: parsed.data.joinPassword || undefined,
   });
   return successJson(created, { status: 201 });
