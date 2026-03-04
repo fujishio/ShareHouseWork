@@ -4,12 +4,13 @@ import {
   handleUpdateRule,
 } from "@/server/api/rules-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { acknowledgeRule, deleteRule, updateRule } from "@/server/rule-store";
 
 const updateDeps = {
   updateRule,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),
@@ -18,6 +19,7 @@ const updateDeps = {
 const acknowledgeDeps = {
   acknowledgeRule,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),
@@ -26,6 +28,7 @@ const acknowledgeDeps = {
 const deleteDeps = {
   deleteRule,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

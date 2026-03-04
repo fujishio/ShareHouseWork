@@ -1,11 +1,12 @@
 import { handleDeleteNotice } from "@/server/api/notices-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { deleteNotice } from "@/server/notice-store";
 
 const deps = {
   deleteNotice,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

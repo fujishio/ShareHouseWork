@@ -2,7 +2,7 @@ import { readTaskCompletions } from "@/server/task-completions-store";
 import { readExpenses } from "@/server/expense-store";
 import { readShoppingItems } from "@/server/shopping-store";
 import { buildMonthlyOperationsCsv } from "@/server/monthly-export";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorJson } from "@/shared/lib/api-response";
@@ -19,6 +19,9 @@ const monthQuerySchema = z.object({
 export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
+
+  const houseId = await resolveActorHouseId(actor.uid);
+  if (!houseId) return errorJson("No house found for user", "NO_HOUSE", 403);
 
   const { searchParams } = new URL(request.url);
   const parsedQuery = monthQuerySchema.safeParse({
@@ -37,9 +40,9 @@ export async function GET(request: Request) {
   let csv: string;
   try {
     const [taskCompletions, expenses, shoppingItems] = await Promise.all([
-      readTaskCompletions(),
-      readExpenses(),
-      readShoppingItems(),
+      readTaskCompletions(houseId),
+      readExpenses(houseId),
+      readShoppingItems(houseId),
     ]);
     csv = buildMonthlyOperationsCsv({ month, taskCompletions, expenses, shoppingItems });
   } catch (error) {

@@ -60,6 +60,7 @@ let nextTaskId = 1;
 export const TASKS: Task[] = TASK_CATEGORIES.flatMap((category) =>
   TASK_DEFINITIONS[category].map((task) => ({
     id: String(nextTaskId++),
+    houseId: "",
     name: task.name,
     points: task.points,
     category,

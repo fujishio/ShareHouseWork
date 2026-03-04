@@ -29,7 +29,8 @@ type AuthenticatedUser = {
 };
 
 export type GetRulesDeps = {
-  readRules: () => Promise<Rule[]>;
+  readRules: (houseId: string) => Promise<Rule[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
@@ -37,6 +38,7 @@ export type GetRulesDeps = {
 export type CreateRuleDeps = {
   appendRule: (input: CreateRuleInput) => Promise<Rule>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -45,6 +47,7 @@ export type CreateRuleDeps = {
 export type UpdateRuleDeps = {
   updateRule: (id: string, input: UpdateRuleInput) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -53,6 +56,7 @@ export type UpdateRuleDeps = {
 export type AcknowledgeRuleDeps = {
   acknowledgeRule: (id: string, actorName: string) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -61,6 +65,7 @@ export type AcknowledgeRuleDeps = {
 export type DeleteRuleDeps = {
   deleteRule: (id: string, actorName: string, deletedAt: string) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -79,7 +84,10 @@ export async function handleGetRules(request: Request, deps: GetRulesDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
-  const rules = await deps.readRules();
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
+  const rules = await deps.readRules(houseId);
   const active = rules.filter((r) => !r.deletedAt);
   return Response.json({ data: active });
 }
@@ -87,6 +95,9 @@ export async function handleGetRules(request: Request, deps: GetRulesDeps) {
 export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   let body: unknown;
   try {
@@ -106,6 +117,7 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
 
   const createdAt = deps.now();
   const input: CreateRuleInput = {
+    houseId,
     title: parsed.data.title,
     body: parsed.data.body,
     category: parsed.data.category,
@@ -116,6 +128,7 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
   const created = await deps.appendRule(input);
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "rule_created",
     actor: actor.name,
     details: {
@@ -135,6 +148,9 @@ export async function handleUpdateRule(
 ) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   const { id } = await params;
 
@@ -167,6 +183,7 @@ export async function handleUpdateRule(
   }
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "rule_updated",
     actor: actor.name,
     details: { ruleId: id, title: updated.title, category: parsed.data.category },
@@ -183,6 +200,9 @@ export async function handleAcknowledgeRule(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
 
   const updated = await deps.acknowledgeRule(id, actor.name);
@@ -191,6 +211,7 @@ export async function handleAcknowledgeRule(
   }
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "rule_acknowledged",
     actor: actor.name,
     details: { ruleId: id, title: updated.title },
@@ -207,6 +228,9 @@ export async function handleDeleteRule(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
 
   const deletedAt = deps.now();
@@ -217,6 +241,7 @@ export async function handleDeleteRule(
   }
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "rule_deleted",
     actor: actor.name,
     details: { ruleId: id, title: updated.title },

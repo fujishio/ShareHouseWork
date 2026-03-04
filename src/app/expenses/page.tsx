@@ -7,6 +7,7 @@ import { readContributionSettingsHistory } from "@/server/contribution-settings-
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import ExpenseSection from "@/components/ExpenseSection";
 import ExpenseMonthNav from "@/components/ExpenseMonthNav";
+import { getFirstHouseId } from "@/server/house-store";
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
 
@@ -58,9 +59,10 @@ export default async function ExpensesPage({
   const nextMonthKey = addOneMonth(targetMonthKey);
   const canGoNext = targetMonthKey < currentMonthKey;
 
+  const houseId = await getFirstHouseId() ?? "";
   const [allExpenses, contributionHistory] = await Promise.all([
-    readExpenses(),
-    readContributionSettingsHistory(),
+    readExpenses(houseId),
+    readContributionSettingsHistory(houseId),
   ]);
 
   const summary = calculateMonthlyExpenseSummary(

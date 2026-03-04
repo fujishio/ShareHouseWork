@@ -20,9 +20,12 @@ function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
     return actor;
   };
 
+  const resolveActorHouseId = async () => "house-id-001";
+
   return {
     getDeps: {
       readNotices: async () => notices,
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
@@ -35,6 +38,7 @@ function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -48,6 +52,7 @@ function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -60,6 +65,7 @@ test("GET notices: deletedAt ありを除外", async () => {
   const notices: Notice[] = [
     {
       id: "n1",
+      houseId: "house-id-001",
       title: "A",
       body: "",
       postedBy: "あなた",
@@ -68,6 +74,7 @@ test("GET notices: deletedAt ありを除外", async () => {
     },
     {
       id: "n2",
+      houseId: "house-id-001",
       title: "B",
       body: "",
       postedBy: "あなた",
@@ -139,6 +146,7 @@ test("POST/DELETE notices: 正常系で監査ログ", async () => {
   const notices: Notice[] = [
     {
       id: "n1",
+      houseId: "house-id-001",
       title: "A",
       body: "",
       postedBy: "あなた",

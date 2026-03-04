@@ -66,3 +66,15 @@ Mar 04, 2026 8:37:18 PM com.google.cloud.datastore.emulator.firestore.websocket.
 INFO: Websocket client disconnected
 Mar 04, 2026 8:56:15 PM com.google.cloud.datastore.emulator.firestore.websocket.WebSocketChannelHandler initChannel
 INFO: Connected to new websocket client
+Mar 04, 2026 10:09:57 PM com.google.cloud.datastore.emulator.firestore.websocket.WebSocketChannelHandler channelClosed
+INFO: Websocket client disconnected
+Mar 04, 2026 10:14:09 PM com.google.cloud.datastore.emulator.firestore.websocket.WebSocketChannelHandler initChannel
+INFO: Connected to new websocket client
+Mar 04, 2026 10:30:31 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected HTTP/2 connection.
+Mar 04, 2026 11:35:13 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected HTTP/2 connection.
+Multiple projectIds are not recommended in single project mode. Requested project ID sharehousework, but the emulator is configured for demo-sharehouse-work. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
+Mar 04, 2026 11:40:02 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected HTTP/2 connection.
+Multiple projectIds are not recommended in single project mode. Requested project ID sharehousework, but the emulator is configured for demo-sharehouse-work. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.

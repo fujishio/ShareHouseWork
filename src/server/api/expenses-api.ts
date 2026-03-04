@@ -22,7 +22,8 @@ type AuthenticatedUser = {
 };
 
 export type GetExpensesDeps = {
-  readExpenses: () => Promise<ExpenseRecord[]>;
+  readExpenses: (houseId: string) => Promise<ExpenseRecord[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
@@ -30,6 +31,7 @@ export type GetExpensesDeps = {
 export type CreateExpenseDeps = {
   appendExpense: (input: CreateExpenseInput) => Promise<ExpenseRecord>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -42,7 +44,8 @@ export type DeleteExpenseDeps = {
     input: { canceledBy: string; cancelReason: string },
     canceledAt: string
   ) => Promise<ExpenseRecord | null>;
-  readExpenses: () => Promise<ExpenseRecord[]>;
+  readExpenses: (houseId: string) => Promise<ExpenseRecord[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -84,7 +87,10 @@ export async function handleGetExpenses(request: Request, deps: GetExpensesDeps)
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
-  const expenses = await deps.readExpenses();
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
+  const expenses = await deps.readExpenses(houseId);
   return Response.json({ data: expenses });
 }
 
@@ -94,6 +100,9 @@ export async function handleCreateExpense(
 ) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   let body: unknown;
   try {
@@ -136,6 +145,7 @@ export async function handleCreateExpense(
   }
 
   const input: CreateExpenseInput = {
+    houseId,
     title: parsed.data.title,
     amount: parsed.data.amount,
     category: parsed.data.category,
@@ -146,6 +156,7 @@ export async function handleCreateExpense(
   const created = await deps.appendExpense(input);
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "expense_created",
     actor: actor.name,
     details: {
@@ -168,6 +179,9 @@ export async function handleDeleteExpense(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
 
   let body: unknown;
@@ -184,7 +198,7 @@ export async function handleDeleteExpense(
   const cancelReason = parsed.data.cancelReason;
 
   const canceledAt = deps.now();
-  const existing = (await deps.readExpenses()).find((expense) => expense.id === id);
+  const existing = (await deps.readExpenses(houseId)).find((expense) => expense.id === id);
   if (!existing) {
     return errorResponse("Expense not found", 404, "EXPENSE_NOT_FOUND");
   }
@@ -204,6 +218,7 @@ export async function handleDeleteExpense(
 
   if (!existing.canceledAt && updated.canceledAt) {
     await logAppAuditEvent(deps, {
+      houseId,
       action: "expense_canceled",
       actor: actor.name,
       createdAt: canceledAt,

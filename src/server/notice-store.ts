@@ -10,6 +10,7 @@ const COLLECTION = "notices";
 function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
   return {
     id,
+    houseId: data.houseId,
     title: data.title,
     body: data.body,
     postedBy: data.postedBy,
@@ -20,9 +21,10 @@ function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
   };
 }
 
-export async function readNotices(): Promise<Notice[]> {
+export async function readNotices(houseId: string): Promise<Notice[]> {
   return readCollection({
     collection: COLLECTION,
+    whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "postedAt", direction: "desc" },
     mapDoc: docToNotice,
   });

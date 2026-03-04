@@ -3,7 +3,7 @@ import {
   handleGetTaskCompletions,
 } from "@/server/api/task-completions-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import {
   appendTaskCompletion,
   readTaskCompletions,
@@ -17,6 +17,7 @@ const deps = {
   readTaskCompletions,
   appendTaskCompletion,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

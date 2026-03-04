@@ -10,6 +10,7 @@ import type {
 const records: TaskCompletionRecord[] = [
   {
     id: "1",
+    houseId: "h1",
     taskId: "1",
     taskName: "A",
     points: 5,
@@ -19,6 +20,7 @@ const records: TaskCompletionRecord[] = [
   },
   {
     id: "2",
+    houseId: "h1",
     taskId: "2",
     taskName: "B",
     points: 10,
@@ -28,6 +30,7 @@ const records: TaskCompletionRecord[] = [
   },
   {
     id: "3",
+    houseId: "h1",
     taskId: "2",
     taskName: "C",
     points: 7,
@@ -37,6 +40,7 @@ const records: TaskCompletionRecord[] = [
   },
   {
     id: "4",
+    houseId: "h1",
     taskId: "3",
     taskName: "D",
     points: 2,
@@ -49,6 +53,7 @@ const records: TaskCompletionRecord[] = [
 const expenses: ExpenseRecord[] = [
   {
     id: "1",
+    houseId: "h1",
     title: "電気代",
     amount: 12000,
     category: "水道・光熱費",
@@ -57,6 +62,7 @@ const expenses: ExpenseRecord[] = [
   },
   {
     id: "2",
+    houseId: "h1",
     title: "食材",
     amount: 5000,
     category: "食費",
@@ -68,6 +74,7 @@ const expenses: ExpenseRecord[] = [
 const shoppingItems: ShoppingItem[] = [
   {
     id: "1",
+    houseId: "h1",
     name: "洗剤",
     quantity: "1",
     memo: "",
@@ -78,6 +85,7 @@ const shoppingItems: ShoppingItem[] = [
   },
   {
     id: "2",
+    houseId: "h1",
     name: "ティッシュ",
     quantity: "2",
     memo: "大容量",
@@ -123,6 +131,7 @@ test("completedAt in UTC previous month but JST current month is included", () =
   const boundaryCaseCompletions: TaskCompletionRecord[] = [
     {
       id: "b1",
+      houseId: "h1",
       taskId: "t1",
       taskName: "A",
       points: 5,

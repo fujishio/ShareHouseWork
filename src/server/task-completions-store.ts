@@ -10,6 +10,7 @@ const COLLECTION = "taskCompletions";
 function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskCompletionRecord {
   return {
     id,
+    houseId: data.houseId,
     taskId: data.taskId,
     taskName: data.taskName,
     points: data.points,
@@ -22,9 +23,10 @@ function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskComp
   };
 }
 
-export async function readTaskCompletions(): Promise<TaskCompletionRecord[]> {
+export async function readTaskCompletions(houseId: string): Promise<TaskCompletionRecord[]> {
   return readCollection({
     collection: COLLECTION,
+    whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "completedAt", direction: "desc" },
     mapDoc: docToRecord,
   });

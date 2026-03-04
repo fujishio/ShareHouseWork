@@ -12,6 +12,7 @@ import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
 import { listUsers } from "@/server/user-store";
+import { getFirstHouseId } from "@/server/house-store";
 import { toJstMonthKey } from "@/shared/lib/time";
 import type { ContributionData, Member, TaskCompletionRecord } from "@/types";
 
@@ -45,12 +46,13 @@ function computeContributionData(records: TaskCompletionRecord[], users: Member[
 export default async function HomePage() {
   const now = new Date();
   const currentMonthKey = toJstMonthKey(now);
+  const houseId = await getFirstHouseId() ?? "";
 
   const [completions, allExpenses, contributionHistory, allNotices, users] = await Promise.all([
-    readTaskCompletions(),
-    readExpenses(),
-    readContributionSettingsHistory(),
-    readNotices(),
+    readTaskCompletions(houseId),
+    readExpenses(houseId),
+    readContributionSettingsHistory(houseId),
+    readNotices(houseId),
     listUsers(),
   ]);
 

@@ -18,13 +18,15 @@ type AuthenticatedUser = {
 };
 
 export type GetTasksDeps = {
-  readTasks: () => Promise<Task[]>;
+  readTasks: (houseId: string) => Promise<Task[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
 
 export type CreateTaskDeps = {
   createTask: (input: CreateTaskInput) => Promise<Task>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
@@ -84,13 +86,19 @@ export async function handleGetTasks(request: Request, deps: GetTasksDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
-  const tasks = await deps.readTasks();
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
+  const tasks = await deps.readTasks(houseId);
   return Response.json({ data: tasks });
 }
 
 export async function handleCreateTask(request: Request, deps: CreateTaskDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   let body: unknown;
   try {
@@ -110,6 +118,7 @@ export async function handleCreateTask(request: Request, deps: CreateTaskDeps) {
   }
 
   const input: CreateTaskInput = {
+    houseId,
     name: parsed.data.name,
     category: parsed.data.category,
     points: parsed.data.points,

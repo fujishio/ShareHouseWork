@@ -25,6 +25,7 @@ export type House = {
 
 export type TaskCompletion = {
   id: string;
+  houseId: string;
   taskId: string;
   taskName: string;
   points: HousePoints;
@@ -37,6 +38,7 @@ export type TaskCompletionSource = "app";
 
 export type TaskCompletionRecord = {
   id: string;
+  houseId: string;
   taskId: string;
   taskName: string;
   points: HousePoints;
@@ -49,6 +51,7 @@ export type TaskCompletionRecord = {
 };
 
 export type CreateTaskCompletionInput = {
+  houseId: string;
   taskId: string;
   completedBy: string;
   completedAt: IsoDateTimeString;
@@ -87,6 +90,7 @@ export type AuditAction =
 
 export type AuditLogRecord = {
   id: string;
+  houseId: string;
   action: AuditAction;
   actor: string;
   source: "app" | "system";
@@ -117,6 +121,7 @@ export type ExpenseCategory =
 
 export type ExpenseRecord = {
   id: string;
+  houseId: string;
   title: string;
   amount: MoneyYen;
   category: ExpenseCategory;
@@ -128,6 +133,7 @@ export type ExpenseRecord = {
 };
 
 export type CreateExpenseInput = {
+  houseId: string;
   title: string;
   amount: MoneyYen;
   category: ExpenseCategory;
@@ -146,11 +152,13 @@ export type ContributionSettings = {
 };
 
 export type ContributionSettingsHistoryRecord = ContributionSettings & {
+  houseId: string;
   effectiveMonth: YearMonthString;
 };
 
 export type ShoppingItem = {
   id: string;
+  houseId: string;
   name: string;
   quantity: string;
   memo: string;
@@ -164,6 +172,7 @@ export type ShoppingItem = {
 };
 
 export type CreateShoppingItemInput = {
+  houseId: string;
   name: string;
   quantity: string;
   memo: string;
@@ -187,6 +196,7 @@ export type ContributionSettingsResponse = ApiSuccessResponse<ContributionSettin
 
 export type Notice = {
   id: string;
+  houseId: string;
   title: string;
   body: string;
   postedBy: string;
@@ -197,6 +207,7 @@ export type Notice = {
 };
 
 export type CreateNoticeInput = {
+  houseId: string;
   title: string;
   body: string;
   postedBy: string;
@@ -222,6 +233,7 @@ export type RuleCategory =
 
 export type Rule = {
   id: string;
+  houseId: string;
   title: string;
   body: string;
   category: RuleCategory;
@@ -234,6 +246,7 @@ export type Rule = {
 };
 
 export type CreateRuleInput = {
+  houseId: string;
   title: string;
   body: string;
   category: RuleCategory;
@@ -268,6 +281,7 @@ export type TaskCategory =
 
 export type Task = {
   id: string;
+  houseId: string;
   name: string;
   points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
@@ -276,6 +290,7 @@ export type Task = {
 };
 
 export type CreateTaskInput = {
+  houseId: string;
   name: string;
   category: TaskCategory;
   points: HousePoints;

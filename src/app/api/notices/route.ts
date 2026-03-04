@@ -3,11 +3,12 @@ import {
   handleGetNotices,
 } from "@/server/api/notices-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendNotice, readNotices } from "@/server/notice-store";
 
 const getDeps = {
   readNotices,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
 };
@@ -15,6 +16,7 @@ const getDeps = {
 const createDeps = {
   appendNotice,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

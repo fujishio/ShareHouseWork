@@ -18,8 +18,8 @@ type AuthenticatedActor = {
 };
 
 export type TaskCompletionsApiDeps = {
-  readTasks: () => Promise<Task[]>;
-  readTaskCompletions: () => Promise<TaskCompletionRecord[]>;
+  readTasks: (houseId: string) => Promise<Task[]>;
+  readTaskCompletions: (houseId: string) => Promise<TaskCompletionRecord[]>;
   appendTaskCompletion: (
     record: Omit<TaskCompletionRecord, "id">
   ) => Promise<TaskCompletionRecord>;
@@ -32,6 +32,7 @@ export type TaskCompletionsApiDeps = {
   appendAuditLog: (
     record: Omit<AuditLogRecord, "id">
   ) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedActor>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -39,7 +40,7 @@ export type TaskCompletionsApiDeps = {
 
 export type GetTaskCompletionsDeps = Pick<
   TaskCompletionsApiDeps,
-  "readTaskCompletions" | "verifyRequest" | "unauthorizedResponse"
+  "readTaskCompletions" | "resolveActorHouseId" | "verifyRequest" | "unauthorizedResponse"
 >;
 
 export type CreateTaskCompletionDeps = Pick<
@@ -47,6 +48,7 @@ export type CreateTaskCompletionDeps = Pick<
   | "readTasks"
   | "appendTaskCompletion"
   | "appendAuditLog"
+  | "resolveActorHouseId"
   | "verifyRequest"
   | "unauthorizedResponse"
   | "now"
@@ -57,6 +59,7 @@ export type CancelTaskCompletionDeps = Pick<
   | "readTaskCompletions"
   | "cancelTaskCompletion"
   | "appendAuditLog"
+  | "resolveActorHouseId"
   | "verifyRequest"
   | "unauthorizedResponse"
   | "now"
@@ -101,6 +104,9 @@ export async function handleGetTaskCompletions(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { searchParams } = new URL(request.url);
   const queryInput: Record<string, string> = {};
   const fromRaw = searchParams.get("from");
@@ -136,7 +142,7 @@ export async function handleGetTaskCompletions(
   const to = parsedQuery.data.to ? new Date(parsedQuery.data.to) : null;
   const limit = parsedQuery.data.limit;
 
-  const records = await deps.readTaskCompletions();
+  const records = await deps.readTaskCompletions(houseId);
   const filtered = records
     .filter((record) => {
       const completedAt = new Date(record.completedAt);
@@ -161,6 +167,9 @@ export async function handleCreateTaskCompletion(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const rawPayload: unknown = await request.json().catch(() => null);
   const parsedPayload = createTaskCompletionSchema.safeParse(rawPayload);
   if (!parsedPayload.success) {
@@ -173,13 +182,14 @@ export async function handleCreateTaskCompletion(
   }
   const { taskId, completedAt, source } = parsedPayload.data;
 
-  const tasks = await deps.readTasks();
+  const tasks = await deps.readTasks(houseId);
   const task = tasks.find((item) => item.id === taskId);
   if (!task) {
     return errorResponse("taskId does not exist.", 404, "TASK_NOT_FOUND");
   }
 
   const created = await deps.appendTaskCompletion({
+    houseId,
     taskId,
     taskName: task.name,
     points: task.points,
@@ -189,6 +199,7 @@ export async function handleCreateTaskCompletion(
   });
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "task_completion_created",
     actor: actor.name,
     details: {
@@ -208,6 +219,9 @@ export async function handleCancelTaskCompletion(
 ) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   const { id } = await context.params;
 
@@ -229,7 +243,7 @@ export async function handleCancelTaskCompletion(
   }
   const cancelReason = parsedBody.data.cancelReason;
 
-  const existing = (await deps.readTaskCompletions()).find(
+  const existing = (await deps.readTaskCompletions(houseId)).find(
     (record) => record.id === id
   );
   if (!existing) {
@@ -253,6 +267,7 @@ export async function handleCancelTaskCompletion(
   }
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "task_completion_canceled",
     actor: actor.name,
     createdAt: canceledAt,

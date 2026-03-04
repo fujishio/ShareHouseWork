@@ -10,6 +10,7 @@ export type AuditLogDeps = {
 export async function logAppAuditEvent(
   deps: AuditLogDeps,
   input: {
+    houseId: string;
     action: AuditLogRecord["action"];
     actor: string;
     details: AuditLogRecord["details"];
@@ -17,6 +18,7 @@ export async function logAppAuditEvent(
   }
 ): Promise<AuditLogRecord> {
   return deps.appendAuditLog({
+    houseId: input.houseId,
     action: input.action,
     actor: input.actor,
     source: "app",

@@ -10,6 +10,7 @@ const COLLECTION = "shoppingItems";
 function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingItem {
   return {
     id,
+    houseId: data.houseId,
     name: data.name,
     quantity: data.quantity,
     memo: data.memo,
@@ -23,9 +24,10 @@ function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingIt
   };
 }
 
-export async function readShoppingItems(): Promise<ShoppingItem[]> {
+export async function readShoppingItems(houseId: string): Promise<ShoppingItem[]> {
   return readCollection({
     collection: COLLECTION,
+    whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "addedAt", direction: "desc" },
     mapDoc: docToItem,
   });

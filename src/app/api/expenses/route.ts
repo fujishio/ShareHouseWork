@@ -3,11 +3,12 @@ import {
   handleGetExpenses,
 } from "@/server/api/expenses-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendExpense, readExpenses } from "@/server/expense-store";
 
 const getDeps = {
   readExpenses,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
 };
@@ -15,6 +16,7 @@ const getDeps = {
 const createDeps = {
   appendExpense,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

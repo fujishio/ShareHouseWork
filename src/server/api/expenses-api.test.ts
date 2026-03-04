@@ -16,9 +16,12 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
   const cancelCalls: Array<{ id: string; reason: string; canceledBy: string; canceledAt: string }> = [];
 
+  const resolveActorHouseId = async () => "house-id-001";
+
   return {
     getDeps: {
       readExpenses: async () => expenses,
+      resolveActorHouseId,
       verifyRequest: async () => {
         if (!actor) throw new Error("unauthorized");
         return actor;
@@ -31,6 +34,7 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest: async () => {
         if (!actor) throw new Error("unauthorized");
         return actor;
@@ -54,6 +58,7 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
         return { ...existing, canceledAt, canceledBy: input.canceledBy, cancelReason: input.cancelReason };
       },
       readExpenses: async () => expenses,
+      resolveActorHouseId,
       verifyRequest: async () => {
         if (!actor) throw new Error("unauthorized");
         return actor;
@@ -177,6 +182,7 @@ test("DELETE expenses: 正常系で取消と監査ログを追加", async () => 
   const expenses: ExpenseRecord[] = [
     {
       id: "e1",
+      houseId: "house-id-001",
       title: "電気代",
       amount: 1000,
       category: "水道・光熱費",

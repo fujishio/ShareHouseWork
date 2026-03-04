@@ -10,6 +10,7 @@ const COLLECTION = "tasks";
 function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
   return {
     id,
+    houseId: data.houseId,
     name: data.name,
     category: data.category,
     points: data.points,
@@ -18,10 +19,13 @@ function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
   };
 }
 
-export async function readTasks(): Promise<Task[]> {
+export async function readTasks(houseId: string): Promise<Task[]> {
   return readCollection({
     collection: COLLECTION,
-    whereEquals: [{ field: "deletedAt", value: null }],
+    whereEquals: [
+      { field: "houseId", value: houseId },
+      { field: "deletedAt", value: null },
+    ],
     mapDoc: docToTask,
   });
 }

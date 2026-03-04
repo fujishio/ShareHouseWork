@@ -22,9 +22,12 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
     return actor;
   };
 
+  const resolveActorHouseId = async () => "house-id-001";
+
   return {
     getDeps: {
       readRules: async () => rules,
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
@@ -34,6 +37,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -47,6 +51,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -60,6 +65,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -73,6 +79,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -85,6 +92,7 @@ test("GET rules: deletedAt ありを除外", async () => {
   const rules: Rule[] = [
     {
       id: "r1",
+      houseId: "house-id-001",
       title: "A",
       body: "",
       category: "共用部",
@@ -93,6 +101,7 @@ test("GET rules: deletedAt ありを除外", async () => {
     },
     {
       id: "r2",
+      houseId: "house-id-001",
       title: "B",
       body: "",
       category: "共用部",
@@ -179,6 +188,7 @@ test("PUT rules: title不足は400", async () => {
   const rules: Rule[] = [
     {
       id: "r1",
+      houseId: "house-id-001",
       title: "A",
       body: "",
       category: "共用部",
@@ -223,6 +233,7 @@ test("PATCH/DELETE rules: 正常系で監査ログ", async () => {
   const rules: Rule[] = [
     {
       id: "r1",
+      houseId: "house-id-001",
       title: "A",
       body: "",
       category: "共用部",

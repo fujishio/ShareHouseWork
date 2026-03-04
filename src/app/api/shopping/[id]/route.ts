@@ -3,7 +3,7 @@ import {
   handlePatchShoppingItem,
 } from "@/server/api/shopping-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import {
   cancelShoppingItem,
   checkShoppingItem,
@@ -18,6 +18,7 @@ const patchDeps = {
   checkShoppingItem,
   uncheckShoppingItem,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),
@@ -27,6 +28,7 @@ const deleteDeps = {
   readShoppingItems,
   cancelShoppingItem,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

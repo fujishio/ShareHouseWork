@@ -37,6 +37,12 @@ export async function verifyRequest(request: Request): Promise<AuthenticatedUser
   };
 }
 
+export async function resolveActorHouseId(uid: string): Promise<string | null> {
+  const { listHouses } = await import("./house-store");
+  const houses = await listHouses(uid);
+  return houses[0]?.id ?? null;
+}
+
 export function unauthorizedResponse(message = "Unauthorized") {
   return Response.json(
     { error: message, code: "UNAUTHORIZED", details: { reason: message } },

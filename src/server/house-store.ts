@@ -131,6 +131,12 @@ export async function grantHostRole(houseId: string, userUid: string): Promise<H
   return docToHouse(houseId, { ...data, hostUids });
 }
 
+export async function getFirstHouseId(): Promise<string | null> {
+  const db = getAdminFirestore();
+  const snapshot = await db.collection(COLLECTION).limit(1).get();
+  return snapshot.empty ? null : snapshot.docs[0]!.id;
+}
+
 export async function revokeHostRole(houseId: string, userUid: string): Promise<House | null> {
   const db = getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(houseId);

@@ -11,6 +11,7 @@ const COLLECTION = "rules";
 function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
   return {
     id,
+    houseId: data.houseId,
     title: data.title,
     body: data.body,
     category: data.category,
@@ -23,9 +24,10 @@ function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
   };
 }
 
-export async function readRules(): Promise<Rule[]> {
+export async function readRules(houseId: string): Promise<Rule[]> {
   return readCollection({
     collection: COLLECTION,
+    whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "createdAt", direction: "desc" },
     mapDoc: docToRule,
   });

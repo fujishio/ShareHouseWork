@@ -21,9 +21,12 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
     return actor;
   };
 
+  const resolveActorHouseId = async () => "house-id-001";
+
   return {
     getDeps: {
       readShoppingItems: async () => items,
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
@@ -33,6 +36,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -53,6 +57,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -67,6 +72,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
         auditLogs.push(record);
         return { id: `a-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -135,6 +141,7 @@ test("PATCH shopping: uncheckで監査ログ", async () => {
   const items: ShoppingItem[] = [
     {
       id: "s1",
+      houseId: "house-id-001",
       name: "洗剤",
       quantity: "1",
       memo: "",
@@ -184,6 +191,7 @@ test("PATCH shopping: checkで監査ログ", async () => {
   const items: ShoppingItem[] = [
     {
       id: "s1",
+      houseId: "house-id-001",
       name: "洗剤",
       quantity: "1",
       memo: "",
@@ -227,6 +235,7 @@ test("DELETE shopping: 正常系で取消と監査ログ", async () => {
   const items: ShoppingItem[] = [
     {
       id: "s1",
+      houseId: "house-id-001",
       name: "洗剤",
       quantity: "1",
       memo: "",

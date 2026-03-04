@@ -19,7 +19,8 @@ type AuthenticatedUser = {
 };
 
 export type GetNoticesDeps = {
-  readNotices: () => Promise<Notice[]>;
+  readNotices: (houseId: string) => Promise<Notice[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
@@ -27,6 +28,7 @@ export type GetNoticesDeps = {
 export type CreateNoticeDeps = {
   appendNotice: (input: CreateNoticeInput) => Promise<Notice>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -35,6 +37,7 @@ export type CreateNoticeDeps = {
 export type DeleteNoticeDeps = {
   deleteNotice: (noticeId: string, deletedBy: string, deletedAt: string) => Promise<Notice | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -59,7 +62,10 @@ export async function handleGetNotices(request: Request, deps: GetNoticesDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
-  const notices = await deps.readNotices();
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
+  const notices = await deps.readNotices(houseId);
   const active = notices.filter((notice) => !notice.deletedAt);
   return Response.json({ data: active });
 }
@@ -67,6 +73,9 @@ export async function handleGetNotices(request: Request, deps: GetNoticesDeps) {
 export async function handleCreateNotice(request: Request, deps: CreateNoticeDeps) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   let body: unknown;
   try {
@@ -90,6 +99,7 @@ export async function handleCreateNotice(request: Request, deps: CreateNoticeDep
   }
 
   const input: CreateNoticeInput = {
+    houseId,
     title: parsed.data.title,
     body: parsed.data.body,
     postedBy: actor.name,
@@ -100,6 +110,7 @@ export async function handleCreateNotice(request: Request, deps: CreateNoticeDep
   const created = await deps.appendNotice(input);
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "notice_created",
     actor: actor.name,
     details: { noticeId: created.id, title: created.title, isImportant: created.isImportant },
@@ -116,6 +127,9 @@ export async function handleDeleteNotice(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
   const deletedAt = deps.now();
   const updated = await deps.deleteNotice(id, actor.name, deletedAt);
@@ -125,6 +139,7 @@ export async function handleDeleteNotice(
   }
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "notice_deleted",
     actor: actor.name,
     details: { noticeId: id, title: updated.title },

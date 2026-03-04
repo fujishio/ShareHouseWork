@@ -3,11 +3,12 @@ import {
   handleGetShoppingItems,
 } from "@/server/api/shopping-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendShoppingItem, readShoppingItems } from "@/server/shopping-store";
 
 const getDeps = {
   readShoppingItems,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
 };
@@ -15,6 +16,7 @@ const getDeps = {
 const createDeps = {
   appendShoppingItem,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

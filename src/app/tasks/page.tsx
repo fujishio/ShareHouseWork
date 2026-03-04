@@ -6,6 +6,7 @@ import MonthlyContributionCarousel from "@/components/MonthlyContributionCarouse
 import RecentCompletionsSection from "@/components/RecentCompletionsSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readTasks } from "@/server/task-store";
+import { getFirstHouseId } from "@/server/house-store";
 import { formatRelativeTime } from "@/shared/lib/time";
 
 function toMonthKey(date: Date): string {
@@ -50,7 +51,8 @@ function StatusBadge({ overdueDays }: { overdueDays: number }) {
 
 export default async function TasksPage() {
   const now = new Date();
-  const [completions, tasks] = await Promise.all([readTaskCompletions(), readTasks()]);
+  const houseId = await getFirstHouseId() ?? "";
+  const [completions, tasks] = await Promise.all([readTaskCompletions(houseId), readTasks(houseId)]);
   const validCompletions = completions.filter((record) => !record.canceledAt);
 
   const latestByTask = getLatestCompletionByTask(completions);

@@ -1,10 +1,11 @@
 import { handleCreateRule, handleGetRules } from "@/server/api/rules-api";
 import { appendAuditLog } from "@/server/audit-log-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendRule, readRules } from "@/server/rule-store";
 
 const getDeps = {
   readRules,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
 };
@@ -12,6 +13,7 @@ const getDeps = {
 const createDeps = {
   appendRule,
   appendAuditLog,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

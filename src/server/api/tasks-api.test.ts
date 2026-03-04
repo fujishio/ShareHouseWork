@@ -20,9 +20,12 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[] }) {
     return actor;
   };
 
+  const resolveActorHouseId = async () => "house-id-001";
+
   return {
     getDeps: {
       readTasks: async () => tasks,
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
@@ -31,6 +34,7 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[] }) {
         id: "t-new",
         ...input,
       }),
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
@@ -159,6 +163,7 @@ test("DELETE tasks: 正常系", async () => {
   const tasks: Task[] = [
     {
       id: "t1",
+      houseId: "house-id-001",
       name: "掃除",
       category: "共用部の掃除",
       points: 2,

@@ -56,6 +56,7 @@ function buildDeps(options?: {
         auditLogs.push(record);
         return { id: `audit-${auditLogs.length}`, ...record };
       },
+      resolveActorHouseId: async () => "house-id-001",
       verifyRequest: async () => {
         if (!actor) {
           throw new Error("unauthorized");
@@ -91,6 +92,7 @@ test("GET: from/to/filter/sort/limit が適用される", async () => {
   const completions: TaskCompletionRecord[] = [
     {
       id: "c1",
+      houseId: "house-id-001",
       taskId: "t1",
       taskName: "A",
       points: 10,
@@ -100,6 +102,7 @@ test("GET: from/to/filter/sort/limit が適用される", async () => {
     },
     {
       id: "c2",
+      houseId: "house-id-001",
       taskId: "t1",
       taskName: "A",
       points: 10,
@@ -109,6 +112,7 @@ test("GET: from/to/filter/sort/limit が適用される", async () => {
     },
     {
       id: "c3",
+      houseId: "house-id-001",
       taskId: "t1",
       taskName: "A",
       points: 10,
@@ -163,6 +167,7 @@ test("GET: 不正なtoクエリは400", async () => {
 test("GET: limitは200にクランプされる", async () => {
   const completions: TaskCompletionRecord[] = Array.from({ length: 210 }, (_, index) => ({
     id: `c${index}`,
+    houseId: "house-id-001",
     taskId: "t1",
     taskName: "A",
     points: 10,
@@ -227,6 +232,7 @@ test("POST: 正常系で完了記録と監査ログを作成", async () => {
   const tasks: Task[] = [
     {
       id: "t1",
+      houseId: "house-id-001",
       name: "風呂掃除",
       points: 20,
       category: "水回りの掃除",
@@ -252,6 +258,7 @@ test("POST: 正常系で完了記録と監査ログを作成", async () => {
   assert.equal(response.status, 201);
   assert.equal(createdPayloads.length, 1);
   assert.deepEqual(createdPayloads[0], {
+    houseId: "house-id-001",
     taskId: "t1",
     taskName: "風呂掃除",
     points: 20,
@@ -326,6 +333,7 @@ test("PATCH: 既に取消済みは409", async () => {
   const completions: TaskCompletionRecord[] = [
     {
       id: "c1",
+      houseId: "house-id-001",
       taskId: "t1",
       taskName: "A",
       points: 10,
@@ -360,6 +368,7 @@ test("PATCH: 正常系で取消と監査ログを作成", async () => {
   const completions: TaskCompletionRecord[] = [
     {
       id: "c1",
+      houseId: "house-id-001",
       taskId: "t1",
       taskName: "A",
       points: 10,

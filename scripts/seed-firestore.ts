@@ -5,7 +5,10 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { TASK_DEFINITIONS } from "../src/domain/tasks/task-definitions.ts";
 import { toJstMonthKey } from "../src/shared/lib/time.ts";
 
+const HOUSE_ID = "house-main";
+
 type SeedTask = {
+  houseId: string;
   name: string;
   category: string;
   points: number;
@@ -68,6 +71,7 @@ async function clearCollection(collectionName: string) {
 function buildTaskSeeds(): SeedTask[] {
   return Object.entries(TASK_DEFINITIONS).flatMap(([category, defs]) =>
     defs.map((task) => ({
+      houseId: HOUSE_ID,
       name: task.name,
       category,
       points: task.points,
@@ -99,7 +103,7 @@ async function seedUsers() {
 
 async function seedHouses() {
   const db = getFirestore();
-  await db.collection("houses").doc("house-main").set({
+  await db.collection("houses").doc(HOUSE_ID).set({
     name: "テストハウス",
     description: "テスト用の初期ハウス",
     ownerUid: "u-owner",
@@ -123,6 +127,7 @@ async function seedRules() {
   const rules = [
     {
       id: "rule-001",
+      houseId: HOUSE_ID,
       title: "深夜の騒音を控える",
       body: "23時以降は通話・音楽の音量を下げる",
       category: "騒音",
@@ -135,6 +140,7 @@ async function seedRules() {
     },
     {
       id: "rule-002",
+      houseId: HOUSE_ID,
       title: "ゴミ出しルール",
       body: "可燃は火曜・金曜朝に出す",
       category: "ゴミ捨て",
@@ -147,6 +153,7 @@ async function seedRules() {
     },
     {
       id: "rule-003",
+      houseId: HOUSE_ID,
       title: "来客時の共有",
       body: "来客時は前日までに共有チャットへ連絡",
       category: "来客",
@@ -172,6 +179,7 @@ async function seedShoppingItems() {
   const items = [
     {
       id: "shop-001",
+      houseId: HOUSE_ID,
       name: "トイレットペーパー",
       quantity: "12ロール",
       memo: "できれば2倍巻き",
@@ -185,6 +193,7 @@ async function seedShoppingItems() {
     },
     {
       id: "shop-002",
+      houseId: HOUSE_ID,
       name: "食器用洗剤",
       quantity: "1本",
       memo: "詰め替え用でも可",
@@ -198,6 +207,7 @@ async function seedShoppingItems() {
     },
     {
       id: "shop-003",
+      houseId: HOUSE_ID,
       name: "牛乳",
       quantity: "2本",
       memo: "低脂肪1本",
@@ -224,6 +234,7 @@ async function seedExpenses() {
   const expenses = [
     {
       id: "exp-001",
+      houseId: HOUSE_ID,
       title: "食材まとめ買い",
       amount: 6800,
       category: "食費",
@@ -235,6 +246,7 @@ async function seedExpenses() {
     },
     {
       id: "exp-002",
+      houseId: HOUSE_ID,
       title: "トイレットペーパー",
       amount: 1580,
       category: "日用品",
@@ -246,6 +258,7 @@ async function seedExpenses() {
     },
     {
       id: "exp-003",
+      houseId: HOUSE_ID,
       title: "キッチン洗剤",
       amount: 420,
       category: "消耗品",
@@ -270,6 +283,7 @@ async function seedNotices() {
   const notices = [
     {
       id: "notice-001",
+      houseId: HOUSE_ID,
       title: "3月の共益費について",
       body: "3/10までに各自15,000円の入金をお願いします",
       postedBy: "家主",
@@ -280,6 +294,7 @@ async function seedNotices() {
     },
     {
       id: "notice-002",
+      houseId: HOUSE_ID,
       title: "今週の掃除当番共有",
       body: "リビング掃除は週前半、風呂掃除は週後半で分担",
       postedBy: "パートナー",
@@ -290,6 +305,7 @@ async function seedNotices() {
     },
     {
       id: "notice-003",
+      houseId: HOUSE_ID,
       title: "旧連絡（テスト削除済み）",
       body: "この投稿は削除済みデータ検証用",
       postedBy: "家主",
@@ -311,10 +327,12 @@ async function seedNotices() {
 async function seedContributionSettings() {
   const db = getFirestore();
   const month = toJstMonthKey(new Date("2026-03-02T00:00:00.000Z"));
+  const docId = `${HOUSE_ID}_${month}`;
   await db
     .collection("contributionSettings")
-    .doc(month)
+    .doc(docId)
     .set({
+      houseId: HOUSE_ID,
       monthlyAmountPerPerson: 15000,
       memberCount: 4,
       effectiveMonth: month,
@@ -326,6 +344,7 @@ async function seedTaskCompletions() {
   const records = [
     {
       id: "comp-001",
+      houseId: HOUSE_ID,
       taskId: "task-001",
       taskName: "【料理】共有の食事",
       points: 20,
@@ -338,6 +357,7 @@ async function seedTaskCompletions() {
     },
     {
       id: "comp-002",
+      houseId: HOUSE_ID,
       taskId: "task-020",
       taskName: "【リビング】掃除機がけ",
       points: 30,
@@ -350,6 +370,7 @@ async function seedTaskCompletions() {
     },
     {
       id: "comp-003",
+      houseId: HOUSE_ID,
       taskId: "task-026",
       taskName: "【ゴミ出し】可燃",
       points: 20,
@@ -375,6 +396,7 @@ async function seedAuditLogs() {
   const logs = [
     {
       id: "audit-001",
+      houseId: HOUSE_ID,
       action: "rule_created",
       actor: "家主",
       source: "app",
@@ -383,6 +405,7 @@ async function seedAuditLogs() {
     },
     {
       id: "audit-002",
+      houseId: HOUSE_ID,
       action: "notice_created",
       actor: "パートナー",
       source: "app",
@@ -391,6 +414,7 @@ async function seedAuditLogs() {
     },
     {
       id: "audit-003",
+      houseId: HOUSE_ID,
       action: "task_completion_canceled",
       actor: "パートナー",
       source: "app",

@@ -10,6 +10,7 @@ const COLLECTION = "expenses";
 function docToRecord(id: string, data: FirebaseFirestore.DocumentData): ExpenseRecord {
   return {
     id,
+    houseId: data.houseId,
     title: data.title,
     amount: data.amount,
     category: data.category,
@@ -21,9 +22,10 @@ function docToRecord(id: string, data: FirebaseFirestore.DocumentData): ExpenseR
   };
 }
 
-export async function readExpenses(): Promise<ExpenseRecord[]> {
+export async function readExpenses(houseId: string): Promise<ExpenseRecord[]> {
   return readCollection({
     collection: COLLECTION,
+    whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "purchasedAt", direction: "desc" },
     mapDoc: docToRecord,
   });

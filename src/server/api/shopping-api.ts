@@ -25,7 +25,8 @@ type AuthenticatedUser = {
 };
 
 export type GetShoppingDeps = {
-  readShoppingItems: () => Promise<ShoppingItem[]>;
+  readShoppingItems: (houseId: string) => Promise<ShoppingItem[]>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
@@ -33,13 +34,14 @@ export type GetShoppingDeps = {
 export type CreateShoppingDeps = {
   appendShoppingItem: (input: CreateShoppingItemInput) => Promise<ShoppingItem>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
 };
 
 export type PatchShoppingDeps = {
-  readShoppingItems: () => Promise<ShoppingItem[]>;
+  readShoppingItems: (houseId: string) => Promise<ShoppingItem[]>;
   checkShoppingItem: (
     id: string,
     input: { checkedBy: string },
@@ -47,19 +49,21 @@ export type PatchShoppingDeps = {
   ) => Promise<ShoppingItem | null>;
   uncheckShoppingItem: (id: string) => Promise<ShoppingItem | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
 };
 
 export type DeleteShoppingDeps = {
-  readShoppingItems: () => Promise<ShoppingItem[]>;
+  readShoppingItems: (houseId: string) => Promise<ShoppingItem[]>;
   cancelShoppingItem: (
     id: string,
     canceledBy: string,
     canceledAt: string
   ) => Promise<ShoppingItem | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -106,7 +110,10 @@ export async function handleGetShoppingItems(request: Request, deps: GetShopping
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
-  const items = await deps.readShoppingItems();
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
+  const items = await deps.readShoppingItems(houseId);
   return Response.json({ data: items });
 }
 
@@ -116,6 +123,9 @@ export async function handleCreateShoppingItem(
 ) {
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
+
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
   let body: unknown;
   try {
@@ -134,6 +144,7 @@ export async function handleCreateShoppingItem(
   }
 
   const input: CreateShoppingItemInput = {
+    houseId,
     name: parsed.data.name,
     quantity: parsed.data.quantity,
     memo: parsed.data.memo,
@@ -145,6 +156,7 @@ export async function handleCreateShoppingItem(
   const created = await deps.appendShoppingItem(input);
 
   await logAppAuditEvent(deps, {
+    houseId,
     action: "shopping_created",
     actor: actor.name,
     details: {
@@ -167,6 +179,9 @@ export async function handlePatchShoppingItem(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
 
   let body: unknown;
@@ -181,7 +196,7 @@ export async function handlePatchShoppingItem(
     return errorResponse("Invalid JSON", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
 
-  const existing = (await deps.readShoppingItems()).find((item) => item.id === id);
+  const existing = (await deps.readShoppingItems(houseId)).find((item) => item.id === id);
   if (!existing) {
     return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
@@ -194,6 +209,7 @@ export async function handlePatchShoppingItem(
 
     if (existing.checkedAt && !existing.canceledAt) {
       await logAppAuditEvent(deps, {
+        houseId,
         action: "shopping_unchecked",
         actor: actor.name,
         details: {
@@ -214,6 +230,7 @@ export async function handlePatchShoppingItem(
 
   if (!existing.checkedAt && !existing.canceledAt && updated.checkedAt) {
     await logAppAuditEvent(deps, {
+      houseId,
       action: "shopping_checked",
       actor: actor.name,
       details: {
@@ -235,9 +252,12 @@ export async function handleDeleteShoppingItem(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const houseId = await deps.resolveActorHouseId(actor.uid);
+  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
 
-  const existing = (await deps.readShoppingItems()).find((item) => item.id === id);
+  const existing = (await deps.readShoppingItems(houseId)).find((item) => item.id === id);
   if (!existing) {
     return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
   }
@@ -251,6 +271,7 @@ export async function handleDeleteShoppingItem(
 
   if (!existing.canceledAt && updated.canceledAt) {
     await logAppAuditEvent(deps, {
+      houseId,
       action: "shopping_canceled",
       actor: actor.name,
       details: {

@@ -2,7 +2,7 @@ import {
   readContributionSettings,
   writeContributionSettings,
 } from "@/server/contribution-settings-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import type { ContributionSettings } from "@/types";
 import { z } from "zod";
@@ -17,13 +17,23 @@ export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
 
-  const settings = await readContributionSettings();
+  const houseId = await resolveActorHouseId(actor.uid);
+  if (!houseId) {
+    return errorJson("No house found for user", "NO_HOUSE", 403);
+  }
+
+  const settings = await readContributionSettings(houseId);
   return successJson(settings);
 }
 
 export async function POST(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
+
+  const houseId = await resolveActorHouseId(actor.uid);
+  if (!houseId) {
+    return errorJson("No house found for user", "NO_HOUSE", 403);
+  }
 
   if (actor.name !== OWNER_MEMBER_NAME) {
     return errorJson(
@@ -74,6 +84,6 @@ export async function POST(request: Request) {
   }
   const input: ContributionSettings = parsed.data;
 
-  await writeContributionSettings(input);
+  await writeContributionSettings(houseId, input);
   return successJson(input);
 }
