@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import ContributionWidgetWrapper from "@/components/ContributionWidgetWrapper";
 import ExpenseWidget from "@/components/ExpenseWidget";
 import GreetingSection from "@/components/GreetingSection";

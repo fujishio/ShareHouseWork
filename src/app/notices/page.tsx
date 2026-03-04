@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { readNotices } from "@/server/notice-store";
 import NoticesSection from "@/components/NoticesSection";
 

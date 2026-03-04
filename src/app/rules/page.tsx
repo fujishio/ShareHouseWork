@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { readRules } from "@/server/rule-store";
 import RulesSection from "@/components/RulesSection";
 

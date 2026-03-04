@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { readShoppingItems } from "@/server/shopping-store";
 import ShoppingSection from "@/components/ShoppingSection";
 import { toJstMonthKey } from "@/shared/lib/time";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { AlertCircle, CheckCircle2, Clock, Star } from "lucide-react";
 import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import MonthlyContributionCarousel from "@/components/MonthlyContributionCarousel";

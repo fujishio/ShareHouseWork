@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { toJstMonthKey } from "@/shared/lib/time";
 import { Wallet } from "lucide-react";
 import { readExpenses } from "@/server/expense-store";
