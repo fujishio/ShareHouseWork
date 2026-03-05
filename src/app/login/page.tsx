@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FirebaseError } from "firebase/app";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 import { useAuth } from "@/context/AuthContext";
 import AppLogo from "@/components/AppLogo";
@@ -32,7 +32,9 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/");
+    if (!loading && user) {
+      router.replace(user.emailVerified ? "/" : "/verify-email");
+    }
   }, [user, loading, router]);
 
   if (loading) {
@@ -49,7 +51,13 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(getClientAuth(), email, password);
+      const credential = await signInWithEmailAndPassword(getClientAuth(), email, password);
+      await credential.user.reload();
+      if (!credential.user.emailVerified) {
+        await signOut(getClientAuth());
+        setError("メール認証が未完了です。受信メールのリンクを開いてからログインしてください");
+        return;
+      }
       router.replace("/");
     } catch (err) {
       setError(toLoginErrorMessage(err));

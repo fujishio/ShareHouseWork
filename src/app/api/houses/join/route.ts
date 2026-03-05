@@ -13,7 +13,7 @@ const deps = {
   syncContributionMemberCountForCurrentMonth,
   getUser,
   takeRateLimit,
-  verifyRequest,
+  verifyRequest: (request: Request) => verifyRequest(request, { requireEmailVerified: false }),
   unauthorizedResponse,
 };
 

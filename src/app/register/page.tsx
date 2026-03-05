@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft } from "lucide-react";
@@ -52,7 +52,9 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && !justRegistered.current) router.replace("/");
+    if (!loading && user && !justRegistered.current) {
+      router.replace(user.emailVerified ? "/" : "/verify-email");
+    }
   }, [user, loading, router]);
 
   if (loading) {
@@ -103,7 +105,7 @@ export default function RegisterPage() {
     justRegistered.current = true;
 
     try {
-      await createUserWithEmailAndPassword(
+      const credential = await createUserWithEmailAndPassword(
         getClientAuth(),
         email,
         password
@@ -114,8 +116,9 @@ export default function RegisterPage() {
       } else {
         await joinHouse();
       }
+      await sendEmailVerification(credential.user);
 
-      router.replace("/");
+      router.replace("/verify-email");
     } catch (err) {
       setError(err instanceof Error ? err.message : "登録に失敗しました");
     } finally {

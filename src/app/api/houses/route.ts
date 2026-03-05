@@ -15,7 +15,7 @@ const getDeps = {
 
 const createDeps = {
   createHouse,
-  verifyRequest,
+  verifyRequest: (request: Request) => verifyRequest(request, { requireEmailVerified: false }),
   unauthorizedResponse,
 };
 

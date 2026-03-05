@@ -6,6 +6,10 @@ export type AuthenticatedUser = {
   email: string;
 };
 
+type VerifyRequestOptions = {
+  requireEmailVerified?: boolean;
+};
+
 export class AuthError extends Error {
   constructor(message: string) {
     super(message);
@@ -13,7 +17,11 @@ export class AuthError extends Error {
   }
 }
 
-export async function verifyRequest(request: Request): Promise<AuthenticatedUser> {
+export async function verifyRequest(
+  request: Request,
+  options: VerifyRequestOptions = {}
+): Promise<AuthenticatedUser> {
+  const requireEmailVerified = options.requireEmailVerified ?? true;
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     throw new AuthError("Authorization header missing or invalid");
@@ -21,6 +29,9 @@ export async function verifyRequest(request: Request): Promise<AuthenticatedUser
 
   const idToken = authHeader.slice(7);
   const decoded = await getAdminAuth().verifyIdToken(idToken);
+  if (requireEmailVerified && !decoded.email_verified) {
+    throw new AuthError("Email is not verified");
+  }
 
   const db = getAdminFirestore();
   const userDoc = await db.collection("users").doc(decoded.uid).get();

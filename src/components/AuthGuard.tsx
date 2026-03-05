@@ -10,19 +10,26 @@ import HeaderRuleLink from "@/components/HeaderRuleLink";
 import HeaderUserBadge from "@/components/HeaderUserBadge";
 
 const PUBLIC_PATHS = ["/login", "/register"];
+const VERIFY_EMAIL_PATH = "/verify-email";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isVerifyEmailPath = pathname === VERIFY_EMAIL_PATH;
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isVerifyEmailPath;
 
   useEffect(() => {
     if (!loading && !user && !isPublic) {
       router.replace("/login");
+      return;
     }
-  }, [user, loading, router, isPublic]);
+
+    if (!loading && user && !user.emailVerified && !isVerifyEmailPath) {
+      router.replace(VERIFY_EMAIL_PATH);
+    }
+  }, [user, loading, router, isPublic, isVerifyEmailPath]);
 
   if (isPublic) return <>{children}</>;
 
@@ -35,6 +42,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) return null;
+  if (!user.emailVerified) return null;
 
   return (
     <div className="min-h-svh flex flex-col">

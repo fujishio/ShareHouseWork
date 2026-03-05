@@ -15,7 +15,7 @@ const getDeps = {
 
 const upsertDeps = {
   upsertUser,
-  verifyRequest,
+  verifyRequest: (request: Request) => verifyRequest(request, { requireEmailVerified: false }),
   unauthorizedResponse,
 };
 
