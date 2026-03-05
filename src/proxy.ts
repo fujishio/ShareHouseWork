@@ -1,8 +1,8 @@
-export function middleware() {}
+export function proxy() {}
 
 // import { NextResponse } from "next/server";
 
-// export function middleware() {
+// export function proxy() {
 //     return new NextResponse("メンテナンス中です。しばらくお待ちください。", {
 //     status: 503,
 //     headers: { "Content-Type": "text/plain; charset=utf-8" },

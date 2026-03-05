@@ -18,6 +18,9 @@ export default function GlobalError({ error, reset }: Props) {
             通信状態を確認して、再試行してください。
           </p>
           <p className="mt-2 break-all text-[11px] text-red-600/80">{error.message}</p>
+          {error.digest ? (
+            <p className="mt-1 break-all text-[11px] text-red-600/80">digest: {error.digest}</p>
+          ) : null}
           <button
             type="button"
             onClick={reset}
