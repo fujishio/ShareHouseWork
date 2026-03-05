@@ -71,7 +71,7 @@ export default function SettingsPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
 
   const statusMessage = useMemo(() => {
     if (!savedAt) {

@@ -160,3 +160,28 @@ test("invalid month format throws", () => {
     })
   );
 });
+
+test("shopping checkedAt in UTC previous month but JST current month is included", () => {
+  // 2026-01-31T15:30:00.000Z = Feb 1 00:30 JST
+  const boundaryShopping: ShoppingItem[] = [
+    {
+      id: "s1",
+      houseId: "h1",
+      name: "洗剤",
+      quantity: "1",
+      memo: "",
+      addedBy: "あなた",
+      addedAt: "2026-01-20T10:00:00.000Z",
+      checkedBy: "あなた",
+      checkedAt: "2026-01-31T15:30:00.000Z",
+    },
+  ];
+  const csv = buildMonthlyOperationsCsv({
+    month: "2026-02",
+    taskCompletions: [],
+    expenses: [],
+    shoppingItems: boundaryShopping,
+  });
+
+  assert.match(csv, /2026-02,s1,洗剤,1,,あなた,/);
+});

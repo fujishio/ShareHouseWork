@@ -14,7 +14,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { toJstMonthKey } from "../src/shared/lib/time.ts";
 
 function loadEnvFile(filePath: string) {
   if (!existsSync(filePath)) return;
@@ -72,7 +71,7 @@ async function migrateCollection(
     await batch.commit();
   }
 
-  console.log(`  ${collectionName}: ${updated} updated, ${skipped} skipped`);
+  process.stdout.write(`  ${collectionName}: ${updated} updated, ${skipped} skipped\n`);
 }
 
 async function migrateContributionSettings(
@@ -104,7 +103,9 @@ async function migrateContributionSettings(
     migrated++;
   }
 
-  console.log(`  contributionSettings: ${migrated} migrated to new docId format, ${skipped} skipped`);
+  process.stdout.write(
+    `  contributionSettings: ${migrated} migrated to new docId format, ${skipped} skipped\n`
+  );
 }
 
 async function main() {
@@ -139,7 +140,7 @@ async function main() {
   }
 
   const houseId = housesSnapshot.docs[0]!.id;
-  console.log(`Migrating with houseId: ${houseId}`);
+  process.stdout.write(`Migrating with houseId: ${houseId}\n`);
 
   // Step 2: Migrate each collection
   const simpleCollections = [
@@ -159,7 +160,7 @@ async function main() {
   // Step 3: Migrate contributionSettings (requires docId change)
   await migrateContributionSettings(db, houseId);
 
-  console.log("Migration completed successfully.");
+  process.stdout.write("Migration completed successfully.\n");
 }
 
 main().catch((error) => {

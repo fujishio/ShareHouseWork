@@ -10,6 +10,8 @@ type MemberSummary = {
   lastCompletedAt: string;
 };
 
+const ISO_DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 function toCsvCell(value: string | number | boolean) {
   const stringValue = String(value);
   if (!/[",\n]/.test(stringValue)) {
@@ -20,6 +22,27 @@ function toCsvCell(value: string | number | boolean) {
 
 function toCsvRow(values: Array<string | number | boolean>) {
   return values.map((value) => toCsvCell(value)).join(",");
+}
+
+function toMonthKey(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (ISO_DATE_ONLY_REGEX.test(value)) {
+    return value.slice(0, 7);
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return toJstMonthKey(date);
+}
+
+function toTimestamp(value: string | undefined): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.getTime();
+  }
+  return Number.NEGATIVE_INFINITY;
 }
 
 export function buildMonthlyOperationsCsv(
@@ -130,8 +153,8 @@ export function buildMonthlyOperationsCsv(
   }
 
   const monthlyExpenses = expenses
-    .filter((expense) => expense.purchasedAt.startsWith(month))
-    .sort((a, b) => a.purchasedAt.localeCompare(b.purchasedAt));
+    .filter((expense) => toMonthKey(expense.purchasedAt) === month)
+    .sort((a, b) => toTimestamp(a.purchasedAt) - toTimestamp(b.purchasedAt));
 
   lines.push("");
   lines.push("# expenses");
@@ -175,11 +198,11 @@ export function buildMonthlyOperationsCsv(
   const monthlyShopping = shoppingItems
     .filter(
       (item) =>
-        item.addedAt.startsWith(month) ||
-        item.checkedAt?.startsWith(month) ||
-        item.canceledAt?.startsWith(month)
+        toMonthKey(item.addedAt) === month ||
+        toMonthKey(item.checkedAt) === month ||
+        toMonthKey(item.canceledAt) === month
     )
-    .sort((a, b) => a.addedAt.localeCompare(b.addedAt));
+    .sort((a, b) => toTimestamp(a.addedAt) - toTimestamp(b.addedAt));
 
   lines.push("");
   lines.push("# shopping");
