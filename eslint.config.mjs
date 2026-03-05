@@ -19,12 +19,17 @@ const eslintConfig = [
     ignores: [".next/**", "out/**", "build/**"],
   },
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
+  },
+  {
     rules: {
-      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "no-console": ["error", { allow: ["warn", "error"] }],
       "no-unused-vars": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",

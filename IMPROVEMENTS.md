@@ -9,11 +9,16 @@
 | ID | 優先度 | 概要 | 状態 |
 |----|--------|------|------|
 | C | 高 | 依存脆弱性（low 10件）対応 | 一部完了 |
+| I | 中 | Discord 通知連携 | 未着手 |
+| N | 低 | PWA/オフライン対応 | 未着手 |
+
+## 完了済みタスク一覧
+
+| ID | 優先度 | 概要 | 状態 |
+|----|--------|------|------|
 | O | 高 | `GET /api/users` ハウス未所属時の全ユーザー漏洩 | 完了 |
 | D | 中 | サーバーコンポーネントの認証ワークアラウンド | 完了 |
-| I | 中 | Discord 通知連携 | 未着手 |
-| M | 低 | Lint ルール厳格化・CI 整備 | 一部完了 |
-| N | 低 | PWA/オフライン対応 | 未着手 |
+| M | 低 | Lint ルール厳格化・CI 整備 | 完了 |
 
 ---
 
@@ -101,13 +106,19 @@ const users = await listUsers(memberUids);
 
 ## M. Lint ルール厳格化・CI 整備
 
-**状態:** 一部完了（2026-03-05）
+**状態:** 完了（2026-03-05）
 
-**実装済み:** 既存 ESLint 警告 6件を解消し `npx eslint .` を警告ゼロ化
-
-**残課題:**
-- ESLint ルールの追加・厳格化
-- CI（GitHub Actions 等）での lint/type-check の自動実行
+**実装済み:**
+- `eslint.config.mjs`
+  - `no-console` を `error` に厳格化（`warn` / `error` は許可）
+  - `@typescript-eslint/no-unused-vars` を `error` に厳格化
+  - `reportUnusedDisableDirectives: "error"` を追加
+- `package.json`
+  - `lint` を `eslint . --max-warnings=0` に変更（警告も CI 失敗）
+  - `typecheck` スクリプト（`tsc --noEmit`）を追加
+- `.github/workflows/ci.yml`
+  - CI に `npm run typecheck` を追加
+  - lint / typecheck / test / firestore-rules-test / build を自動実行
 
 ---
 
