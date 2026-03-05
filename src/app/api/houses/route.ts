@@ -10,10 +10,10 @@ import { errorJson, successJson } from "@/shared/lib/api-response";
 export const runtime = "nodejs";
 
 const createHouseSchema = z.object({
-  name: zNonEmptyTrimmedString,
-  description: zTrimmedString.optional(),
+  name: zNonEmptyTrimmedString.pipe(z.string().max(100)),
+  description: zTrimmedString.pipe(z.string().max(500)).optional(),
   joinPassword: zTrimmedString
-    .pipe(z.string().refine((value) => value.length === 0 || value.length >= 8))
+    .pipe(z.string().max(128).refine((value) => value.length === 0 || value.length >= 8))
     .optional(),
 });
 

@@ -70,9 +70,9 @@ export type DeleteShoppingDeps = {
 };
 
 const createShoppingSchema = z.object({
-  name: zNonEmptyTrimmedString,
-  quantity: zTrimmedString.default("1"),
-  memo: zTrimmedString.default(""),
+  name: zNonEmptyTrimmedString.pipe(z.string().max(120)),
+  quantity: zTrimmedString.pipe(z.string().max(60)).default("1"),
+  memo: zTrimmedString.pipe(z.string().max(500)).default(""),
   category: z.enum(EXPENSE_CATEGORIES).optional(),
   addedAt: z
     .string()

@@ -8,7 +8,7 @@ import { deleteAccountAndAnonymize } from "@/server/account-deletion-service";
 export const runtime = "nodejs";
 
 const patchProfileSchema = z.object({
-  color: z.string().refine(
+  color: z.string().max(32).refine(
     (c) => isPresetColor(c),
     { message: "Invalid color: must be one of the preset colors" }
   ),

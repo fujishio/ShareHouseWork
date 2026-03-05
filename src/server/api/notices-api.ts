@@ -44,8 +44,8 @@ export type DeleteNoticeDeps = {
 };
 
 const createNoticeSchema = z.object({
-  title: zNonEmptyTrimmedString,
-  body: zTrimmedString.default(""),
+  title: zNonEmptyTrimmedString.pipe(z.string().max(120)),
+  body: zTrimmedString.pipe(z.string().max(2000)).default(""),
   isImportant: z.boolean().optional().default(false),
 });
 

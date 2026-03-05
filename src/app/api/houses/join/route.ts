@@ -2,6 +2,7 @@ import { findHouseByNameAndJoinPassword, addHouseMember } from "@/server/house-s
 import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import { getUser } from "@/server/user-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { takeRateLimit } from "@/server/rate-limit";
 import { z } from "zod";
 import { zNonEmptyTrimmedString, zTrimmedString } from "@/shared/lib/api-validation";
 import { errorJson, successJson } from "@/shared/lib/api-response";
@@ -9,8 +10,8 @@ import { errorJson, successJson } from "@/shared/lib/api-response";
 export const runtime = "nodejs";
 
 const joinHouseSchema = z.object({
-  houseName: zNonEmptyTrimmedString,
-  joinPassword: zTrimmedString.pipe(z.string().min(8)),
+  houseName: zNonEmptyTrimmedString.pipe(z.string().max(100)),
+  joinPassword: zTrimmedString.pipe(z.string().min(8).max(128)),
 });
 
 export async function POST(request: Request) {
@@ -40,6 +41,24 @@ export async function POST(request: Request) {
 
   const { houseName, joinPassword } = parsed.data;
   const userUid = actor.uid;
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rateLimit = takeRateLimit({
+    key: `houses:join:${ip}:${userUid}`,
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!rateLimit.allowed) {
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
+    );
+    return errorJson(
+      "Too many join attempts. Please retry later.",
+      "RATE_LIMITED",
+      429,
+      { retryAfterSeconds }
+    );
+  }
 
   const user = await getUser(userUid);
   if (!user) {

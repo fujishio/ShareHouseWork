@@ -42,7 +42,7 @@ const createBalanceAdjustmentSchema = z.object({
   amount: z.number().finite().refine((value) => value !== 0, {
     message: "amount must not be zero",
   }),
-  reason: zNonEmptyTrimmedString,
+  reason: zNonEmptyTrimmedString.pipe(z.string().max(500)),
   adjustedAt: zIsoDateString,
 });
 

@@ -52,7 +52,7 @@ export type DeleteExpenseDeps = {
 };
 
 const createExpenseSchema = z.object({
-  title: zNonEmptyTrimmedString,
+  title: zNonEmptyTrimmedString.pipe(z.string().max(120)),
   amount: z.number().finite().positive(),
   category: z.enum(EXPENSE_CATEGORIES),
   purchasedAt: zIsoDateString.or(
@@ -71,7 +71,7 @@ const createExpenseSchema = z.object({
 });
 
 const deleteExpenseSchema = z.object({
-  cancelReason: zNonEmptyTrimmedString,
+  cancelReason: zNonEmptyTrimmedString.pipe(z.string().max(500)),
 });
 
 const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();

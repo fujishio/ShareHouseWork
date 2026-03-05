@@ -49,7 +49,7 @@ export type DeleteTaskDeps = {
 };
 
 const taskSchema = z.object({
-  name: zNonEmptyTrimmedString,
+  name: zNonEmptyTrimmedString.pipe(z.string().max(120)),
   category: z.enum(TASK_CATEGORIES),
   points: z.coerce.number().int().min(1),
   frequencyDays: z.coerce.number().int().min(1),

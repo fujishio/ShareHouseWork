@@ -15,8 +15,8 @@ import { logAppAuditEvent } from "./audit-log-service.ts";
 
 const ruleCategorySchema = z.enum(RULE_CATEGORIES);
 const createRuleSchema = z.object({
-  title: zNonEmptyTrimmedString,
-  body: zTrimmedString.default(""),
+  title: zNonEmptyTrimmedString.pipe(z.string().max(120)),
+  body: zTrimmedString.pipe(z.string().max(2000)).default(""),
   category: ruleCategorySchema,
 });
 const updateRuleSchema = createRuleSchema;

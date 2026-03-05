@@ -55,7 +55,26 @@ function computeContributionData(records: TaskCompletionRecord[], users: Member[
 export default async function HomePage() {
   const now = new Date();
   const currentMonthKey = toJstMonthKey(now);
-  const houseId = await resolveRequestHouseId() ?? "";
+  const houseId = await resolveRequestHouseId();
+  if (!houseId) {
+    return (
+      <div className="space-y-4">
+        <GreetingSection />
+        <ContributionWidgetWrapper data={[]} />
+        <RecentTasksWidget tasks={[]} />
+        <ExpenseWidget
+          summary={{
+            month: toLabelFromMonthKey(currentMonthKey),
+            totalContributed: 0,
+            totalSpent: 0,
+            balance: 0,
+          }}
+        />
+        <NoticesWidget notices={[]} />
+      </div>
+    );
+  }
+
   const house = houseId ? await getHouse(houseId) : null;
   const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
 
@@ -65,7 +84,7 @@ export default async function HomePage() {
     readBalanceAdjustments(houseId),
     readContributionSettingsHistory(houseId),
     readNotices(houseId),
-    listUsers(),
+    house?.memberUids.length ? listUsers(house.memberUids) : Promise.resolve([]),
   ]);
 
   const latestByTask = getLatestCompletionByTask(completions);
