@@ -275,7 +275,7 @@ export async function handleDeleteRule(
   const { id } = await params;
 
   const existing = await deps.readRule(id);
-  if (!existing) {
+  if (!existing || existing.deletedAt) {
     return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
   }
   if (existing.houseId !== context.houseId) {
