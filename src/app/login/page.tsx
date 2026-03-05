@@ -3,12 +3,25 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FirebaseError } from "firebase/app";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 import { useAuth } from "@/context/AuthContext";
 import AppLogo from "@/components/AppLogo";
 import FormInput from "@/components/FormInput";
 import PasswordInput from "@/components/PasswordInput";
+
+function toLoginErrorMessage(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    if (error.code === "auth/network-request-failed") {
+      return "ネットワーク接続に失敗しました。エミュレーター起動とブラウザ接続を確認してください";
+    }
+    if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password") {
+      return "メールアドレスまたはパスワードが正しくありません";
+    }
+  }
+  return "ログインに失敗しました";
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,8 +51,8 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(getClientAuth(), email, password);
       router.replace("/");
-    } catch {
-      setError("メールアドレスまたはパスワードが正しくありません");
+    } catch (err) {
+      setError(toLoginErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

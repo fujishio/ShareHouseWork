@@ -246,6 +246,7 @@ export default function RegisterPage() {
               value={joinPassword}
               onChange={(e) => setJoinPassword(e.target.value)}
               required
+              minLength={8}
               placeholder={
                 mode === "create"
                   ? "メンバーが参加する際に使う合言葉"
@@ -253,8 +254,8 @@ export default function RegisterPage() {
               }
               hint={
                 mode === "create"
-                  ? "ハウスに招待するときにメンバーへ共有してください"
-                  : "ホストから教わった合言葉を入力してください"
+                  ? "8文字以上で設定してください。ハウス招待時に共有します"
+                  : "8文字以上の合言葉を入力してください"
               }
             />
           </div>
