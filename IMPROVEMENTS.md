@@ -21,6 +21,7 @@
 | O | 高 | `GET /api/users` ハウス未所属時の全ユーザー漏洩 | 完了 |
 | D | 中 | サーバーコンポーネントの認証ワークアラウンド | 完了 |
 | M | 低 | Lint ルール厳格化・CI 整備 | 完了 |
+| R2 | 中 | Phase 2 型とモジュール境界の整理 | 完了 |
 | R3 | 中 | Phase 3 Store 層の一貫性改善 | 完了 |
 
 ---
@@ -87,6 +88,42 @@
 
 **次アクション**
 - Phase 2（型とモジュール境界の整理）へ着手
+
+---
+
+## R2. Phase 2 型とモジュール境界の整理
+
+**状態:** 完了（2026-03-05）
+
+`REFACTOR.md` の Phase 2 に沿って、型定義の分割と Firestore 永続化型の明示化を実施。
+
+**対応内容**
+- `src/types/index.ts` の単一ファイルをドメイン別に分割
+  - 追加: `src/types/{primitives,api,members,houses,tasks,task-completions,audit-logs,expenses,contribution-settings,contributions,shopping,balance-adjustments,notices,rules,notification-settings,responses,firestore}.ts`
+  - `index.ts` はバレルエクスポートとして維持し、既存 import 互換を保持
+- API 公開型と Firestore 永続化型の分離
+  - `src/types/firestore.ts` に `Firestore*Doc` 型を追加
+  - Store 層の `docTo*` 変換で `Firestore*Doc` を利用するよう更新
+    - 対象: `audit-log`, `balance-adjustment`, `contribution-settings`, `expense`, `house`, `notice`, `rule`, `shopping`, `task-completions`, `task`, `user`
+- API 入口 DTO と Domain 入力型の分離（段階適用）
+  - `src/types/api-inputs.ts` を追加し、Request/Query DTO を集約
+  - `tasks` / `rules` / `expenses` / `shopping` / `notices` / `balance-adjustments` / `task-completions` API で
+    - `zod` で検証したDTOを明示型として受ける
+    - `to*Input` 変換関数で Domain 入力型へマッピング
+  - `houses` / `users` / `profile` / `contribution-settings` / `audit-logs` / `monthly-export` API へ同パターンを横展開
+    - Request/Query DTO を受ける変換ポイントを明示
+    - ハンドラ内の `parsed.data` 直参照を縮小し境界責務を統一
+- `src/server/store-utils.ts` を generic 化
+  - `mapDoc` / `updates` / `shouldUpdate` をドキュメント型パラメータで扱えるようにし、Store 側の型境界を明確化
+
+**検証結果（2026-03-05）**
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm test`: PASS（104 passed / 0 failed）
+- `npm run build`: PASS（`middleware` deprecation warning のみ）
+
+**残タスク**
+- なし（Phase 2 完了）
 
 ---
 

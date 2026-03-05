@@ -1,5 +1,8 @@
 import type {
   AuditLogRecord,
+  CancelTaskCompletionRequest,
+  CreateTaskCompletionRequest,
+  GetTaskCompletionsQuery,
   Task,
   TaskCompletionRecord,
 } from "../../types/index.ts";
@@ -90,6 +93,23 @@ const cancelTaskCompletionSchema = z.object({
   cancelReason: zNonEmptyTrimmedString,
 });
 
+function toTaskCompletionRecordInput(
+  body: CreateTaskCompletionRequest,
+  houseId: string,
+  actorName: string,
+  task: Pick<Task, "id" | "name" | "points">
+): Omit<TaskCompletionRecord, "id"> {
+  return {
+    houseId,
+    taskId: task.id,
+    taskName: task.name,
+    points: task.points,
+    completedBy: actorName,
+    completedAt: body.completedAt,
+    source: body.source,
+  };
+}
+
 export async function handleGetTaskCompletions(
   request: Request,
   deps: GetTaskCompletionsDeps
@@ -130,10 +150,11 @@ export async function handleGetTaskCompletions(
     return errorResponse("Invalid limit query", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
   }
 
-  const from = parsedQuery.data.from ? new Date(parsedQuery.data.from) : null;
-  const to = parsedQuery.data.to ? new Date(parsedQuery.data.to) : null;
-  const limit = parsedQuery.data.limit;
-  const cursor = parsedQuery.data.cursor;
+  const query: GetTaskCompletionsQuery = parsedQuery.data;
+  const from = query.from ? new Date(query.from) : null;
+  const to = query.to ? new Date(query.to) : null;
+  const limit = query.limit;
+  const cursor = query.cursor;
 
   const records = await deps.readTaskCompletions(context.houseId);
   const filtered = records
@@ -177,7 +198,8 @@ export async function handleCreateTaskCompletion(
       parsedPayload.error.issues
     );
   }
-  const { taskId, completedAt, source } = parsedPayload.data;
+  const requestBody: CreateTaskCompletionRequest = parsedPayload.data;
+  const { taskId } = requestBody;
 
   const tasks = await deps.readTasks(context.houseId);
   const task = tasks.find((item) => item.id === taskId);
@@ -185,15 +207,9 @@ export async function handleCreateTaskCompletion(
     return errorResponse("Task not found", 404, "TASK_NOT_FOUND");
   }
 
-  const created = await deps.appendTaskCompletion({
-    houseId: context.houseId,
-    taskId,
-    taskName: task.name,
-    points: task.points,
-    completedBy: context.actor.name,
-    completedAt,
-    source,
-  });
+  const created = await deps.appendTaskCompletion(
+    toTaskCompletionRecordInput(requestBody, context.houseId, context.actor.name, task)
+  );
 
   await logAppAuditEvent(deps, {
     houseId: context.houseId,
@@ -229,7 +245,8 @@ export async function handleCancelTaskCompletion(
       parsedCancelBody.error.issues
     );
   }
-  const cancelReason = parsedCancelBody.data.cancelReason;
+  const requestBody: CancelTaskCompletionRequest = parsedCancelBody.data;
+  const cancelReason = requestBody.cancelReason;
 
   const existing = (await deps.readTaskCompletions(authContext.houseId)).find(
     (record) => record.id === id

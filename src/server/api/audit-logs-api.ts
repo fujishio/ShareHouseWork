@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AuditLogRecord } from "../../types/index.ts";
+import type { AuditLogRecord, GetAuditLogsQuery } from "../../types/index.ts";
 import {
   resolveHouseScopedContext,
   validationError,
@@ -43,7 +43,8 @@ export async function handleGetAuditLogs(request: Request, deps: GetAuditLogsDep
       parsedQuery.error.issues
     );
   }
-  const { from, to, action, cursor, limit } = parsedQuery.data;
+  const query: GetAuditLogsQuery = parsedQuery.data;
+  const { from, to, action, cursor, limit } = query;
 
   const logs = await deps.readAuditLogs(context.houseId, { from, to, action, cursor, limit });
   const last = logs.length > 0 ? logs[logs.length - 1] : null;

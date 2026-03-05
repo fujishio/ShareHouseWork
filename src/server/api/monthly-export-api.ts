@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { ExpenseRecord, ShoppingItem, TaskCompletionRecord } from "../../types/index.ts";
+import type {
+  ExpenseRecord,
+  GetMonthlyExportQuery,
+  ShoppingItem,
+  TaskCompletionRecord,
+} from "../../types/index.ts";
 import {
   errorResponse,
   resolveHouseScopedContext,
@@ -47,7 +52,8 @@ export async function handleGetMonthlyExportCsv(
       parsedQuery.error.issues
     );
   }
-  const month = parsedQuery.data.month ?? new Date().toISOString().slice(0, 7);
+  const query: GetMonthlyExportQuery = parsedQuery.data;
+  const month = query.month ?? new Date().toISOString().slice(0, 7);
 
   let csv: string;
   try {

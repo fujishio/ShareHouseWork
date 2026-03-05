@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { ContributionSettings, House } from "../../types/index.ts";
+import type {
+  ContributionSettings,
+  House,
+  UpdateContributionSettingsRequest,
+} from "../../types/index.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -12,6 +16,15 @@ const updateContributionSettingsSchema = z.object({
   monthlyAmountPerPerson: z.number().finite().positive(),
   memberCount: z.number().int().min(1),
 });
+
+function toContributionSettings(
+  body: UpdateContributionSettingsRequest
+): ContributionSettings {
+  return {
+    monthlyAmountPerPerson: body.monthlyAmountPerPerson,
+    memberCount: body.memberCount,
+  };
+}
 
 export type GetContributionSettingsDeps = {
   readContributionSettings: (houseId: string) => Promise<ContributionSettings>;
@@ -78,7 +91,8 @@ export async function handleUpdateContributionSettings(
     }
     return validationError("Missing or invalid fields", parsed.error.issues);
   }
-  const input: ContributionSettings = parsed.data;
+  const requestBody: UpdateContributionSettingsRequest = parsed.data;
+  const input = toContributionSettings(requestBody);
 
   await deps.writeContributionSettings(context.houseId, input);
   return Response.json({ data: input });

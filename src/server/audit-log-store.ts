@@ -1,10 +1,10 @@
-import type { AuditLogRecord } from "@/types";
+import type { AuditLogRecord, FirestoreAuditLogDoc } from "@/types";
 import { createCollectionDoc, listCollection } from "@/server/store-utils";
 import { FieldPath } from "firebase-admin/firestore";
 
 const COLLECTION = "auditLogs";
 
-function docToRecord(id: string, data: FirebaseFirestore.DocumentData): AuditLogRecord {
+function docToRecord(id: string, data: FirestoreAuditLogDoc): AuditLogRecord {
   return {
     id,
     houseId: data.houseId,
@@ -80,9 +80,13 @@ export async function listAuditLogs(
 export async function createAuditLog(
   record: Omit<AuditLogRecord, "id">
 ): Promise<AuditLogRecord> {
+  const data: FirestoreAuditLogDoc = {
+    ...record,
+    details: record.details ?? {},
+  };
   return createCollectionDoc({
     collection: COLLECTION,
-    data: record,
+    data,
     mapDoc: docToRecord,
   });
 }

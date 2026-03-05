@@ -6,7 +6,9 @@ import {
 import type {
   AuditLogRecord,
   BalanceAdjustmentRecord,
+  CreateBalanceAdjustmentRequest,
   CreateBalanceAdjustmentInput,
+  MonthFilterQuery,
 } from "../../types/index.ts";
 import { logAppAuditEvent } from "./audit-log-service.ts";
 import {
@@ -48,6 +50,20 @@ const createBalanceAdjustmentSchema = z.object({
 
 const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();
 
+function toCreateBalanceAdjustmentInput(
+  body: CreateBalanceAdjustmentRequest,
+  houseId: string,
+  adjustedBy: string
+): CreateBalanceAdjustmentInput {
+  return {
+    houseId,
+    amount: body.amount,
+    reason: body.reason,
+    adjustedBy,
+    adjustedAt: body.adjustedAt,
+  };
+}
+
 export async function handleGetBalanceAdjustments(
   request: Request,
   deps: GetBalanceAdjustmentsDeps
@@ -61,9 +77,9 @@ export async function handleGetBalanceAdjustments(
   if (!parsedMonth.success) {
     return errorResponse("month must be in YYYY-MM format", 400, "VALIDATION_ERROR");
   }
-  const month = parsedMonth.data;
+  const query: MonthFilterQuery = { month: parsedMonth.data };
 
-  const adjustments = await deps.readBalanceAdjustments(context.houseId, month);
+  const adjustments = await deps.readBalanceAdjustments(context.houseId, query.month);
   return Response.json({ data: adjustments });
 }
 
@@ -92,13 +108,12 @@ export async function handleCreateBalanceAdjustment(
     return validationError("Missing or invalid fields", parsed.error.issues);
   }
 
-  const input: CreateBalanceAdjustmentInput = {
-    houseId: context.houseId,
-    amount: parsed.data.amount,
-    reason: parsed.data.reason,
-    adjustedBy: context.actor.name,
-    adjustedAt: parsed.data.adjustedAt,
-  };
+  const requestBody: CreateBalanceAdjustmentRequest = parsed.data;
+  const input = toCreateBalanceAdjustmentInput(
+    requestBody,
+    context.houseId,
+    context.actor.name
+  );
 
   const created = await deps.appendBalanceAdjustment(input);
 

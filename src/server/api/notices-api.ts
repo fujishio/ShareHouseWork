@@ -4,7 +4,9 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import type {
   AuditLogRecord,
+  CreateNoticeRequest,
   CreateNoticeInput,
+  CursorPaginationQuery,
   Notice,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -55,6 +57,22 @@ const getNoticesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
 });
 
+function toCreateNoticeInput(
+  body: CreateNoticeRequest,
+  houseId: string,
+  postedBy: string,
+  postedAt: string
+): CreateNoticeInput {
+  return {
+    houseId,
+    title: body.title,
+    body: body.body,
+    postedBy,
+    postedAt,
+    isImportant: body.isImportant,
+  };
+}
+
 export async function handleGetNotices(request: Request, deps: GetNoticesDeps) {
   const context = await resolveHouseScopedContext(request, deps);
   if (context instanceof Response) return context;
@@ -68,14 +86,15 @@ export async function handleGetNotices(request: Request, deps: GetNoticesDeps) {
     return errorResponse("Invalid query parameters", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
   }
 
+  const query: CursorPaginationQuery = parsedQuery.data;
   const notices = await deps.readNotices(context.houseId);
   const active = notices.filter((notice) => !notice.deletedAt);
   const page = paginateByDateIdDesc({
     items: active,
     getSortKey: (notice) => notice.postedAt,
     getId: (notice) => notice.id,
-    limit: parsedQuery.data.limit,
-    cursor: parsedQuery.data.cursor,
+    limit: query.limit,
+    cursor: query.cursor,
   });
   if (page.isInvalidCursor) {
     return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
@@ -99,14 +118,13 @@ export async function handleCreateNotice(request: Request, deps: CreateNoticeDep
     return errorResponse("Invalid body", 400, "VALIDATION_ERROR", parsed.error.issues);
   }
 
-  const input: CreateNoticeInput = {
-    houseId: context.houseId,
-    title: parsed.data.title,
-    body: parsed.data.body,
-    postedBy: context.actor.name,
-    postedAt: deps.now(),
-    isImportant: parsed.data.isImportant,
-  };
+  const requestBody: CreateNoticeRequest = parsed.data;
+  const input = toCreateNoticeInput(
+    requestBody,
+    context.houseId,
+    context.actor.name,
+    deps.now()
+  );
 
   const created = await deps.appendNotice(input);
 

@@ -1,7 +1,11 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { getHouse } from "@/server/house-store";
 import { toJstMonthKey } from "@/shared/lib/time";
-import type { ContributionSettings, ContributionSettingsHistoryRecord } from "@/types";
+import type {
+  ContributionSettings,
+  ContributionSettingsHistoryRecord,
+  FirestoreContributionSettingsDoc,
+} from "@/types";
 
 const COLLECTION = "contributionSettings";
 
@@ -28,7 +32,7 @@ function buildInitialSettings(memberCount: number): ContributionSettings {
 }
 
 function docToContributionSettingsHistoryRecord(
-  data: FirebaseFirestore.DocumentData
+  data: FirestoreContributionSettingsDoc
 ): ContributionSettingsHistoryRecord {
   return {
     houseId: data.houseId,
@@ -60,7 +64,9 @@ export async function listContributionSettingsHistory(
     return [{ houseId, effectiveMonth: HISTORY_START_MONTH, ...initialSettings }];
   }
 
-  const records = snapshot.docs.map((doc) => docToContributionSettingsHistoryRecord(doc.data()));
+  const records = snapshot.docs.map((doc) =>
+    docToContributionSettingsHistoryRecord(doc.data() as FirestoreContributionSettingsDoc)
+  );
 
   const hasOnlyLegacySeed =
     records.length === 1 &&

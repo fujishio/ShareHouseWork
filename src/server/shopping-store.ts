@@ -1,4 +1,9 @@
-import type { ShoppingItem, CreateShoppingItemInput, CheckShoppingItemInput } from "@/types";
+import type {
+  ShoppingItem,
+  CreateShoppingItemInput,
+  CheckShoppingItemInput,
+  FirestoreShoppingItemDoc,
+} from "@/types";
 import {
   addCollectionDoc,
   readCollection,
@@ -7,7 +12,7 @@ import {
 
 const COLLECTION = "shoppingItems";
 
-function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingItem {
+function docToItem(id: string, data: FirestoreShoppingItemDoc): ShoppingItem {
   return {
     id,
     houseId: data.houseId,
@@ -34,7 +39,7 @@ export async function listShoppingItems(houseId: string): Promise<ShoppingItem[]
 }
 
 export async function createShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
-  const data = {
+  const data: FirestoreShoppingItemDoc = {
     ...input,
     category: input.category ?? null,
     checkedBy: null,

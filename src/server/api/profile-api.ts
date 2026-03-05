@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isPresetColor } from "../../shared/constants/house.ts";
-import type { Member } from "../../types/index.ts";
+import type { Member, PatchProfileRequest } from "../../types/index.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -52,9 +52,10 @@ export async function handlePatchProfile(request: Request, deps: PatchProfileDep
     return errorResponse("User not found", 404, "NOT_FOUND", { uid: actor.uid });
   }
 
+  const requestBody: PatchProfileRequest = parsed.data;
   const updated = await deps.upsertUser(actor.uid, {
     name: existing.name,
-    color: parsed.data.color,
+    color: requestBody.color,
     email: existing.email ?? "",
   });
 

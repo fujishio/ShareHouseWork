@@ -1,4 +1,4 @@
-import type { Rule, CreateRuleInput, UpdateRuleInput } from "@/types";
+import type { Rule, CreateRuleInput, UpdateRuleInput, FirestoreRuleDoc } from "@/types";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import {
   addCollectionDoc,
@@ -8,7 +8,7 @@ import {
 
 const COLLECTION = "rules";
 
-function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
+function docToRule(id: string, data: FirestoreRuleDoc): Rule {
   return {
     id,
     houseId: data.houseId,
@@ -34,8 +34,9 @@ export async function listRules(houseId: string): Promise<Rule[]> {
 }
 
 export async function createRule(input: CreateRuleInput): Promise<Rule> {
-  const data = {
+  const data: FirestoreRuleDoc = {
     ...input,
+    updatedAt: null,
     acknowledgedBy: [],
     deletedAt: null,
     deletedBy: null,
@@ -58,14 +59,15 @@ export async function acknowledgeRule(ruleId: string, memberName: string): Promi
   const db = getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(ruleId);
   const doc = await ref.get();
-  if (!doc.exists || doc.data()?.deletedAt) return null;
+  const data = doc.data() as FirestoreRuleDoc | undefined;
+  if (!doc.exists || !data || data.deletedAt) return null;
 
-  const current: string[] = doc.data()?.acknowledgedBy ?? [];
-  if (current.includes(memberName)) return docToRule(ruleId, doc.data()!);
+  const current: string[] = data.acknowledgedBy ?? [];
+  if (current.includes(memberName)) return docToRule(ruleId, data);
 
   const acknowledgedBy = [...current, memberName];
   await ref.update({ acknowledgedBy });
-  return docToRule(ruleId, { ...doc.data(), acknowledgedBy });
+  return docToRule(ruleId, { ...data, acknowledgedBy });
 }
 
 export async function updateRuleDeletion(

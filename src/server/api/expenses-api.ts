@@ -8,8 +8,11 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import type {
   AuditLogRecord,
+  CreateExpenseRequest,
   CreateExpenseInput,
+  DeleteExpenseRequest,
   ExpenseRecord,
+  MonthFilterQuery,
 } from "../../types/index.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
@@ -76,6 +79,21 @@ const deleteExpenseSchema = z.object({
 
 const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();
 
+function toCreateExpenseInput(
+  body: CreateExpenseRequest,
+  houseId: string,
+  purchasedBy: string
+): CreateExpenseInput {
+  return {
+    houseId,
+    title: body.title,
+    amount: body.amount,
+    category: body.category,
+    purchasedBy,
+    purchasedAt: body.purchasedAt,
+  };
+}
+
 export async function handleGetExpenses(request: Request, deps: GetExpensesDeps) {
   const context = await resolveHouseScopedContext(request, deps);
   if (context instanceof Response) return context;
@@ -86,9 +104,9 @@ export async function handleGetExpenses(request: Request, deps: GetExpensesDeps)
   if (!parsedMonth.success) {
     return errorResponse("month must be in YYYY-MM format", 400, "VALIDATION_ERROR");
   }
-  const month = parsedMonth.data;
+  const query: MonthFilterQuery = { month: parsedMonth.data };
 
-  const expenses = await deps.readExpenses(context.houseId, month);
+  const expenses = await deps.readExpenses(context.houseId, query.month);
   return Response.json({ data: expenses });
 }
 
@@ -134,14 +152,8 @@ export async function handleCreateExpense(
     );
   }
 
-  const input: CreateExpenseInput = {
-    houseId: context.houseId,
-    title: parsed.data.title,
-    amount: parsed.data.amount,
-    category: parsed.data.category,
-    purchasedBy: context.actor.name,
-    purchasedAt: parsed.data.purchasedAt,
-  };
+  const requestBody: CreateExpenseRequest = parsed.data;
+  const input = toCreateExpenseInput(requestBody, context.houseId, context.actor.name);
 
   const created = await deps.appendExpense(input);
 
@@ -182,7 +194,8 @@ export async function handleDeleteExpense(
   if (!parsed.success) {
     return validationError("cancelReason is required", parsed.error.issues);
   }
-  const cancelReason = parsed.data.cancelReason;
+  const requestBody: DeleteExpenseRequest = parsed.data;
+  const cancelReason = requestBody.cancelReason;
 
   const canceledAt = deps.now();
   const existing = (await deps.readExpenses(context.houseId)).find((expense) => expense.id === id);

@@ -10,7 +10,10 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import type {
   AuditLogRecord,
+  CreateShoppingItemRequest,
   CreateShoppingItemInput,
+  CursorPaginationQuery,
+  PatchShoppingItemRequest,
   ShoppingItem,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -103,6 +106,22 @@ const getShoppingQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
 });
 
+function toCreateShoppingItemInput(
+  body: CreateShoppingItemRequest,
+  houseId: string,
+  addedBy: string
+): CreateShoppingItemInput {
+  return {
+    houseId,
+    name: body.name,
+    quantity: body.quantity,
+    memo: body.memo,
+    category: body.category,
+    addedBy,
+    addedAt: body.addedAt,
+  };
+}
+
 export async function handleGetShoppingItems(request: Request, deps: GetShoppingDeps) {
   const context = await resolveHouseScopedContext(request, deps);
   if (context instanceof Response) return context;
@@ -116,13 +135,14 @@ export async function handleGetShoppingItems(request: Request, deps: GetShopping
     return validationError("Invalid query parameters", parsedQuery.error.issues);
   }
 
+  const query: CursorPaginationQuery = parsedQuery.data;
   const items = await deps.readShoppingItems(context.houseId);
   const page = paginateByDateIdDesc({
     items,
     getSortKey: (item) => item.addedAt,
     getId: (item) => item.id,
-    limit: parsedQuery.data.limit,
-    cursor: parsedQuery.data.cursor,
+    limit: query.limit,
+    cursor: query.cursor,
   });
   if (page.isInvalidCursor) {
     return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
@@ -150,15 +170,8 @@ export async function handleCreateShoppingItem(
     return validationError("name is required", parsed.error.issues);
   }
 
-  const input: CreateShoppingItemInput = {
-    houseId: context.houseId,
-    name: parsed.data.name,
-    quantity: parsed.data.quantity,
-    memo: parsed.data.memo,
-    category: parsed.data.category,
-    addedBy: context.actor.name,
-    addedAt: parsed.data.addedAt,
-  };
+  const requestBody: CreateShoppingItemRequest = parsed.data;
+  const input = toCreateShoppingItemInput(requestBody, context.houseId, context.actor.name);
 
   const created = await deps.appendShoppingItem(input);
 
@@ -195,13 +208,14 @@ export async function handlePatchShoppingItem(
   if (!parsed.success) {
     return validationError("Invalid body", parsed.error.issues);
   }
+  const requestBody: PatchShoppingItemRequest = parsed.data;
 
   const existing = (await deps.readShoppingItems(context.houseId)).find((item) => item.id === id);
   if (!existing) {
     return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
   }
 
-  if (parsed.data.uncheck === true) {
+  if (requestBody.uncheck === true) {
     const updated = await deps.uncheckShoppingItem(id);
     if (!updated) {
       return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");

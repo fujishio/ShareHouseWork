@@ -1,21 +1,18 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldPath } from "firebase-admin/firestore";
-import type { Member } from "@/types";
+import type { Member, FirestoreMemberDoc } from "@/types";
 import { z } from "zod";
 import { listCollection, readCollectionDoc } from "@/server/store-utils";
 
 const COLLECTION = "users";
 
-const memberDocSchema = z.object({
+const memberDocSchema: z.ZodType<FirestoreMemberDoc> = z.object({
   name: z.string(),
   color: z.string(),
   email: z.string().optional(),
 });
 
-function docToMember(
-  id: string,
-  data: FirebaseFirestore.DocumentData | undefined
-): Member | null {
+function docToMember(id: string, data: FirestoreMemberDoc): Member | null {
   const parsed = memberDocSchema.safeParse(data);
   if (!parsed.success) return null;
   return { id, ...parsed.data };

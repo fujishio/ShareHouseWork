@@ -1,7 +1,10 @@
 import type {
   AuditLogRecord,
+  CreateRuleRequest,
   CreateRuleInput,
+  CursorPaginationQuery,
   Rule,
+  UpdateRuleRequest,
   UpdateRuleInput,
 } from "../../types/index.ts";
 import { z } from "zod";
@@ -31,6 +34,34 @@ const getRulesQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
 });
+
+function toCreateRuleInput(
+  body: CreateRuleRequest,
+  houseId: string,
+  createdBy: string,
+  createdAt: string
+): CreateRuleInput {
+  return {
+    houseId,
+    title: body.title,
+    body: body.body,
+    category: body.category,
+    createdBy,
+    createdAt,
+  };
+}
+
+function toUpdateRuleInput(
+  body: UpdateRuleRequest,
+  updatedAt: string
+): UpdateRuleInput {
+  return {
+    title: body.title,
+    body: body.body,
+    category: body.category,
+    updatedAt,
+  };
+}
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -90,14 +121,16 @@ export async function handleGetRules(request: Request, deps: GetRulesDeps) {
     return validationError("Invalid query parameters", parsedQuery.error.issues);
   }
 
+  const query: CursorPaginationQuery = parsedQuery.data;
+
   const rules = await deps.readRules(context.houseId);
   const active = rules.filter((rule) => !rule.deletedAt);
   const page = paginateByDateIdDesc({
     items: active,
     getSortKey: (rule) => rule.createdAt,
     getId: (rule) => rule.id,
-    limit: parsedQuery.data.limit,
-    cursor: parsedQuery.data.cursor,
+    limit: query.limit,
+    cursor: query.cursor,
   });
   if (page.isInvalidCursor) {
     return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
@@ -122,15 +155,14 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
     return validationError("Invalid category", parsed.error.issues);
   }
 
+  const requestBody: CreateRuleRequest = parsed.data;
   const createdAt = deps.now();
-  const input: CreateRuleInput = {
-    houseId: context.houseId,
-    title: parsed.data.title,
-    body: parsed.data.body,
-    category: parsed.data.category,
-    createdBy: context.actor.name,
-    createdAt,
-  };
+  const input = toCreateRuleInput(
+    requestBody,
+    context.houseId,
+    context.actor.name,
+    createdAt
+  );
 
   const created = await deps.appendRule(input);
 
@@ -141,7 +173,7 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
     details: {
       ruleId: created.id,
       title: created.title,
-      category: parsed.data.category,
+      category: requestBody.category,
     },
   });
 
@@ -170,12 +202,8 @@ export async function handleUpdateRule(
     return validationError("Invalid category", parsed.error.issues);
   }
 
-  const input: UpdateRuleInput = {
-    title: parsed.data.title,
-    body: parsed.data.body,
-    category: parsed.data.category,
-    updatedAt: deps.now(),
-  };
+  const requestBody: UpdateRuleRequest = parsed.data;
+  const input = toUpdateRuleInput(requestBody, deps.now());
 
   const updated = await deps.updateRule(id, input);
   if (!updated) {
@@ -186,7 +214,7 @@ export async function handleUpdateRule(
     houseId: context.houseId,
     action: "rule_updated",
     actor: context.actor.name,
-    details: { ruleId: id, title: updated.title, category: parsed.data.category },
+    details: { ruleId: id, title: updated.title, category: requestBody.category },
   });
 
   return Response.json({ data: updated });

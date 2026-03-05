@@ -1,7 +1,7 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import type { House } from "@/types";
+import type { House, FirestoreHouseDoc, FirestoreTaskDoc } from "@/types";
 import { TASK_CATEGORIES } from "@/shared/constants/task";
 import { TASK_DEFINITIONS } from "@/domain/tasks/task-definitions";
 
@@ -31,7 +31,7 @@ type CreateHouseInput = {
   joinPassword?: string;
 };
 
-function docToHouse(id: string, data: FirebaseFirestore.DocumentData): House {
+function docToHouse(id: string, data: FirestoreHouseDoc): House {
   return {
     id,
     name: data.name,
@@ -43,7 +43,7 @@ function docToHouse(id: string, data: FirebaseFirestore.DocumentData): House {
   };
 }
 
-function buildDefaultTasks(houseId: string): FirebaseFirestore.DocumentData[] {
+function buildDefaultTasks(houseId: string): FirestoreTaskDoc[] {
   return TASK_CATEGORIES.flatMap((category) =>
     TASK_DEFINITIONS[category].map((task) => ({
       houseId,
@@ -60,7 +60,7 @@ export async function createHouse(input: CreateHouseInput): Promise<House> {
   const db = getAdminFirestore();
   const memberUids = input.ownerUid ? [input.ownerUid] : [];
   const hostUids = input.ownerUid ? [input.ownerUid] : [];
-  const data: FirebaseFirestore.DocumentData = {
+  const data: FirestoreHouseDoc = {
     name: input.name,
     description: input.description ?? "",
     ownerUid: input.ownerUid ?? null,
@@ -90,7 +90,7 @@ export async function readHouseById(houseId: string): Promise<House | null> {
   const db = getAdminFirestore();
   const doc = await db.collection(COLLECTION).doc(houseId).get();
   if (!doc.exists) return null;
-  return docToHouse(doc.id, doc.data()!);
+  return docToHouse(doc.id, doc.data() as FirestoreHouseDoc);
 }
 
 export async function listHousesByMemberUid(uid: string): Promise<House[]> {
@@ -100,7 +100,7 @@ export async function listHousesByMemberUid(uid: string): Promise<House[]> {
     .where("memberUids", "array-contains", uid)
     .orderBy("createdAt", "desc")
     .get();
-  return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data()));
+  return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data() as FirestoreHouseDoc));
 }
 
 export async function updateHouseMemberAddition(
@@ -112,7 +112,7 @@ export async function updateHouseMemberAddition(
   const doc = await ref.get();
   if (!doc.exists) return null;
 
-  const data = doc.data()!;
+  const data = doc.data() as FirestoreHouseDoc;
   const current = Array.isArray(data.memberUids) ? data.memberUids : [];
   if (current.includes(userUid)) {
     return docToHouse(houseId, data);
@@ -134,7 +134,7 @@ export async function readHouseByNameAndJoinPassword(
     .where("name", "==", name)
     .get();
   for (const doc of snapshot.docs) {
-    const data = doc.data();
+    const data = doc.data() as FirestoreHouseDoc;
     const stored: string | undefined = data.joinPasswordHash;
     if (stored && await verifyJoinPassword(joinPassword, stored)) {
       return docToHouse(doc.id, data);
@@ -152,7 +152,7 @@ export async function updateHouseHostRoleGrant(
   const doc = await ref.get();
   if (!doc.exists) return null;
 
-  const data = doc.data()!;
+  const data = doc.data() as FirestoreHouseDoc;
   const current = Array.isArray(data.hostUids) ? data.hostUids : [];
   if (current.includes(userUid)) {
     return docToHouse(houseId, data);
@@ -178,7 +178,7 @@ export async function updateHouseHostRoleRevoke(
   const doc = await ref.get();
   if (!doc.exists) return null;
 
-  const data = doc.data()!;
+  const data = doc.data() as FirestoreHouseDoc;
   const current = Array.isArray(data.hostUids) ? data.hostUids : [];
   if (!current.includes(userUid)) {
     return docToHouse(houseId, data);

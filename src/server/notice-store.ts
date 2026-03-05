@@ -1,4 +1,4 @@
-import type { Notice, CreateNoticeInput } from "@/types";
+import type { Notice, CreateNoticeInput, FirestoreNoticeDoc } from "@/types";
 import {
   addCollectionDoc,
   readCollection,
@@ -7,7 +7,7 @@ import {
 
 const COLLECTION = "notices";
 
-function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
+function docToNotice(id: string, data: FirestoreNoticeDoc): Notice {
   return {
     id,
     houseId: data.houseId,
@@ -31,7 +31,7 @@ export async function listNotices(houseId: string): Promise<Notice[]> {
 }
 
 export async function createNotice(input: CreateNoticeInput): Promise<Notice> {
-  const data = {
+  const data: FirestoreNoticeDoc = {
     ...input,
     deletedAt: null,
     deletedBy: null,

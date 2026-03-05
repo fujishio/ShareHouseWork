@@ -3,7 +3,14 @@ import {
   zNonEmptyTrimmedString,
   zTrimmedString,
 } from "../../shared/lib/api-validation.ts";
-import type { House, Member } from "../../types/index.ts";
+import type {
+  AddHouseMemberRequest,
+  CreateHouseRequest,
+  House,
+  JoinHouseRequest,
+  Member,
+  UpdateHouseRoleRequest,
+} from "../../types/index.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -35,6 +42,23 @@ const rolesSchema = z.object({
   userUid: zNonEmptyTrimmedString,
   action: z.enum(["grant", "revoke"]),
 });
+
+function toCreateHouseInput(
+  body: CreateHouseRequest,
+  ownerUid: string
+): {
+  name: string;
+  description?: string;
+  ownerUid?: string;
+  joinPassword?: string;
+} {
+  return {
+    name: body.name,
+    description: body.description || undefined,
+    ownerUid,
+    joinPassword: body.joinPassword || undefined,
+  };
+}
 
 export type GetHousesDeps = {
   listHouses: (uid: string) => Promise<House[]>;
@@ -117,12 +141,8 @@ export async function handleCreateHouse(request: Request, deps: CreateHouseDeps)
     return validationError("Invalid body", parsed.error.issues);
   }
 
-  const created = await deps.createHouse({
-    name: parsed.data.name,
-    description: parsed.data.description || undefined,
-    ownerUid: actor.uid,
-    joinPassword: parsed.data.joinPassword || undefined,
-  });
+  const requestBody: CreateHouseRequest = parsed.data;
+  const created = await deps.createHouse(toCreateHouseInput(requestBody, actor.uid));
   return Response.json({ data: created }, { status: 201 });
 }
 
@@ -138,7 +158,8 @@ export async function handleJoinHouse(request: Request, deps: JoinHouseDeps) {
     return validationError("Invalid body", parsed.error.issues);
   }
 
-  const { houseName, joinPassword } = parsed.data;
+  const requestBody: JoinHouseRequest = parsed.data;
+  const { houseName, joinPassword } = requestBody;
   const userUid = actor.uid;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const rateLimit = deps.takeRateLimit({
@@ -210,7 +231,8 @@ export async function handleAddHouseMember(
   if (!parsed.success) {
     return validationError("userUid is required", parsed.error.issues);
   }
-  const { userUid } = parsed.data;
+  const requestBody: AddHouseMemberRequest = parsed.data;
+  const { userUid } = requestBody;
 
   const user = await deps.getUser(userUid);
   if (!user) {
@@ -243,7 +265,8 @@ export async function handleUpdateHouseRole(
     return validationError("Invalid body", parsed.error.issues);
   }
 
-  const { userUid, action } = parsed.data;
+  const requestBody: UpdateHouseRoleRequest = parsed.data;
+  const { userUid, action } = requestBody;
 
   const house = await deps.getHouse(id);
   if (!house) {

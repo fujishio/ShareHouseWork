@@ -3,6 +3,7 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { TASK_CATEGORIES } from "../../shared/constants/task.ts";
 import type {
+  CreateTaskRequest,
   CreateTaskInput,
   Task,
   UpdateTaskInput,
@@ -55,6 +56,25 @@ const taskSchema = z.object({
   frequencyDays: z.coerce.number().int().min(1),
 });
 
+function toCreateTaskInput(body: CreateTaskRequest, houseId: string): CreateTaskInput {
+  return {
+    houseId,
+    name: body.name,
+    category: body.category,
+    points: body.points,
+    frequencyDays: body.frequencyDays,
+  };
+}
+
+function toUpdateTaskInput(body: CreateTaskRequest): UpdateTaskInput {
+  return {
+    name: body.name,
+    category: body.category,
+    points: body.points,
+    frequencyDays: body.frequencyDays,
+  };
+}
+
 function taskValidationError(issues: z.ZodIssue[]) {
   const issue = issues[0];
   if (issue?.path[0] === "name") {
@@ -96,13 +116,8 @@ export async function handleCreateTask(request: Request, deps: CreateTaskDeps) {
     return taskValidationError(parsed.error.issues);
   }
 
-  const input: CreateTaskInput = {
-    houseId: context.houseId,
-    name: parsed.data.name,
-    category: parsed.data.category,
-    points: parsed.data.points,
-    frequencyDays: parsed.data.frequencyDays,
-  };
+  const requestBody: CreateTaskRequest = parsed.data;
+  const input = toCreateTaskInput(requestBody, context.houseId);
 
   const created = await deps.createTask(input);
   return Response.json({ data: created }, { status: 201 });
@@ -133,12 +148,8 @@ export async function handleUpdateTask(
     return taskValidationError(parsed.error.issues);
   }
 
-  const input: UpdateTaskInput = {
-    name: parsed.data.name,
-    category: parsed.data.category,
-    points: parsed.data.points,
-    frequencyDays: parsed.data.frequencyDays,
-  };
+  const requestBody: CreateTaskRequest = parsed.data;
+  const input = toUpdateTaskInput(requestBody);
 
   const updated = await deps.updateTask(id, input);
   if (!updated) {

@@ -1,4 +1,4 @@
-import type { TaskCompletionRecord } from "@/types";
+import type { TaskCompletionRecord, FirestoreTaskCompletionDoc } from "@/types";
 import {
   addCollectionDoc,
   readCollection,
@@ -7,7 +7,7 @@ import {
 
 const COLLECTION = "taskCompletions";
 
-function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskCompletionRecord {
+function docToRecord(id: string, data: FirestoreTaskCompletionDoc): TaskCompletionRecord {
   return {
     id,
     houseId: data.houseId,
@@ -35,7 +35,7 @@ export async function listTaskCompletions(houseId: string): Promise<TaskCompleti
 export async function createTaskCompletion(
   record: Omit<TaskCompletionRecord, "id">
 ): Promise<TaskCompletionRecord> {
-  const data = {
+  const data: FirestoreTaskCompletionDoc = {
     ...record,
     canceledAt: record.canceledAt ?? null,
     canceledBy: record.canceledBy ?? null,

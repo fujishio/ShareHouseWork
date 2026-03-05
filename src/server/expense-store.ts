@@ -1,4 +1,9 @@
-import type { ExpenseRecord, CreateExpenseInput, CancelExpenseInput } from "@/types";
+import type {
+  ExpenseRecord,
+  CreateExpenseInput,
+  CancelExpenseInput,
+  FirestoreExpenseDoc,
+} from "@/types";
 import {
   createCollectionDoc,
   listCollection,
@@ -8,7 +13,7 @@ import { monthToDateRange } from "@/server/month-range";
 
 const COLLECTION = "expenses";
 
-function docToRecord(id: string, data: FirebaseFirestore.DocumentData): ExpenseRecord {
+function docToRecord(id: string, data: FirestoreExpenseDoc): ExpenseRecord {
   return {
     id,
     houseId: data.houseId,
@@ -46,7 +51,7 @@ export async function listExpenses(houseId: string, month?: string): Promise<Exp
 }
 
 export async function createExpense(input: CreateExpenseInput): Promise<ExpenseRecord> {
-  const data = {
+  const data: FirestoreExpenseDoc = {
     ...input,
     canceledAt: null,
     canceledBy: null,

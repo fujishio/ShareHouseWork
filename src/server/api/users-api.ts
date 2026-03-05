@@ -7,7 +7,7 @@ import {
   validationError,
   type AuthenticatedUser,
 } from "./route-handler-utils.ts";
-import type { House, Member } from "../../types/index.ts";
+import type { House, Member, UpsertUserRequest } from "../../types/index.ts";
 
 const upsertUserSchema = z.object({
   name: zNonEmptyTrimmedString,
@@ -59,10 +59,7 @@ export async function handleUpsertUser(request: Request, deps: UpsertUsersDeps) 
     return validationError("name, color, email are required", parsed.error.issues);
   }
 
-  const created = await deps.upsertUser(actor.uid, {
-    name: parsed.data.name,
-    color: parsed.data.color,
-    email: parsed.data.email,
-  });
+  const requestBody: UpsertUserRequest = parsed.data;
+  const created = await deps.upsertUser(actor.uid, requestBody);
   return Response.json({ data: created }, { status: 201 });
 }

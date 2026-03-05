@@ -1,4 +1,4 @@
-import type { Task, CreateTaskInput, UpdateTaskInput } from "@/types";
+import type { Task, CreateTaskInput, UpdateTaskInput, FirestoreTaskDoc } from "@/types";
 import {
   addCollectionDoc,
   readCollection,
@@ -8,7 +8,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 
 const COLLECTION = "tasks";
 
-function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
+function docToTask(id: string, data: FirestoreTaskDoc): Task {
   return {
     id,
     houseId: data.houseId,
@@ -32,7 +32,7 @@ export async function listTasks(houseId: string): Promise<Task[]> {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-  const data = { ...input, deletedAt: null };
+  const data: FirestoreTaskDoc = { ...input, deletedAt: null };
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToTask });
 }
 
@@ -40,7 +40,7 @@ export async function readTaskById(taskId: string): Promise<Task | null> {
   const db = getAdminFirestore();
   const doc = await db.collection(COLLECTION).doc(taskId).get();
   if (!doc.exists) return null;
-  return docToTask(doc.id, doc.data()!);
+  return docToTask(doc.id, doc.data() as FirestoreTaskDoc);
 }
 
 export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {

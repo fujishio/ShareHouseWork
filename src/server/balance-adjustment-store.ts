@@ -1,6 +1,7 @@
 import type {
   BalanceAdjustmentRecord,
   CreateBalanceAdjustmentInput,
+  FirestoreBalanceAdjustmentDoc,
 } from "@/types";
 import { createCollectionDoc, listCollection } from "@/server/store-utils";
 import { monthToDateRange } from "@/server/month-range";
@@ -9,7 +10,7 @@ const COLLECTION = "balanceAdjustments";
 
 function docToRecord(
   id: string,
-  data: FirebaseFirestore.DocumentData
+  data: FirestoreBalanceAdjustmentDoc
 ): BalanceAdjustmentRecord {
   return {
     id,
@@ -49,9 +50,10 @@ export async function listBalanceAdjustments(
 export async function createBalanceAdjustment(
   input: CreateBalanceAdjustmentInput
 ): Promise<BalanceAdjustmentRecord> {
+  const data: FirestoreBalanceAdjustmentDoc = input;
   return createCollectionDoc({
     collection: COLLECTION,
-    data: input,
+    data,
     mapDoc: docToRecord,
   });
 }
