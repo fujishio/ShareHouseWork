@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { readRules } from "@/server/rule-store";
 import RulesSection from "@/components/RulesSection";
 import { resolveRequestHouseId } from "@/server/request-house";
+import { getHouse } from "@/server/house-store";
+import { listUsers } from "@/server/user-store";
 
 export default async function RulesPage() {
   const houseId = await resolveRequestHouseId();
@@ -16,12 +18,15 @@ export default async function RulesPage() {
       </div>
     );
   }
-  const rules = await readRules(houseId);
+  const house = await getHouse(houseId);
+  const [rules, members] = await Promise.all([
+    readRules(houseId),
+    house?.memberUids.length ? listUsers(house.memberUids) : Promise.resolve([]),
+  ]);
   const active = rules.filter((r) => !r.deletedAt);
-
   return (
     <div className="space-y-4">
-      <RulesSection initialRules={active} />
+      <RulesSection initialRules={active} participantMembers={members} />
     </div>
   );
 }

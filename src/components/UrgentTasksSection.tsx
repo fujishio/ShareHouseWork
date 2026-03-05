@@ -93,6 +93,7 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [actionTargetId, setActionTargetId] = useState<string | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [isPendingOpen, setIsPendingOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -225,31 +226,45 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
       </ul>
 
       <div className="mt-4">
-        <h4 className="text-sm font-semibold text-stone-700">保留中のタスク</h4>
-        <ul className="mt-2 space-y-2">
-          {pendingTasks.map((task) => (
-            <li
-              key={task.id}
-              className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/70 bg-white px-3 py-2"
-            >
-              <p className="min-w-0 truncate text-sm text-stone-700">{task.name}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  resumeTask(task.id);
-                }}
-                className="shrink-0 rounded-md border border-stone-300 px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+        <button
+          type="button"
+          onClick={() => {
+            setIsPendingOpen((prev) => !prev);
+          }}
+          className="flex w-full items-center justify-between rounded-md px-1 py-1 text-left hover:bg-stone-100"
+          aria-expanded={isPendingOpen}
+        >
+          <h4 className="text-sm font-semibold text-stone-700">保留中のタスク</h4>
+          <span className="text-xs font-semibold text-stone-500">
+            {pendingTasks.length}件 {isPendingOpen ? "▲" : "▼"}
+          </span>
+        </button>
+        {isPendingOpen && (
+          <ul className="mt-2 space-y-2">
+            {pendingTasks.map((task) => (
+              <li
+                key={task.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-stone-200/70 bg-white px-3 py-2"
               >
-                急ぎに戻す
-              </button>
-            </li>
-          ))}
-          {pendingTasks.length === 0 && (
-            <li className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-xs text-stone-500">
-              保留中のタスクはありません。
-            </li>
-          )}
-        </ul>
+                <p className="min-w-0 truncate text-sm text-stone-700">{task.name}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resumeTask(task.id);
+                  }}
+                  className="shrink-0 rounded-md border border-stone-300 px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                >
+                  急ぎに戻す
+                </button>
+              </li>
+            ))}
+            {pendingTasks.length === 0 && (
+              <li className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-xs text-stone-500">
+                保留中のタスクはありません。
+              </li>
+            )}
+          </ul>
+        )}
       </div>
     </>
   );

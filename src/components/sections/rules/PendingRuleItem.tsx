@@ -1,18 +1,29 @@
 import { Check } from "lucide-react";
 import type { Rule } from "@/types";
-import { MEMBER_NAMES } from "@/shared/constants/house";
 import { CATEGORY_EMOJI } from "./constants";
 
 type PendingRuleItemProps = {
   rule: Rule;
+  participantNames: string[];
+  currentMemberName: string | null;
   acknowledgingId: string | null;
-  onAcknowledge: (rule: Rule, memberName: string) => void;
+  onAcknowledge: (rule: Rule) => void;
 };
 
-export function PendingRuleItem({ rule, acknowledgingId, onAcknowledge }: PendingRuleItemProps) {
+export function PendingRuleItem({
+  rule,
+  participantNames,
+  currentMemberName,
+  acknowledgingId,
+  onAcknowledge,
+}: PendingRuleItemProps) {
   const acknowledged = rule.acknowledgedBy ?? [];
-  const requiredMembers = MEMBER_NAMES.filter((m) => m !== rule.createdBy);
+  const requiredMembers = participantNames.filter((m) => m !== rule.createdBy);
   const remaining = requiredMembers.filter((m) => !acknowledged.includes(m));
+  const canCurrentUserAcknowledge =
+    currentMemberName !== null &&
+    currentMemberName !== rule.createdBy &&
+    remaining.includes(currentMemberName);
 
   return (
     <li className="px-4 py-3">
@@ -40,20 +51,17 @@ export function PendingRuleItem({ rule, acknowledgingId, onAcknowledge }: Pendin
             })}
           </div>
 
-          {remaining.length > 0 && (
+          {remaining.length > 0 && canCurrentUserAcknowledge && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {remaining.map((member) => (
-                <button
-                  key={member}
-                  type="button"
-                  disabled={acknowledgingId === rule.id}
-                  onClick={() => onAcknowledge(rule, member)}
-                  className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
-                >
-                  <Check size={10} />
-                  {member}が既読
-                </button>
-              ))}
+              <button
+                type="button"
+                disabled={acknowledgingId === rule.id}
+                onClick={() => onAcknowledge(rule)}
+                className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-3 py-1 text-xs font-medium text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                <Check size={10} />
+                既読にする
+              </button>
             </div>
           )}
         </div>

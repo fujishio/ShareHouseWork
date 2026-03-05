@@ -1,20 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Rule, RuleCategory } from "@/types";
-import { MEMBER_NAMES } from "@/shared/constants/house";
 import { apiFetch, readJson } from "@/shared/lib/fetch-client";
 import { isDataObjectResponse } from "@/shared/lib/response-guards";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
 import { CATEGORY_ORDER } from "@/components/sections/rules/constants";
 
-function isRuleConfirmed(rule: Rule): boolean {
+function isRuleConfirmed(rule: Rule, participantNames: string[]): boolean {
   if (!rule.acknowledgedBy) return true;
   if (rule.acknowledgedBy.length === 0) return false;
-  const requiredMembers = MEMBER_NAMES.filter((member) => member !== rule.createdBy);
+  const requiredMembers = participantNames.filter((member) => member !== rule.createdBy);
   return requiredMembers.every((member) => rule.acknowledgedBy!.includes(member));
 }
 
-export function useRulesSection(initialRules: Rule[]) {
+export function useRulesSection(initialRules: Rule[], participantNames: string[]) {
   const router = useRouter();
   const [rules, setRules] = useState<Rule[]>(initialRules);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -27,17 +26,17 @@ export function useRulesSection(initialRules: Rule[]) {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<RuleCategory>>(new Set());
 
   const pendingRules = useMemo(
-    () => rules.filter((rule) => !isRuleConfirmed(rule)),
-    [rules]
+    () => rules.filter((rule) => !isRuleConfirmed(rule, participantNames)),
+    [participantNames, rules]
   );
 
   const groupedRules = useMemo(() => {
-    const confirmedRules = rules.filter((rule) => isRuleConfirmed(rule));
+    const confirmedRules = rules.filter((rule) => isRuleConfirmed(rule, participantNames));
     return CATEGORY_ORDER.map((category) => ({
       category,
       rules: confirmedRules.filter((rule) => rule.category === category),
     })).filter((entry) => entry.rules.length > 0);
-  }, [rules]);
+  }, [participantNames, rules]);
 
   const isCategoryCollapsed = useCallback((category: RuleCategory) => {
     return collapsedCategories.has(category);
@@ -55,15 +54,13 @@ export function useRulesSection(initialRules: Rule[]) {
     });
   }, []);
 
-  const acknowledgeRule = useCallback(async (rule: Rule, memberName: string) => {
+  const acknowledgeRule = useCallback(async (rule: Rule) => {
     setAcknowledgingId(rule.id);
     try {
       await submitApiAction({
         request: () =>
           apiFetch(`/api/rules/${rule.id}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ acknowledgedBy: memberName }),
           }),
         successMessage: "確認済みに更新しました",
         fallbackErrorMessage: "確認処理に失敗しました",

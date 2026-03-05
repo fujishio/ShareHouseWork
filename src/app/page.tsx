@@ -61,7 +61,7 @@ export default async function HomePage() {
       <div className="space-y-4">
         <GreetingSection />
         <ContributionWidgetWrapper data={[]} />
-        <RecentTasksWidget tasks={[]} />
+        <RecentTasksWidget tasks={[]} houseId={null} />
         <ExpenseWidget
           summary={{
             month: toLabelFromMonthKey(currentMonthKey),
@@ -89,6 +89,10 @@ export default async function HomePage() {
 
   const latestByTask = getLatestCompletionByTask(completions);
   const priorityTasks = getPrioritizedTasks(latestByTask, now);
+  const priorityTaskCards = priorityTasks.map((task) => ({
+    ...task,
+    lastCompletedAtIso: task.lastCompletedAt ? task.lastCompletedAt.toISOString() : null,
+  }));
 
   const contributionData = computeContributionData(completions, users, now);
 
@@ -121,7 +125,7 @@ export default async function HomePage() {
       <ContributionWidgetWrapper data={contributionData} />
 
       {/* Priority tasks */}
-      <RecentTasksWidget tasks={priorityTasks} />
+      <RecentTasksWidget tasks={priorityTaskCards} houseId={houseId} />
 
       {/* Expense widget */}
       <ExpenseWidget summary={expenseSummary} />

@@ -216,7 +216,7 @@ export default function ExpenseSection({
                 value={adjustDate}
                 onChange={(event) => setAdjustDate(event.target.value)}
                 disabled={isAdjusting}
-                className="w-full min-w-0 max-w-full rounded-lg border border-stone-300 px-2 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="block w-full min-w-0 max-w-full rounded-lg border border-stone-300 px-2 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300 [inline-size:100%] [min-inline-size:0]"
               />
             </div>
           </div>

@@ -1,17 +1,32 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChevronDown, ChevronUp, BookOpen, Clock } from "lucide-react";
-import type { Rule } from "@/types";
+import type { Member, Rule } from "@/types";
 import { LoadingNotice } from "./RequestStatus";
 import { useRulesSection } from "@/hooks/useRulesSection";
 import { CATEGORY_EMOJI } from "@/components/sections/rules/constants";
 import { RuleEditForm } from "@/components/sections/rules/RuleEditForm";
 import { PendingRuleItem } from "@/components/sections/rules/PendingRuleItem";
 import { RuleItem } from "@/components/sections/rules/RuleItem";
+import { useAuth } from "@/context/AuthContext";
 
-type Props = { initialRules: Rule[] };
+type Props = {
+  initialRules: Rule[];
+  participantMembers: Member[];
+};
 
-export default function RulesSection({ initialRules }: Props) {
+export default function RulesSection({ initialRules, participantMembers }: Props) {
+  const { user } = useAuth();
+  const participantNames = useMemo(
+    () => participantMembers.map((member) => member.name),
+    [participantMembers]
+  );
+  const currentMemberName = useMemo(
+    () => participantMembers.find((member) => member.id === user?.uid)?.name ?? null,
+    [participantMembers, user?.uid]
+  );
+
   const {
     rules,
     pendingRules,
@@ -33,7 +48,7 @@ export default function RulesSection({ initialRules }: Props) {
     startEdit,
     cancelEdit,
     saveEdit,
-  } = useRulesSection(initialRules);
+  } = useRulesSection(initialRules, participantNames);
 
   if (rules.length === 0 && !editingRule) {
     return (
@@ -84,6 +99,8 @@ export default function RulesSection({ initialRules }: Props) {
               <PendingRuleItem
                 key={rule.id}
                 rule={rule}
+                participantNames={participantNames}
+                currentMemberName={currentMemberName}
                 acknowledgingId={acknowledgingId}
                 onAcknowledge={acknowledgeRule}
               />
