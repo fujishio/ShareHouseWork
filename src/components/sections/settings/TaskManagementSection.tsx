@@ -1,4 +1,5 @@
-import { ClipboardList, Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ClipboardList, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { TASK_CATEGORIES } from "@/shared/constants/task";
 import { RetryNotice, LoadingNotice } from "@/components/RequestStatus";
 import { useTaskManagement } from "@/hooks/useTaskManagement";
@@ -27,7 +28,11 @@ export function TaskManagementSection() {
     saveEdit,
     saveNew,
     deleteTask,
+    reorderTask,
   } = useTaskManagement();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [touchDraggingId, setTouchDraggingId] = useState<string | null>(null);
 
   return (
     <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
@@ -35,7 +40,7 @@ export function TaskManagementSection() {
         <ClipboardList size={18} className="text-amber-500" />
         <h3 className="text-sm font-bold text-stone-800">タスク管理</h3>
       </div>
-      <p className="mb-3 text-xs text-stone-500">タスクの追加・編集・削除ができます。</p>
+      <p className="mb-3 text-xs text-stone-500">タスクの追加・編集・削除・並び替えができます。</p>
 
       {loading && <LoadingNotice message="タスクを読み込み中..." />}
       {loadError && (
@@ -87,8 +92,76 @@ export function TaskManagementSection() {
               ) : (
                 <div
                   key={task.id}
-                  className="flex items-center gap-2 rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2"
+                  data-task-id={task.id}
+                  draggable={!saving}
+                  onDragStart={(event) => {
+                    setDraggingId(task.id);
+                    setDragOverId(null);
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", task.id);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    if (draggingId && draggingId !== task.id) {
+                      setDragOverId(task.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverId === task.id) {
+                      setDragOverId(null);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const droppedTaskId = event.dataTransfer.getData("text/plain") || draggingId;
+                    if (droppedTaskId && droppedTaskId !== task.id) {
+                      void reorderTask(droppedTaskId, task.id);
+                    }
+                    setDraggingId(null);
+                    setDragOverId(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setDragOverId(null);
+                  }}
+                  onTouchStart={() => {
+                    if (!saving) {
+                      setTouchDraggingId(task.id);
+                      setDragOverId(task.id);
+                    }
+                  }}
+                  onTouchMove={(event) => {
+                    if (!touchDraggingId) return;
+                    const touch = event.touches[0];
+                    if (!touch) return;
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const container = element?.closest("[data-task-id]");
+                    const targetTaskId = container?.getAttribute("data-task-id");
+                    if (targetTaskId) {
+                      setDragOverId(targetTaskId);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (touchDraggingId && dragOverId && touchDraggingId !== dragOverId) {
+                      void reorderTask(touchDraggingId, dragOverId);
+                    }
+                    setTouchDraggingId(null);
+                    setDragOverId(null);
+                  }}
+                  onTouchCancel={() => {
+                    setTouchDraggingId(null);
+                    setDragOverId(null);
+                  }}
+                  className={`flex items-center gap-2 rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2 ${
+                    dragOverId === task.id ? "ring-2 ring-amber-300" : ""
+                  }`}
                 >
+                  <span
+                    className="shrink-0 cursor-grab text-stone-300 active:cursor-grabbing"
+                    aria-hidden="true"
+                  >
+                    <GripVertical size={13} />
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-stone-800">{task.name}</p>
                     <p className="text-[10px] text-stone-400">

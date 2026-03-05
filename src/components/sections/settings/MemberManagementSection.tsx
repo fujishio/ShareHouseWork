@@ -67,6 +67,10 @@ export function MemberManagementSection() {
                     type="button"
                     disabled={saving}
                     onClick={() => {
+                      if (!isHost) {
+                        const confirmed = window.confirm(`「${member.name}」さんにホスト権限を渡しますか？`);
+                        if (!confirmed) return;
+                      }
                       void updateRole(member.id, isHost ? "revoke" : "grant");
                     }}
                     className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-50 ${

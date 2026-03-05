@@ -54,6 +54,7 @@ const taskSchema = z.object({
   category: z.enum(TASK_CATEGORIES),
   points: z.coerce.number().int().min(1),
   frequencyDays: z.coerce.number().int().min(1),
+  displayOrder: z.coerce.number().int().min(0).optional(),
 });
 
 function toCreateTaskInput(body: CreateTaskRequest, houseId: string): CreateTaskInput {
@@ -63,6 +64,7 @@ function toCreateTaskInput(body: CreateTaskRequest, houseId: string): CreateTask
     category: body.category,
     points: body.points,
     frequencyDays: body.frequencyDays,
+    displayOrder: body.displayOrder,
   };
 }
 
@@ -72,6 +74,7 @@ function toUpdateTaskInput(body: CreateTaskRequest): UpdateTaskInput {
     category: body.category,
     points: body.points,
     frequencyDays: body.frequencyDays,
+    displayOrder: body.displayOrder,
   };
 }
 
@@ -93,6 +96,9 @@ function taskValidationError(issues: z.ZodIssue[]) {
       "VALIDATION_ERROR",
       issues
     );
+  }
+  if (issue?.path[0] === "displayOrder") {
+    return errorResponse("displayOrder must be a non-negative integer", 400, "VALIDATION_ERROR", issues);
   }
   return errorResponse("Invalid body", 400, "VALIDATION_ERROR", issues);
 }

@@ -28,6 +28,15 @@
     background: #d6d3d1; /* stone-300 */
     border-radius: 9999px;
   }
+
+  /* Prevent iOS Safari auto-zoom on focused form fields */
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
 }
 
 @keyframes slide-up {

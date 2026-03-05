@@ -6,6 +6,7 @@ import { readExpenses } from "@/server/expense-store";
 import { readBalanceAdjustments } from "@/server/balance-adjustment-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
+import { calculateUsageRate } from "@/domain/expenses/calculate-usage-rate";
 import ExpenseSection from "@/components/ExpenseSection";
 import ExpenseMonthNav from "@/components/ExpenseMonthNav";
 import { getHouse } from "@/server/house-store";
@@ -94,6 +95,7 @@ export default async function ExpensesPage({
     contributionHistory,
     { carryoverStartMonthKey }
   );
+  const utilizationRate = calculateUsageRate(summary.monthlyContribution, summary.monthlySpent);
   const targetMonthExpenses = allExpenses.filter(
     (e) => e.purchasedAt.startsWith(targetMonthKey) && !e.canceledAt
   );
@@ -168,21 +170,13 @@ export default async function ExpensesPage({
 
         <div>
           <div className="flex justify-between text-xs text-stone-400 mb-1">
-            <span>年間使用率</span>
-            <span className={summary.usageRate >= 90 ? "text-red-500 font-semibold" : ""}>
-              {summary.usageRate}%
-            </span>
+            <span>利用率</span>
+            <span>{utilizationRate}%</span>
           </div>
           <div className="w-full bg-stone-100 rounded-full h-2">
             <div
-              className={`h-2 rounded-full transition-all ${
-                summary.usageRate >= 90
-                  ? "bg-red-400"
-                  : summary.usageRate >= 70
-                    ? "bg-amber-400"
-                    : "bg-emerald-400"
-              }`}
-              style={{ width: `${summary.usageRate}%` }}
+              className="h-2 rounded-full bg-amber-400 transition-all"
+              style={{ width: `${utilizationRate}%` }}
             />
           </div>
         </div>

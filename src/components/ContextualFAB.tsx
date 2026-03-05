@@ -49,7 +49,7 @@ export default function ContextualFAB() {
 
           <div
             ref={modalRef}
-            className="absolute right-0 bottom-0 w-1/2 max-h-[85vh] p-3"
+            className="absolute right-0 bottom-0 w-full sm:w-1/2 max-h-[85vh] p-3"
             style={{ paddingBottom: "calc(0.75rem + var(--safe-area-bottom))" }}
             role="dialog"
             aria-modal="true"

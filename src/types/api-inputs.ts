@@ -64,6 +64,7 @@ export type CreateTaskRequest = {
   category: TaskCategory;
   points: number;
   frequencyDays: number;
+  displayOrder?: number;
 };
 
 export type CreateRuleRequest = {

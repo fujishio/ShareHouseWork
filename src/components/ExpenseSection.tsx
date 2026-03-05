@@ -189,8 +189,8 @@ export default function ExpenseSection({
               : "調整額を直接入力します（マイナスで減額）"}
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            <div className="min-w-0">
               <label htmlFor="adjust-balance-input" className="mb-1 block text-xs font-medium text-stone-600">
                 {adjustMode === "rewrite" ? "目標残高（円）" : "調整額（円）"}
               </label>
@@ -202,10 +202,10 @@ export default function ExpenseSection({
                 onChange={(event) => setBalanceInput(event.target.value)}
                 disabled={isAdjusting}
                 placeholder={adjustMode === "rewrite" ? String(currentBalance) : "例: -2000"}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full min-w-0 max-w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label htmlFor="adjust-date" className="mb-1 block text-xs font-medium text-stone-600">
                 調整日
               </label>
@@ -216,7 +216,7 @@ export default function ExpenseSection({
                 value={adjustDate}
                 onChange={(event) => setAdjustDate(event.target.value)}
                 disabled={isAdjusting}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="w-full min-w-0 max-w-full rounded-lg border border-stone-300 px-2 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
             </div>
           </div>

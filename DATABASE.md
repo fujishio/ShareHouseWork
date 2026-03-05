@@ -148,12 +148,25 @@ erDiagram
 | `deletedAt` | string(ISO8601) \| null | Yes | 論理削除日時 |
 | `deletedBy` | string \| null | Yes | 削除者名 |
 
+### `balanceAdjustments`
+- 用途: 共益費の残高調整記録。
+- ドキュメントID: 自動採番。
+
+| field | type | 必須 | 説明 |
+|---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
+| `amount` | number | Yes | 調整額（正: 増額、負: 減額） |
+| `reason` | string | Yes | 調整理由 |
+| `adjustedBy` | string | Yes | 調整者名 |
+| `adjustedAt` | string(`YYYY-MM-DD`) | Yes | 調整日 |
+
 ### `contributionSettings`
 - 用途: 共益費設定履歴（月単位の時系列）。
 - ドキュメントID: `YYYY-MM`（例: `2026-03`）。
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `monthlyAmountPerPerson` | number(>0) | Yes | 1人あたり月額 |
 | `memberCount` | number(int>=1) | Yes | 対象人数 |
 | `effectiveMonth` | string(`YYYY-MM`) | Yes | 適用開始月 |
@@ -167,6 +180,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `action` | enum string | Yes | `rule_created` 等 |
 | `actor` | string | Yes | 実行者名 |
 | `source` | `"app"` \| `"system"` | Yes | 発生源 |
@@ -174,17 +188,21 @@ erDiagram
 | `details` | map | Yes | 追加情報（可変） |
 
 ## 4. 主要クエリとインデックス観点
-- `auditLogs`: `orderBy(createdAt desc)`
-- `expenses`: `orderBy(purchasedAt desc)`
-- `notices`: `orderBy(postedAt desc)`
-- `rules`: `orderBy(createdAt desc)`
-- `shoppingItems`: `orderBy(addedAt desc)`
-- `taskCompletions`: `orderBy(completedAt desc)`
-- `houses`: `orderBy(createdAt desc)`
-- `tasks`: `where(deletedAt == null)`
+
+全コレクション（`users`, `houses` を除く）は `where(houseId == ?)` でハウススコープに絞り込んだ上で、以下のクエリを実行する。
+
+- `auditLogs`: `where(houseId) + orderBy(createdAt desc)` + cursor ページング
+- `balanceAdjustments`: `where(houseId) + orderBy(adjustedAt desc)`
+- `expenses`: `where(houseId) + orderBy(purchasedAt desc)`
+- `notices`: `where(houseId) + orderBy(postedAt desc)` + cursor ページング
+- `rules`: `where(houseId) + orderBy(createdAt desc)` + cursor ページング
+- `shoppingItems`: `where(houseId) + orderBy(addedAt desc)` + cursor ページング
+- `taskCompletions`: `where(houseId) + orderBy(completedAt desc)` + cursor ページング
+- `houses`: `where(memberUids array-contains uid)`
+- `tasks`: `where(houseId) + where(deletedAt == null)`
 
 注記:
-- 上記は単一フィールドクエリのみ。Firestore の自動単一フィールドインデックスで通常対応可能。
+- `houseId` + ソートキーの複合クエリは Firestore の複合インデックスが必要。`firestore.indexes.json` で管理。
 - 複合インデックスが必要なクエリ追加時の運用は `docs/firestore-query-index-operations.md` を参照。
 
 ## 5. 実装ルール（運用）
@@ -292,7 +310,7 @@ npm run db:seed:reset
 
 ### 8.3 確認項目
 - Emulator UI `http://127.0.0.1:4000/firestore` で以下コレクションが存在
-  - `users`, `houses`, `tasks`, `rules`, `shoppingItems`, `expenses`, `notices`
-  - `contributionSettings`, `taskCompletions`, `auditLogs`
+  - `users`, `houses`, `tasks`, `taskCompletions`, `expenses`, `balanceAdjustments`
+  - `shoppingItems`, `rules`, `notices`, `contributionSettings`, `auditLogs`
 - `tasks` に `deletedAt = null` で seed が入っている
 - `rules` / `shoppingItems` / `expenses` / `notices` に削除・取消サンプルが含まれている

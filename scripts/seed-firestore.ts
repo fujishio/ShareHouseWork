@@ -13,6 +13,7 @@ type SeedTask = {
   category: string;
   points: number;
   frequencyDays: number;
+  displayOrder: number;
   deletedAt: null;
 };
 
@@ -76,6 +77,7 @@ function buildTaskSeeds(): SeedTask[] {
       category,
       points: task.points,
       frequencyDays: task.frequencyDays,
+      displayOrder: task.displayOrder,
       deletedAt: null,
     })),
   );

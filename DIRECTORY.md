@@ -121,3 +121,41 @@
 - `src/components/sections/`: ページ部品の分割コンポーネント
 - `src/types/*.ts`: 型定義（ドメイン別分割、API 公開型と Firestore 永続化型を分離）
 - `src/**/*.test.ts`: 各レイヤーのユニットテスト/統合寄りテスト（Node test runner）
+
+## 4. 変更時チェックリスト
+
+PR 作成前に以下を確認する。該当しない項目はスキップ可。
+
+### 4.1 型変更
+- [ ] `src/types/` のドメイン型を変更した場合、`src/types/firestore.ts` の Firestore 永続化型も同期したか
+- [ ] `src/types/api-inputs.ts` の DTO を変更した場合、対応する Zod スキーマも更新したか
+- [ ] 型を追加・削除した場合、`src/types/index.ts` のバレルエクスポートを更新したか
+
+### 4.2 Firestore インデックス
+- [ ] 新しい複合クエリ（`where` + `orderBy` の組み合わせ変更）を追加した場合、`firestore.indexes.json` を更新したか
+- [ ] 運用手順を `docs/firestore-query-index-operations.md` に反映したか
+
+### 4.3 監査ログ
+- [ ] CUD 操作を追加・変更した場合、`src/server/api/audit-log-service.ts` に記録処理を追加したか
+- [ ] 監査ログの `action` 名がドメイン内で一貫しているか（`{entity}_{verb}` 形式）
+
+### 4.4 セキュリティ
+- [ ] 新しい API エンドポイントに認証（`resolveAuthenticatedActor` / `resolveHouseScopedContext`）を適用したか
+- [ ] `houseId` スコープで適切にデータ分離されているか
+- [ ] Secret スキャンを実行し、秘密情報がコードに含まれていないか（下記コマンド参照）
+- [ ] `.env.local` に新しい環境変数を追加した場合、`.env.example` にも項目を追記したか
+
+### 4.5 ドキュメント
+- [ ] `DATABASE.md` のコレクション定義を変更した場合、`Overview.md` のデータ設計サマリーも同期したか
+- [ ] 新しい API エンドポイントを追加した場合、`DIRECTORY.md` の API ルート一覧を更新したか
+- [ ] 新しいファイル・ディレクトリを追加した場合、`DIRECTORY.md` のファイル構成を更新したか
+
+### 4.6 検証（必須）
+```bash
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+### 4.7 Secret スキャン（コミット前必須）
+```bash
+rg -n --hidden -S "(api[_-]?key|apikey|secret|token|private[_-]?key|client[_-]?secret|BEGIN [A-Z ]+PRIVATE KEY|x-api-key|authorization:|AIza[0-9A-Za-z_-]{35}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})" --glob '!{node_modules,*.lock,.git,*.md}' .
+```

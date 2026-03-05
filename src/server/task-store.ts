@@ -4,6 +4,7 @@ import type {
   UpdateTaskInput,
   FirestoreTaskDoc,
 } from "../types/index.ts";
+import { TASK_CATEGORIES } from "../shared/constants/task.ts";
 import {
   addCollectionDoc,
   readCollection,
@@ -12,6 +13,21 @@ import {
 import { getAdminFirestore } from "../lib/firebase-admin.ts";
 
 const COLLECTION = "tasks";
+const CATEGORY_INDEX = new Map(TASK_CATEGORIES.map((category, index) => [category, index]));
+
+function compareTaskOrder(a: Task, b: Task): number {
+  const categoryDiff = (CATEGORY_INDEX.get(a.category) ?? 999) - (CATEGORY_INDEX.get(b.category) ?? 999);
+  if (categoryDiff !== 0) {
+    return categoryDiff;
+  }
+
+  const orderDiff = (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER);
+  if (orderDiff !== 0) {
+    return orderDiff;
+  }
+
+  return a.name.localeCompare(b.name, "ja");
+}
 
 function docToTask(id: string, data: FirestoreTaskDoc): Task {
   return {
@@ -21,6 +37,7 @@ function docToTask(id: string, data: FirestoreTaskDoc): Task {
     category: data.category,
     points: data.points,
     frequencyDays: data.frequencyDays,
+    displayOrder: typeof data.displayOrder === "number" ? data.displayOrder : undefined,
     deletedAt: data.deletedAt ?? undefined,
   };
 }
@@ -29,7 +46,7 @@ export async function listTasks(
   houseId: string,
   db?: FirebaseFirestore.Firestore
 ): Promise<Task[]> {
-  return readCollection({
+  const tasks = await readCollection({
     db,
     collection: COLLECTION,
     whereEquals: [
@@ -38,13 +55,18 @@ export async function listTasks(
     ],
     mapDoc: docToTask,
   });
+  return tasks.sort(compareTaskOrder);
 }
 
 export async function createTask(
   input: CreateTaskInput,
   db?: FirebaseFirestore.Firestore
 ): Promise<Task> {
-  const data: FirestoreTaskDoc = { ...input, deletedAt: null };
+  const data: FirestoreTaskDoc = {
+    ...input,
+    displayOrder: typeof input.displayOrder === "number" ? input.displayOrder : 0,
+    deletedAt: null,
+  };
   return addCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToTask });
 }
 
@@ -63,12 +85,22 @@ export async function updateTask(
   input: UpdateTaskInput,
   db?: FirebaseFirestore.Firestore
 ): Promise<Task | null> {
+  const updates: Partial<FirestoreTaskDoc> = {
+    name: input.name,
+    category: input.category,
+    points: input.points,
+    frequencyDays: input.frequencyDays,
+  };
+  if (typeof input.displayOrder === "number") {
+    updates.displayOrder = input.displayOrder;
+  }
+
   return updateCollectionDocConditionally({
     db,
     collection: COLLECTION,
     id: taskId,
     shouldUpdate: (data) => !data.deletedAt,
-    updates: { ...input },
+    updates,
     onGuardFail: "return-null",
     mapDoc: docToTask,
   });

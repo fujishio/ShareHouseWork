@@ -3,6 +3,7 @@ import { TASK_CATEGORIES } from "@/shared/constants/task";
 import { apiFetch, readJson } from "@/shared/lib/fetch-client";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
 import { isDataArrayResponse } from "@/shared/lib/response-guards";
+import { showToast } from "@/shared/lib/toast";
 import type { Task, TaskCategory, TaskListResponse } from "@/types";
 
 export type TaskFormState = {
@@ -19,11 +20,33 @@ export const BLANK_TASK_FORM: TaskFormState = {
   frequencyDays: "7",
 };
 
+const TASK_CATEGORY_ORDER = new Map(TASK_CATEGORIES.map((category, index) => [category, index]));
+
+function compareTaskOrder(a: Task, b: Task): number {
+  const categoryDiff =
+    (TASK_CATEGORY_ORDER.get(a.category) ?? 999) - (TASK_CATEGORY_ORDER.get(b.category) ?? 999);
+  if (categoryDiff !== 0) {
+    return categoryDiff;
+  }
+
+  const orderDiff = (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER);
+  if (orderDiff !== 0) {
+    return orderDiff;
+  }
+
+  return a.name.localeCompare(b.name, "ja");
+}
+
+function sortTasks(items: Task[]): Task[] {
+  return [...items].sort(compareTaskOrder);
+}
+
 function parseTaskForm(form: TaskFormState): {
   name: string;
   category: TaskCategory;
   points: number;
   frequencyDays: number;
+  displayOrder?: number;
 } | null {
   const name = form.name.trim();
   const points = Number(form.points);
@@ -55,7 +78,7 @@ export function useTaskManagement() {
         return;
       }
       const json = await readJson<TaskListResponse>(response, isDataArrayResponse<Task>);
-      setTasks(json.data);
+      setTasks(sortTasks(json.data));
     } catch {
       setLoadError("通信エラーが発生しました");
     } finally {
@@ -76,6 +99,12 @@ export function useTaskManagement() {
       const list = map.get(task.category);
       if (list) {
         list.push(task);
+      }
+    }
+    for (const category of TASK_CATEGORIES) {
+      const list = map.get(category);
+      if (list) {
+        list.sort(compareTaskOrder);
       }
     }
     return map;
@@ -117,7 +146,9 @@ export function useTaskManagement() {
   const saveEdit = useCallback(async () => {
     if (!editingId) return;
 
-    const payload = parseTaskForm(editForm);
+    const currentTask = tasks.find((task) => task.id === editingId);
+    const parsed = parseTaskForm(editForm);
+    const payload = parsed ? { ...parsed, displayOrder: currentTask?.displayOrder } : null;
     if (!payload) return;
 
     setSaving(true);
@@ -139,11 +170,21 @@ export function useTaskManagement() {
     } finally {
       setSaving(false);
     }
-  }, [editingId, editForm, loadTasks]);
+  }, [editingId, editForm, loadTasks, tasks]);
 
   const saveNew = useCallback(async () => {
-    const payload = parseTaskForm(newForm);
-    if (!payload) return;
+    const parsed = parseTaskForm(newForm);
+    if (!parsed) return;
+
+    const categoryTasks = tasksByCategory.get(activeTab) ?? [];
+    const maxOrder = categoryTasks.reduce((max, task) => {
+      if (typeof task.displayOrder !== "number") return max;
+      return task.displayOrder > max ? task.displayOrder : max;
+    }, -1);
+    const payload = {
+      ...parsed,
+      displayOrder: maxOrder + 1,
+    };
 
     setSaving(true);
     try {
@@ -165,7 +206,7 @@ export function useTaskManagement() {
     } finally {
       setSaving(false);
     }
-  }, [activeTab, loadTasks, newForm]);
+  }, [activeTab, loadTasks, newForm, tasksByCategory]);
 
   const deleteTask = useCallback(async (taskId: string, taskName: string) => {
     if (!window.confirm(`「${taskName}」を削除しますか？`)) return;
@@ -182,6 +223,64 @@ export function useTaskManagement() {
       setSaving(false);
     }
   }, [loadTasks]);
+
+  const reorderTask = useCallback(
+    async (draggedTaskId: string, targetTaskId: string) => {
+      if (saving) return;
+      if (draggedTaskId === targetTaskId) return;
+
+      const categoryTasks = tasksByCategory.get(activeTab) ?? [];
+      const fromIndex = categoryTasks.findIndex((task) => task.id === draggedTaskId);
+      const toIndex = categoryTasks.findIndex((task) => task.id === targetTaskId);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+      const reordered = [...categoryTasks];
+      const [moved] = reordered.splice(fromIndex, 1);
+      if (!moved) return;
+      reordered.splice(toIndex, 0, moved);
+
+      const updates = reordered
+        .map((task, index) => ({ task, displayOrder: index }))
+        .filter(({ task, displayOrder }) => task.displayOrder !== displayOrder);
+      if (updates.length === 0) return;
+
+      const nextById = new Map(
+        reordered.map((task, index) => [task.id, { ...task, displayOrder: index }])
+      );
+      setTasks((prev) =>
+        sortTasks(prev.map((task) => nextById.get(task.id) ?? task))
+      );
+
+      setSaving(true);
+      try {
+        await Promise.all(
+          updates.map(async ({ task, displayOrder }) => {
+            const response = await apiFetch(`/api/tasks/${task.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: task.name,
+                category: task.category,
+                points: task.points,
+                frequencyDays: task.frequencyDays,
+                displayOrder,
+              }),
+            });
+            if (!response.ok) {
+              throw new Error("reorder failed");
+            }
+          })
+        );
+        showToast({ level: "success", message: "タスクの順番を保存しました" });
+      } catch {
+        showToast({ level: "error", message: "タスクの順番保存に失敗しました" });
+        await loadTasks();
+      } finally {
+        setSaving(false);
+      }
+    },
+    [activeTab, loadTasks, saving, tasksByCategory]
+  );
 
   return {
     loading,
@@ -205,5 +304,6 @@ export function useTaskManagement() {
     saveEdit,
     saveNew,
     deleteTask,
+    reorderTask,
   };
 }

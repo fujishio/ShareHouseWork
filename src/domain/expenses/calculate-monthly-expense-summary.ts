@@ -3,7 +3,6 @@ import type {
   ContributionSettingsHistoryRecord,
   ExpenseRecord,
 } from "@/types";
-import { calculateUsageRate } from "./calculate-usage-rate.ts";
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
 
@@ -57,7 +56,6 @@ type Result = {
   monthlySpent: number;
   monthlyAdjustment: number;
   balance: number;
-  usageRate: number;
 };
 
 type Options = {
@@ -116,7 +114,6 @@ export function calculateMonthlyExpenseSummary(
       monthlySpent: 0,
       monthlyAdjustment: 0,
       balance: 0,
-      usageRate: 0,
     };
   }
 
@@ -135,16 +132,6 @@ export function calculateMonthlyExpenseSummary(
   const monthlyAdjustment = adjustmentByMonth[targetMonthKey] ?? 0;
   const balance = carryover + monthlyContribution - monthlySpent + monthlyAdjustment;
 
-  let yearContributed = 0;
-  let yearSpent = 0;
-  monthKey = startMonth;
-  while (compareMonthKey(monthKey, targetMonthKey) <= 0) {
-    yearContributed += resolveMonthlyContribution(contributionHistory, monthKey);
-    yearSpent += spentByMonth[monthKey] ?? 0;
-    yearSpent -= adjustmentByMonth[monthKey] ?? 0;
-    monthKey = addOneMonth(monthKey);
-  }
-
   return {
     monthKey: targetMonthKey,
     carryover,
@@ -152,6 +139,5 @@ export function calculateMonthlyExpenseSummary(
     monthlySpent,
     monthlyAdjustment,
     balance,
-    usageRate: calculateUsageRate(yearContributed, yearSpent),
   };
 }

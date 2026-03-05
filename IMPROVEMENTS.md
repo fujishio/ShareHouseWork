@@ -12,9 +12,6 @@
 | I | 中 | Discord 通知連携 | 未着手 |
 | N | 低 | PWA/オフライン対応 | 未着手 |
 | R0 | 中 | Phase 0 ベースライン固定（rules test ポート競合対応） | 一部完了 |
-| R1 | 中 | Phase 1 API 境界統一（テンプレート横展開） | 完了 |
-| R4 | 中 | Phase 4 テスト再編と不足補完（API/Rules/Store） | 完了 |
-| R5 | 中 | Phase 5 フロントエンド分割（RulesSection 起点） | 完了 |
 
 ## 完了済みタスク一覧
 
@@ -23,8 +20,12 @@
 | O | 高 | `GET /api/users` ハウス未所属時の全ユーザー漏洩 | 完了 |
 | D | 中 | サーバーコンポーネントの認証ワークアラウンド | 完了 |
 | M | 低 | Lint ルール厳格化・CI 整備 | 完了 |
+| R1 | 中 | Phase 1 API 境界統一（テンプレート横展開） | 完了 |
 | R2 | 中 | Phase 2 型とモジュール境界の整理 | 完了 |
 | R3 | 中 | Phase 3 Store 層の一貫性改善 | 完了 |
+| R4 | 中 | Phase 4 テスト再編と不足補完（API/Rules/Store） | 完了 |
+| R5 | 中 | Phase 5 フロントエンド分割 | 完了 |
+| R6 | 中 | Phase 6 ドキュメント・運用同期 | 完了 |
 
 ---
 
@@ -217,9 +218,9 @@
 
 ## R5. Phase 5 フロントエンド分割
 
-**状態:** 一部完了（2026-03-05）
+**状態:** 完了（2026-03-05）
 
-`REFACTOR.md` の Phase 5 に沿って、`RulesSection` を対象に UI / 状態管理 / API 通信の分離を開始。
+`REFACTOR.md` の Phase 5 に沿って、全セクションで UI / 状態管理 / API 通信の分離を実施。
 
 **対応内容**
 - `src/hooks/useRulesSection.ts` を新規追加
@@ -271,6 +272,33 @@
 
 **残タスク**
 - なし（Phase 5 完了）
+
+---
+
+## R6. Phase 6 ドキュメント・運用同期
+
+**状態:** 完了（2026-03-05）
+
+`REFACTOR.md` の Phase 6 に沿って、ドキュメントの実装同期と運用チェックリストの整備を実施。
+
+**対応内容**
+- `Overview.md` を実装と同期
+  - 実装状況をリファクタリング Phase 1-5 完了に更新
+  - ロードマップを最新化（セキュリティ・アーキテクチャ・本番デプロイ・リファクタリング完了）
+  - データ設計サマリーに `balanceAdjustments` と `houseId` スコープを追加
+- `DIRECTORY.md` を実装と同期
+  - `src/hooks/`, `src/components/sections/`, `src/server/test-helpers/` を追加
+  - `src/server/api/` の新ファイル群（`route-handler-utils`, `cursor-pagination`, `audit-log-service`, `test-helpers`）を反映
+  - API ルート一覧に `balance-adjustments`, `houses/join`, `houses/[id]/roles`, `profile` を追加
+  - レイヤー責務に hooks・sections・型分割の説明を追加
+- `DATABASE.md` を実装と同期
+  - 全コレクション（`users`, `houses` を除く）に `houseId` フィールドを追加
+  - `houses` に `hostUids`, `joinPasswordHash` フィールドを追加
+  - `balanceAdjustments` コレクションを新規追加
+  - クエリ観点を `houseId` スコープ + cursor ページング対応に更新
+- `IMPROVEMENTS.md` を実装と同期
+  - R1/R4/R5 を完了済み一覧に移動
+  - R5 の状態を「完了」に更新
 
 ---
 

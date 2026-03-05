@@ -9,7 +9,6 @@ import {
 } from "react";
 import { type User, onIdTokenChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
-import { ID_TOKEN_COOKIE_NAME } from "@/shared/constants/auth";
 
 type AuthContextValue = {
   user: User | null;
@@ -27,21 +26,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const syncSessionCookie = async (token: string | null) => {
+    const response = await fetch("/api/auth/session", {
+      method: token ? "POST" : "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to sync auth session cookie");
+    }
+  };
+
   useEffect(() => {
     const auth = getClientAuth();
     const unsubscribe = onIdTokenChanged(auth, async (u) => {
       setUser(u);
       if (!u) {
-        document.cookie = `${ID_TOKEN_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+        await syncSessionCookie(null).catch(() => {});
         setLoading(false);
         return;
       }
       try {
         const token = await u.getIdToken();
-        document.cookie =
-          `${ID_TOKEN_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; Max-Age=3600; SameSite=Lax`;
+        await syncSessionCookie(token);
       } catch {
-        document.cookie = `${ID_TOKEN_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+        await syncSessionCookie(null).catch(() => {});
       }
       setLoading(false);
     });

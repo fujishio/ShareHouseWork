@@ -51,6 +51,7 @@ function buildDefaultTasks(houseId: string): FirestoreTaskDoc[] {
       category,
       points: task.points,
       frequencyDays: task.frequencyDays,
+      displayOrder: task.displayOrder,
       deletedAt: null,
     }))
   );

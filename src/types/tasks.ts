@@ -15,6 +15,7 @@ export type Task = {
   points: HousePoints; // configurable house points (current mock uses 10-50)
   category: TaskCategory;
   frequencyDays: number; // ideal interval between completions
+  displayOrder?: number;
   deletedAt?: IsoDateTimeString;
 };
 
@@ -24,6 +25,7 @@ export type CreateTaskInput = {
   category: TaskCategory;
   points: HousePoints;
   frequencyDays: number;
+  displayOrder?: number;
 };
 
 export type UpdateTaskInput = {
@@ -31,6 +33,7 @@ export type UpdateTaskInput = {
   category: TaskCategory;
   points: HousePoints;
   frequencyDays: number;
+  displayOrder?: number;
 };
 
 export type PrioritizedTask = Task & {

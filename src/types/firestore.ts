@@ -28,6 +28,7 @@ export type FirestoreTaskDoc = {
   category: TaskCategory;
   points: number;
   frequencyDays: number;
+  displayOrder?: number;
   deletedAt: Nullable<string>;
 };
 
