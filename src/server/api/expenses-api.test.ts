@@ -20,7 +20,7 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
 
   return {
     getDeps: {
-      readExpenses: async () => expenses,
+      readExpenses: async (_houseId: string, _month?: string) => expenses,
       resolveActorHouseId,
       verifyRequest: async () => {
         if (!actor) throw new Error("unauthorized");
@@ -57,7 +57,7 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
         if (!existing) return null;
         return { ...existing, canceledAt, canceledBy: input.canceledBy, cancelReason: input.cancelReason };
       },
-      readExpenses: async () => expenses,
+      readExpenses: async (_houseId: string, _month?: string) => expenses,
       resolveActorHouseId,
       verifyRequest: async () => {
         if (!actor) throw new Error("unauthorized");

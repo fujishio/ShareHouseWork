@@ -38,26 +38,6 @@ export async function GET(request: Request) {
   }
   const { from, to, action, limit } = parsedQuery.data;
 
-  const logs = await readAuditLogs(houseId);
-  const filtered = logs
-    .filter((log) => {
-      const createdAt = new Date(log.createdAt);
-      if (Number.isNaN(createdAt.getTime())) {
-        return false;
-      }
-      if (action && log.action !== action) {
-        return false;
-      }
-      if (from && createdAt < from) {
-        return false;
-      }
-      if (to && createdAt > to) {
-        return false;
-      }
-      return true;
-    })
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, limit);
-
-  return successJson(filtered, { status: 200 });
+  const logs = await readAuditLogs(houseId, { from, to, action, limit });
+  return successJson(logs, { status: 200 });
 }

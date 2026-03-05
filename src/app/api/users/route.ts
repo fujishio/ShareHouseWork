@@ -1,5 +1,6 @@
 import { listUsers, upsertUser } from "@/server/user-store";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
+import { getHouse } from "@/server/house-store";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
 import { errorJson, successJson } from "@/shared/lib/api-response";
@@ -16,7 +17,10 @@ export async function GET(request: Request) {
   const actor = await verifyRequest(request).catch(() => null);
   if (!actor) return unauthorizedResponse();
 
-  const users = await listUsers();
+  const houseId = await resolveActorHouseId(actor.uid);
+  const memberUids = houseId ? (await getHouse(houseId))?.memberUids : undefined;
+
+  const users = await listUsers(memberUids);
   // Strip email from each user before returning (TASK-P8)
   const publicUsers = users.map(({ id, name, color }) => ({ id, name, color }));
   return successJson(publicUsers);

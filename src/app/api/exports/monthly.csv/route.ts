@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   try {
     const [taskCompletions, expenses, shoppingItems] = await Promise.all([
       readTaskCompletions(houseId),
-      readExpenses(houseId),
+      readExpenses(houseId, month),
       readShoppingItems(houseId),
     ]);
     csv = buildMonthlyOperationsCsv({ month, taskCompletions, expenses, shoppingItems });

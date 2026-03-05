@@ -22,7 +22,7 @@ type AuthenticatedUser = {
 };
 
 export type GetExpensesDeps = {
-  readExpenses: (houseId: string) => Promise<ExpenseRecord[]>;
+  readExpenses: (houseId: string, month?: string) => Promise<ExpenseRecord[]>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
@@ -44,7 +44,7 @@ export type DeleteExpenseDeps = {
     input: { canceledBy: string; cancelReason: string },
     canceledAt: string
   ) => Promise<ExpenseRecord | null>;
-  readExpenses: (houseId: string) => Promise<ExpenseRecord[]>;
+  readExpenses: (houseId: string, month?: string) => Promise<ExpenseRecord[]>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
@@ -74,6 +74,8 @@ const deleteExpenseSchema = z.object({
   cancelReason: zNonEmptyTrimmedString,
 });
 
+const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();
+
 function errorResponse(
   error: string,
   status: number,
@@ -90,7 +92,15 @@ export async function handleGetExpenses(request: Request, deps: GetExpensesDeps)
   const houseId = await deps.resolveActorHouseId(actor.uid);
   if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
 
-  const expenses = await deps.readExpenses(houseId);
+  const { searchParams } = new URL(request.url);
+  const monthRaw = searchParams.get("month") ?? undefined;
+  const parsedMonth = monthParamSchema.safeParse(monthRaw);
+  if (!parsedMonth.success) {
+    return errorResponse("month must be in YYYY-MM format", 400, "VALIDATION_ERROR");
+  }
+  const month = parsedMonth.data;
+
+  const expenses = await deps.readExpenses(houseId, month);
   return Response.json({ data: expenses });
 }
 

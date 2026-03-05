@@ -1,4 +1,5 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { FieldPath } from "firebase-admin/firestore";
 import type { Member } from "@/types";
 import { z } from "zod";
 
@@ -26,8 +27,19 @@ export async function getUser(uid: string): Promise<Member | null> {
   return docToMember(doc.id, doc.data());
 }
 
-export async function listUsers(): Promise<Member[]> {
+export async function listUsers(memberUids?: string[]): Promise<Member[]> {
   const db = getAdminFirestore();
+
+  if (memberUids && memberUids.length > 0) {
+    const snapshot = await db
+      .collection(COLLECTION)
+      .where(FieldPath.documentId(), "in", memberUids)
+      .get();
+    return snapshot.docs
+      .map((doc) => docToMember(doc.id, doc.data()))
+      .filter((member): member is Member => member !== null);
+  }
+
   const snapshot = await db.collection(COLLECTION).get();
   return snapshot.docs
     .map((doc) => docToMember(doc.id, doc.data()))
