@@ -11,6 +11,9 @@ export async function resolveRequestHouseId(): Promise<string | null> {
 
   try {
     const decoded = await getAdminAuth().verifyIdToken(token);
+    if (!decoded.email_verified) {
+      return null;
+    }
     return resolveActorHouseId(decoded.uid);
   } catch {
     return null;

@@ -29,8 +29,11 @@ function initClientApp() {
 export function getClientAuth() {
   const app = initClientApp();
   const auth = getAuth(app);
+  const shouldUseEmulator =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true";
 
-  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {
+  if (shouldUseEmulator) {
     const emulatorUrl = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_URL || "http://127.0.0.1:9099";
 
     // Prevent duplicate connects in HMR / repeated init.

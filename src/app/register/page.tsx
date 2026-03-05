@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FirebaseError } from "firebase/app";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
 import { useAuth } from "@/context/AuthContext";
@@ -32,6 +33,22 @@ async function readErrorMessage(response: Response): Promise<string> {
   } catch {
     // ignore parse error
   }
+  return "登録に失敗しました";
+}
+
+function toRegisterErrorMessage(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    if (error.code === "auth/too-many-requests") {
+      return "認証メール送信の試行回数が多すぎます。少し待ってから再試行してください";
+    }
+    if (error.code === "auth/network-request-failed") {
+      return "ネットワーク接続に失敗しました。時間をおいて再試行してください";
+    }
+    if (error.code === "auth/email-already-in-use") {
+      return "このメールアドレスは既に登録されています";
+    }
+  }
+  if (error instanceof Error) return error.message;
   return "登録に失敗しました";
 }
 
@@ -120,7 +137,7 @@ export default function RegisterPage() {
 
       router.replace("/verify-email");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登録に失敗しました");
+      setError(toRegisterErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
