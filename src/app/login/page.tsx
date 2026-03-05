@@ -58,6 +58,11 @@ export default function LoginPage() {
         setError("メール認証が未完了です。受信メールのリンクを開いてからログインしてください");
         return;
       }
+      const token = await credential.user.getIdToken();
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       router.replace("/");
     } catch (err) {
       setError(toLoginErrorMessage(err));

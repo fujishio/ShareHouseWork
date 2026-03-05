@@ -51,7 +51,13 @@ export default function VerifyEmailPage() {
     setMessage(null);
     try {
       await user.reload();
-      if (getClientAuth().currentUser?.emailVerified) {
+      const currentUser = getClientAuth().currentUser;
+      if (currentUser?.emailVerified) {
+        const token = await currentUser.getIdToken(true);
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
         router.replace("/");
         return;
       }
