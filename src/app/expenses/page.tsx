@@ -7,7 +7,8 @@ import { readContributionSettingsHistory } from "@/server/contribution-settings-
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import ExpenseSection from "@/components/ExpenseSection";
 import ExpenseMonthNav from "@/components/ExpenseMonthNav";
-import { getFirstHouseId } from "@/server/house-store";
+import { getHouse } from "@/server/house-store";
+import { resolveRequestHouseId } from "@/server/request-house";
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
 
@@ -31,6 +32,13 @@ function addOneMonth(monthKey: string): string {
   const month = Number(monthText);
   if (month === 12) return `${year + 1}-01`;
   return `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
+function toMonthKeyFromIsoDateTime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return toJstMonthKey(date);
 }
 
 type SearchParams = { month?: string };
@@ -59,7 +67,9 @@ export default async function ExpensesPage({
   const nextMonthKey = addOneMonth(targetMonthKey);
   const canGoNext = targetMonthKey < currentMonthKey;
 
-  const houseId = await getFirstHouseId() ?? "";
+  const houseId = await resolveRequestHouseId() ?? "";
+  const house = houseId ? await getHouse(houseId) : null;
+  const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
   const [allExpenses, contributionHistory] = await Promise.all([
     readExpenses(houseId),
     readContributionSettingsHistory(houseId),
@@ -68,7 +78,8 @@ export default async function ExpensesPage({
   const summary = calculateMonthlyExpenseSummary(
     targetMonthKey,
     allExpenses,
-    contributionHistory
+    contributionHistory,
+    { carryoverStartMonthKey }
   );
   const targetMonthExpenses = allExpenses.filter(
     (e) => e.purchasedAt.startsWith(targetMonthKey) && !e.canceledAt

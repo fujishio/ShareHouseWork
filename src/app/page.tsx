@@ -12,7 +12,8 @@ import { readExpenses } from "@/server/expense-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
 import { listUsers } from "@/server/user-store";
-import { getFirstHouseId } from "@/server/house-store";
+import { getHouse } from "@/server/house-store";
+import { resolveRequestHouseId } from "@/server/request-house";
 import { toJstMonthKey } from "@/shared/lib/time";
 import type { ContributionData, Member, TaskCompletionRecord } from "@/types";
 
@@ -21,6 +22,13 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 function toLabelFromMonthKey(monthKey: string): string {
   const [year, month] = monthKey.split("-");
   return `${year}年${Number(month)}月`;
+}
+
+function toMonthKeyFromIsoDateTime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return toJstMonthKey(date);
 }
 
 function computeContributionData(records: TaskCompletionRecord[], users: Member[], now: Date): ContributionData[] {
@@ -46,7 +54,9 @@ function computeContributionData(records: TaskCompletionRecord[], users: Member[
 export default async function HomePage() {
   const now = new Date();
   const currentMonthKey = toJstMonthKey(now);
-  const houseId = await getFirstHouseId() ?? "";
+  const houseId = await resolveRequestHouseId() ?? "";
+  const house = houseId ? await getHouse(houseId) : null;
+  const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
 
   const [completions, allExpenses, contributionHistory, allNotices, users] = await Promise.all([
     readTaskCompletions(houseId),
@@ -61,7 +71,12 @@ export default async function HomePage() {
 
   const contributionData = computeContributionData(completions, users, now);
 
-  const summary = calculateMonthlyExpenseSummary(currentMonthKey, allExpenses, contributionHistory);
+  const summary = calculateMonthlyExpenseSummary(
+    currentMonthKey,
+    allExpenses,
+    contributionHistory,
+    { carryoverStartMonthKey }
+  );
   const expenseSummary = {
     month: toLabelFromMonthKey(currentMonthKey),
     totalContributed: summary.monthlyContribution,

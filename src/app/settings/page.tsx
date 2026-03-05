@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HOUSE_MEMBERS, OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import { useAuth } from "@/context/AuthContext";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -73,8 +72,6 @@ export default function SettingsPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const { user, signOut } = useAuth();
-  const currentUserName = user?.displayName ?? HOUSE_MEMBERS[0].name;
-  const canEditContributionSettings = currentUserName === OWNER_MEMBER_NAME;
 
   const statusMessage = useMemo(() => {
     if (!savedAt) {
@@ -177,7 +174,7 @@ export default function SettingsPage() {
         通知設定を初期値に戻す
       </button>
 
-      <ContributionSettingsSection canEdit={canEditContributionSettings} />
+      <ContributionSettingsSection />
 
       <ProfileColorSection />
 

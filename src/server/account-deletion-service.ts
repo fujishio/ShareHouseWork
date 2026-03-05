@@ -1,5 +1,6 @@
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { deleteUser as deleteUserDoc } from "@/server/user-store";
+import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import {
   buildHouseExitPatch,
   buildStringFieldAnonymizePatch,
@@ -46,6 +47,7 @@ async function removeActorFromHouses(uid: string, houses: AccountDeletionHouseRe
     const { memberUids, hostUids, ownerUid } = buildHouseExitPatch(uid, house);
 
     await db.collection("houses").doc(house.id).update({ memberUids, hostUids, ownerUid });
+    await syncContributionMemberCountForCurrentMonth(house.id, memberUids.length);
   });
   await Promise.all(updates);
 }

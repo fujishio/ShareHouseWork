@@ -121,3 +121,23 @@ test("targetMonthKeyが不正な形式なら例外", () => {
     message: "targetMonthKey must be YYYY-MM",
   });
 });
+
+test("繰越開始月より前の月は残高を0として扱う", () => {
+  const history: ContributionSettingsHistoryRecord[] = [
+    { houseId: "h1", effectiveMonth: "2000-01", monthlyAmountPerPerson: 10000, memberCount: 2 },
+  ];
+
+  const january = calculateMonthlyExpenseSummary("2026-01", [], history, {
+    carryoverStartMonthKey: "2026-03",
+  });
+  assert.equal(january.carryover, 0);
+  assert.equal(january.monthlyContribution, 0);
+  assert.equal(january.balance, 0);
+
+  const march = calculateMonthlyExpenseSummary("2026-03", [], history, {
+    carryoverStartMonthKey: "2026-03",
+  });
+  assert.equal(march.carryover, 0);
+  assert.equal(march.monthlyContribution, 20000);
+  assert.equal(march.balance, 20000);
+});

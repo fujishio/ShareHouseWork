@@ -23,10 +23,11 @@ export function isApiErrorBody(value: unknown): value is { error?: string } {
 
 export function isContributionSettingsResponse(
   value: unknown
-): value is { data: ContributionSettings } {
+): value is { data: ContributionSettings & { canEdit: boolean } } {
   if (!isDataObjectResponse(value)) return false;
   return (
     typeof Reflect.get(value.data, "monthlyAmountPerPerson") === "number" &&
-    typeof Reflect.get(value.data, "memberCount") === "number"
+    typeof Reflect.get(value.data, "memberCount") === "number" &&
+    typeof Reflect.get(value.data, "canEdit") === "boolean"
   );
 }

@@ -32,7 +32,7 @@ function resolveMonthlyContribution(
   monthKey: string
 ): number {
   const sorted = [...history].sort((a, b) => compareMonthKey(a.effectiveMonth, b.effectiveMonth));
-  let selected = sorted[0];
+  let selected: ContributionSettingsHistoryRecord | null = null;
 
   for (const record of sorted) {
     if (record.effectiveMonth <= monthKey) {
@@ -58,10 +58,15 @@ type Result = {
   usageRate: number;
 };
 
+type Options = {
+  carryoverStartMonthKey?: string;
+};
+
 export function calculateMonthlyExpenseSummary(
   targetMonthKey: string,
   expenses: ExpenseRecord[],
-  contributionHistory: ContributionSettingsHistoryRecord[]
+  contributionHistory: ContributionSettingsHistoryRecord[],
+  options?: Options
 ): Result {
   if (!MONTH_KEY_REGEX.test(targetMonthKey)) {
     throw new Error("targetMonthKey must be YYYY-MM");
@@ -82,7 +87,26 @@ export function calculateMonthlyExpenseSummary(
     return acc;
   }, {});
 
-  const startMonth = firstMonthOfYear(targetMonthKey);
+  const yearStartMonth = firstMonthOfYear(targetMonthKey);
+  const carryoverStartMonth =
+    options?.carryoverStartMonthKey && MONTH_KEY_REGEX.test(options.carryoverStartMonthKey)
+      ? options.carryoverStartMonthKey
+      : yearStartMonth;
+  const startMonth =
+    compareMonthKey(carryoverStartMonth, yearStartMonth) > 0
+      ? carryoverStartMonth
+      : yearStartMonth;
+
+  if (compareMonthKey(targetMonthKey, startMonth) < 0) {
+    return {
+      monthKey: targetMonthKey,
+      carryover: 0,
+      monthlyContribution: 0,
+      monthlySpent: 0,
+      balance: 0,
+      usageRate: 0,
+    };
+  }
 
   let carryover = 0;
   let monthKey = startMonth;
@@ -97,10 +121,9 @@ export function calculateMonthlyExpenseSummary(
   const monthlySpent = spentByMonth[targetMonthKey] ?? 0;
   const balance = carryover + monthlyContribution - monthlySpent;
 
-  const ytdStart = firstMonthOfYear(targetMonthKey);
   let yearContributed = 0;
   let yearSpent = 0;
-  monthKey = ytdStart;
+  monthKey = startMonth;
   while (compareMonthKey(monthKey, targetMonthKey) <= 0) {
     yearContributed += resolveMonthlyContribution(contributionHistory, monthKey);
     yearSpent += spentByMonth[monthKey] ?? 0;

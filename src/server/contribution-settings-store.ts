@@ -1,12 +1,16 @@
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getHouse } from "@/server/house-store";
 import { toJstMonthKey } from "@/shared/lib/time";
 import type { ContributionSettings, ContributionSettingsHistoryRecord } from "@/types";
 
 const COLLECTION = "contributionSettings";
 
+const DEFAULT_MONTHLY_AMOUNT_PER_PERSON = 15000;
+const FALLBACK_MEMBER_COUNT = 1;
+
 const DEFAULT_SETTINGS: ContributionSettings = {
-  monthlyAmountPerPerson: 15000,
-  memberCount: 4,
+  monthlyAmountPerPerson: DEFAULT_MONTHLY_AMOUNT_PER_PERSON,
+  memberCount: FALLBACK_MEMBER_COUNT,
 };
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
@@ -16,10 +20,20 @@ function docId(houseId: string, monthKey: string): string {
   return `${houseId}_${monthKey}`;
 }
 
+function buildInitialSettings(memberCount: number): ContributionSettings {
+  return {
+    monthlyAmountPerPerson: DEFAULT_MONTHLY_AMOUNT_PER_PERSON,
+    memberCount: Math.max(FALLBACK_MEMBER_COUNT, memberCount),
+  };
+}
+
 export async function readContributionSettingsHistory(
   houseId: string
 ): Promise<ContributionSettingsHistoryRecord[]> {
   const db = getAdminFirestore();
+  const house = await getHouse(houseId);
+  const currentMemberCount = house?.memberUids.length ?? FALLBACK_MEMBER_COUNT;
+  const initialSettings = buildInitialSettings(currentMemberCount);
   const snapshot = await db
     .collection(COLLECTION)
     .where("houseId", "==", houseId)
@@ -31,8 +45,8 @@ export async function readContributionSettingsHistory(
     await db
       .collection(COLLECTION)
       .doc(id)
-      .set({ ...DEFAULT_SETTINGS, houseId, effectiveMonth: HISTORY_START_MONTH });
-    return [{ houseId, effectiveMonth: HISTORY_START_MONTH, ...DEFAULT_SETTINGS }];
+      .set({ ...initialSettings, houseId, effectiveMonth: HISTORY_START_MONTH });
+    return [{ houseId, effectiveMonth: HISTORY_START_MONTH, ...initialSettings }];
   }
 
   const records = snapshot.docs.map((doc) => ({
@@ -41,6 +55,24 @@ export async function readContributionSettingsHistory(
     monthlyAmountPerPerson: doc.data().monthlyAmountPerPerson as number,
     memberCount: doc.data().memberCount as number,
   }));
+
+  const hasOnlyLegacySeed =
+    records.length === 1 &&
+    records[0]?.effectiveMonth === HISTORY_START_MONTH &&
+    records[0]?.memberCount === 4;
+  if (hasOnlyLegacySeed) {
+    const legacyId = docId(houseId, HISTORY_START_MONTH);
+    await db
+      .collection(COLLECTION)
+      .doc(legacyId)
+      .set(
+        {
+          memberCount: initialSettings.memberCount,
+        },
+        { merge: true }
+      );
+    records[0].memberCount = initialSettings.memberCount;
+  }
 
   return records.sort((a, b) => a.effectiveMonth.localeCompare(b.effectiveMonth));
 }
@@ -85,4 +117,39 @@ export async function writeContributionSettings(
     .collection(COLLECTION)
     .doc(docId(houseId, effectiveMonth))
     .set({ ...settings, houseId, effectiveMonth });
+}
+
+export async function syncContributionMemberCountForCurrentMonth(
+  houseId: string,
+  memberCount: number
+): Promise<void> {
+  const db = getAdminFirestore();
+  const effectiveMonth = toJstMonthKey();
+  const normalizedMemberCount = Math.max(FALLBACK_MEMBER_COUNT, memberCount);
+  const ref = db.collection(COLLECTION).doc(docId(houseId, effectiveMonth));
+  const doc = await ref.get();
+
+  if (doc.exists) {
+    const currentMemberCount = doc.data()?.memberCount;
+    if (currentMemberCount === normalizedMemberCount) {
+      return;
+    }
+    await ref.set(
+      {
+        houseId,
+        effectiveMonth,
+        memberCount: normalizedMemberCount,
+      },
+      { merge: true }
+    );
+    return;
+  }
+
+  const current = await readContributionSettings(houseId);
+  await ref.set({
+    houseId,
+    effectiveMonth,
+    monthlyAmountPerPerson: current.monthlyAmountPerPerson,
+    memberCount: normalizedMemberCount,
+  });
 }

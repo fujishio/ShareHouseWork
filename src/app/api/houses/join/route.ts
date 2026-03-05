@@ -1,4 +1,5 @@
 import { findHouseByNameAndJoinPassword, addHouseMember } from "@/server/house-store";
+import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import { getUser } from "@/server/user-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { z } from "zod";
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       userUid,
     });
   }
+  await syncContributionMemberCountForCurrentMonth(updated.id, updated.memberUids.length);
 
   return successJson(updated, { status: 200 });
 }

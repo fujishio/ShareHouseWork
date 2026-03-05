@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { HOUSE_MEMBERS } from "@/shared/constants/house";
 import { apiFetch, readJson } from "@/shared/lib/fetch-client";
 import { isContributionSettingsResponse } from "@/shared/lib/response-guards";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
@@ -7,16 +6,17 @@ import type { ContributionSettings } from "@/types";
 
 const DEFAULT_CONTRIBUTION: ContributionSettings = {
   monthlyAmountPerPerson: 15000,
-  memberCount: HOUSE_MEMBERS.length,
+  memberCount: 1,
 };
 
-export function useContributionSettings(canEdit: boolean) {
+export function useContributionSettings() {
   const [contributionAmount, setContributionAmount] = useState(
     String(DEFAULT_CONTRIBUTION.monthlyAmountPerPerson)
   );
   const [contributionMemberCount, setContributionMemberCount] = useState(
     String(DEFAULT_CONTRIBUTION.memberCount)
   );
+  const [canEdit, setCanEdit] = useState(false);
   const [contributionSaving, setContributionSaving] = useState(false);
   const [contributionSavedAt, setContributionSavedAt] = useState<Date | null>(null);
   const [contributionError, setContributionError] = useState<string | null>(null);
@@ -33,12 +33,13 @@ export function useContributionSettings(canEdit: boolean) {
         return;
       }
 
-      const json = await readJson<{ data: ContributionSettings }>(
+      const json = await readJson<{ data: ContributionSettings & { canEdit: boolean } }>(
         response,
         isContributionSettingsResponse
       );
       setContributionAmount(String(json.data.monthlyAmountPerPerson));
       setContributionMemberCount(String(json.data.memberCount));
+      setCanEdit(json.data.canEdit);
     } catch {
       setContributionLoadError("通信エラーが発生しました");
     } finally {
@@ -91,6 +92,7 @@ export function useContributionSettings(canEdit: boolean) {
     setContributionAmount,
     contributionMemberCount,
     setContributionMemberCount,
+    canEdit,
     contributionSaving,
     contributionSavedAt,
     contributionError,

@@ -2,8 +2,8 @@ import {
   readContributionSettings,
   writeContributionSettings,
 } from "@/server/contribution-settings-store";
+import { getHouse } from "@/server/house-store";
 import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
-import { OWNER_MEMBER_NAME } from "@/shared/constants/house";
 import type { ContributionSettings } from "@/types";
 import { z } from "zod";
 import { errorJson, successJson } from "@/shared/lib/api-response";
@@ -22,8 +22,12 @@ export async function GET(request: Request) {
     return errorJson("No house found for user", "NO_HOUSE", 403);
   }
 
-  const settings = await readContributionSettings(houseId);
-  return successJson(settings);
+  const [settings, house] = await Promise.all([
+    readContributionSettings(houseId),
+    getHouse(houseId),
+  ]);
+  const canEdit = house?.ownerUid === actor.uid;
+  return successJson({ ...settings, canEdit });
 }
 
 export async function POST(request: Request) {
@@ -35,12 +39,13 @@ export async function POST(request: Request) {
     return errorJson("No house found for user", "NO_HOUSE", 403);
   }
 
-  if (actor.name !== OWNER_MEMBER_NAME) {
+  const house = await getHouse(houseId);
+  if (house?.ownerUid !== actor.uid) {
     return errorJson(
       "Only the house owner can update contribution settings",
       "FORBIDDEN",
       403,
-      { actor: actor.name }
+      { actorUid: actor.uid }
     );
   }
 

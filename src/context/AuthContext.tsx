@@ -7,8 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { type User, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
+import { type User, onIdTokenChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { getClientAuth } from "@/lib/firebase-client";
+import { ID_TOKEN_COOKIE_NAME } from "@/shared/constants/auth";
 
 type AuthContextValue = {
   user: User | null;
@@ -28,8 +29,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getClientAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onIdTokenChanged(auth, async (u) => {
       setUser(u);
+      if (!u) {
+        document.cookie = `${ID_TOKEN_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+        setLoading(false);
+        return;
+      }
+      try {
+        const token = await u.getIdToken();
+        document.cookie =
+          `${ID_TOKEN_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; Max-Age=3600; SameSite=Lax`;
+      } catch {
+        document.cookie = `${ID_TOKEN_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+      }
       setLoading(false);
     });
     return unsubscribe;

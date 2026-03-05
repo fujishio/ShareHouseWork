@@ -1,4 +1,5 @@
 import { addHouseMember } from "@/server/house-store";
+import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import { getUser } from "@/server/user-store";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
@@ -44,6 +45,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!updated) {
     return errorJson("House not found", "HOUSE_NOT_FOUND", 404, { houseId: id });
   }
+  await syncContributionMemberCountForCurrentMonth(updated.id, updated.memberUids.length);
 
   return successJson(updated);
 }

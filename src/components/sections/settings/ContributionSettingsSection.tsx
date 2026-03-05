@@ -2,16 +2,13 @@ import { Wallet } from "lucide-react";
 import { ErrorNotice, LoadingNotice, RetryNotice } from "@/components/RequestStatus";
 import { useContributionSettings } from "@/hooks/useContributionSettings";
 
-type ContributionSettingsSectionProps = {
-  canEdit: boolean;
-};
-
-export function ContributionSettingsSection({ canEdit }: ContributionSettingsSectionProps) {
+export function ContributionSettingsSection() {
   const {
     contributionAmount,
     setContributionAmount,
     contributionMemberCount,
     setContributionMemberCount,
+    canEdit,
     contributionSaving,
     contributionSavedAt,
     contributionError,
@@ -20,7 +17,7 @@ export function ContributionSettingsSection({ canEdit }: ContributionSettingsSec
     monthlyTotal,
     loadContributionSettings,
     saveContributionSettings,
-  } = useContributionSettings(canEdit);
+  } = useContributionSettings();
 
   return (
     <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
