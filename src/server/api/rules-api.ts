@@ -82,6 +82,7 @@ export type CreateRuleDeps = {
 };
 
 export type UpdateRuleDeps = {
+  readRule: (id: string) => Promise<Rule | null>;
   updateRule: (id: string, input: UpdateRuleInput) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
@@ -91,6 +92,7 @@ export type UpdateRuleDeps = {
 };
 
 export type AcknowledgeRuleDeps = {
+  readRule: (id: string) => Promise<Rule | null>;
   acknowledgeRule: (id: string, actorName: string) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
@@ -100,6 +102,7 @@ export type AcknowledgeRuleDeps = {
 };
 
 export type DeleteRuleDeps = {
+  readRule: (id: string) => Promise<Rule | null>;
   deleteRule: (id: string, actorName: string, deletedAt: string) => Promise<Rule | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
@@ -190,6 +193,14 @@ export async function handleUpdateRule(
 
   const { id } = await params;
 
+  const existing = await deps.readRule(id);
+  if (!existing || existing.deletedAt) {
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
+  }
+  if (existing.houseId !== context.houseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { ruleId: id });
+  }
+
   const parsedBody = await readJsonBody(request);
   if (!parsedBody.ok) return parsedBody.response;
 
@@ -230,6 +241,14 @@ export async function handleAcknowledgeRule(
 
   const { id } = await params;
 
+  const existing = await deps.readRule(id);
+  if (!existing || existing.deletedAt) {
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
+  }
+  if (existing.houseId !== context.houseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { ruleId: id });
+  }
+
   const updated = await deps.acknowledgeRule(id, context.actor.name);
   if (!updated) {
     return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
@@ -254,6 +273,14 @@ export async function handleDeleteRule(
   if (context instanceof Response) return context;
 
   const { id } = await params;
+
+  const existing = await deps.readRule(id);
+  if (!existing) {
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
+  }
+  if (existing.houseId !== context.houseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { ruleId: id });
+  }
 
   const deletedAt = deps.now();
   const updated = await deps.deleteRule(id, context.actor.name, deletedAt);

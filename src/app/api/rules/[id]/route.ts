@@ -5,9 +5,10 @@ import {
 } from "@/server/api/rules-api";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
-import { acknowledgeRule, deleteRule, updateRule } from "@/server/rule-store";
+import { acknowledgeRule, deleteRule, readRule, updateRule } from "@/server/rule-store";
 
 const updateDeps = {
+  readRule,
   updateRule,
   appendAuditLog,
   resolveActorHouseId,
@@ -17,6 +18,7 @@ const updateDeps = {
 };
 
 const acknowledgeDeps = {
+  readRule,
   acknowledgeRule,
   appendAuditLog,
   resolveActorHouseId,
@@ -26,6 +28,7 @@ const acknowledgeDeps = {
 };
 
 const deleteDeps = {
+  readRule,
   deleteRule,
   appendAuditLog,
   resolveActorHouseId,

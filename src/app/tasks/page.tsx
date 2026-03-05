@@ -1,13 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import { AlertCircle, CheckCircle2, Clock, Star } from "lucide-react";
 import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import MonthlyContributionCarousel from "@/components/MonthlyContributionCarousel";
 import RecentCompletionsSection from "@/components/RecentCompletionsSection";
+import UrgentTasksSection from "@/components/UrgentTasksSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readTasks } from "@/server/task-store";
 import { resolveRequestHouseId } from "@/server/request-house";
-import { formatRelativeTime } from "@/shared/lib/time";
 
 function toMonthKey(date: Date): string {
   const year = date.getFullYear();
@@ -20,33 +19,6 @@ function getRecentMonthKeys(now: Date, length: number): string[] {
     const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
     return toMonthKey(date);
   });
-}
-
-function StatusBadge({ overdueDays }: { overdueDays: number }) {
-  if (overdueDays > 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
-        <AlertCircle size={12} />
-        {overdueDays}日超過
-      </span>
-    );
-  }
-
-  if (overdueDays === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-        <Clock size={12} />
-        今日が期限
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-500">
-      <CheckCircle2 size={12} />
-      あと{Math.abs(overdueDays)}日
-    </span>
-  );
 }
 
 export default async function TasksPage() {
@@ -67,6 +39,10 @@ export default async function TasksPage() {
 
   const latestByTask = getLatestCompletionByTask(completions);
   const priorityTasks = getPrioritizedTasks(latestByTask, now, tasks.length, tasks);
+  const priorityTaskCards = priorityTasks.map((task) => ({
+    ...task,
+    lastCompletedAtIso: task.lastCompletedAt ? task.lastCompletedAt.toISOString() : null,
+  }));
 
   const recentCompletions = [...completions]
     .filter((record) => !Number.isNaN(new Date(record.completedAt).getTime()))
@@ -108,36 +84,11 @@ export default async function TasksPage() {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
-        <h3 className="font-bold text-stone-800">急ぎのタスク</h3>
-        <p className="mt-1 text-xs text-stone-500">優先度が高い順に表示しています。</p>
-        <ul className="mt-3 max-h-[55vh] space-y-2 overflow-y-auto pr-1">
-          {priorityTasks.map((task) => (
-            <li
-              key={task.id}
-              className="rounded-xl border border-stone-200/60 bg-stone-50 px-3 py-2"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-stone-800">{task.name}</p>
-                  <p className="mt-0.5 text-xs text-stone-500">
-                    {task.category} ・ {task.frequencyDays}日ごと
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                  <Star size={10} fill="currentColor" />+{task.points}
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <StatusBadge overdueDays={task.overdueDays} />
-                <p className="text-xs text-stone-400">
-                  {task.lastCompletedAt
-                    ? `最終: ${formatRelativeTime(task.lastCompletedAt, now)}`
-                    : "最終: まだ記録なし"}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <UrgentTasksSection
+          initialPriorityTasks={priorityTaskCards}
+          nowIso={now.toISOString()}
+          houseId={houseId}
+        />
       </section>
 
       <MonthlyContributionCarousel months={monthRatios} />

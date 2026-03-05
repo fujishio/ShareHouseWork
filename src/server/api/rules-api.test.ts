@@ -42,6 +42,7 @@ function buildDeps(options?: { actor?: typeof defaultActor | null; rules?: Rule[
       now: () => "2026-03-02T00:00:00.000Z",
     },
     updateDeps: {
+      readRule: async (id: string) => rules.find((r) => r.id === id) ?? null,
       updateRule: async (id: string) => {
         const item = rules.find((r) => r.id === id);
         return item ? { ...item, title: "更新後" } : null;
@@ -56,6 +57,7 @@ function buildDeps(options?: { actor?: typeof defaultActor | null; rules?: Rule[
       now: () => "2026-03-02T00:00:00.000Z",
     },
     acknowledgeDeps: {
+      readRule: async (id: string) => rules.find((r) => r.id === id) ?? null,
       acknowledgeRule: async (id: string, actorName: string) => {
         const item = rules.find((r) => r.id === id);
         return item ? { ...item, acknowledgedBy: [actorName] } : null;
@@ -70,6 +72,7 @@ function buildDeps(options?: { actor?: typeof defaultActor | null; rules?: Rule[
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
+      readRule: async (id: string) => rules.find((r) => r.id === id) ?? null,
       deleteRule: async (id: string, actorName: string, deletedAt: string) => {
         const item = rules.find((r) => r.id === id);
         return item ? { ...item, deletedBy: actorName, deletedAt } : null;
@@ -223,6 +226,44 @@ test("PUT rules: not found は404", async () => {
   );
 
   assert.equal(response.status, 404);
+});
+
+test("PUT/PATCH/DELETE rules: 別ハウスのルールは403", async () => {
+  const otherHouseRule: Rule = {
+    id: "r-other",
+    houseId: "other-house-id",
+    title: "他ハウスのルール",
+    body: "",
+    category: "共用部",
+    createdBy: "他の人",
+    createdAt: "2026-03-01",
+  };
+  const { updateDeps, acknowledgeDeps, deleteDeps } = buildDeps({ rules: [otherHouseRule] });
+
+  const putRes = await handleUpdateRule(
+    new Request("http://localhost/api/rules/r-other", {
+      method: "PUT",
+      body: JSON.stringify({ title: "B", body: "", category: "共用部" }),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "r-other" }) },
+    updateDeps
+  );
+  assert.equal(putRes.status, 403);
+
+  const patchRes = await handleAcknowledgeRule(
+    new Request("http://localhost/api/rules/r-other", { method: "PATCH" }),
+    { params: Promise.resolve({ id: "r-other" }) },
+    acknowledgeDeps
+  );
+  assert.equal(patchRes.status, 403);
+
+  const deleteRes = await handleDeleteRule(
+    new Request("http://localhost/api/rules/r-other", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "r-other" }) },
+    deleteDeps
+  );
+  assert.equal(deleteRes.status, 403);
 });
 
 test("PUT rules: title不足は400", async () => {

@@ -63,6 +63,15 @@ export async function updateNoticeDeletion(
   });
 }
 
+export async function readNoticeById(
+  noticeId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<Notice | null> {
+  const { readCollectionDoc } = await import("./store-utils.ts");
+  return readCollectionDoc({ db, collection: COLLECTION, id: noticeId, mapDoc: docToNotice });
+}
+
 export const readNotices = listNotices;
+export const readNotice = readNoticeById;
 export const appendNotice = createNotice;
 export const deleteNotice = updateNoticeDeletion;

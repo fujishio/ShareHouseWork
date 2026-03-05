@@ -103,6 +103,15 @@ export async function updateRuleDeletion(
   });
 }
 
+export async function readRuleById(
+  ruleId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<Rule | null> {
+  const { readCollectionDoc } = await import("./store-utils.ts");
+  return readCollectionDoc({ db, collection: COLLECTION, id: ruleId, mapDoc: docToRule });
+}
+
 export const readRules = listRules;
+export const readRule = readRuleById;
 export const appendRule = createRule;
 export const deleteRule = updateRuleDeletion;

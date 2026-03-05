@@ -1,9 +1,10 @@
 import { handleDeleteNotice } from "@/server/api/notices-api";
 import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
-import { deleteNotice } from "@/server/notice-store";
+import { deleteNotice, readNotice } from "@/server/notice-store";
 
 const deps = {
+  readNotice,
   deleteNotice,
   appendAuditLog,
   resolveActorHouseId,

@@ -43,6 +43,7 @@ function buildDeps(options?: { actor?: typeof defaultActor | null; notices?: Not
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
+      readNotice: async (id: string) => notices.find((item) => item.id === id) ?? null,
       deleteNotice: async (id: string, deletedBy: string, deletedAt: string) => {
         const notice = notices.find((item) => item.id === id);
         return notice ? { ...notice, deletedBy, deletedAt } : null;
@@ -181,6 +182,28 @@ test("DELETE notices: not foundは404", async () => {
   const body = (await response.json()) as { error?: string; code?: string };
   assert.equal(body.error, "Notice not found");
   assert.equal(body.code, "NOTICE_NOT_FOUND");
+});
+
+test("DELETE notices: 別ハウスのお知らせは403", async () => {
+  const otherHouseNotice: Notice = {
+    id: "n-other",
+    houseId: "other-house-id",
+    title: "他ハウスのお知らせ",
+    body: "",
+    postedBy: "他の人",
+    postedAt: "2026-03-01T00:00:00.000Z",
+    isImportant: false,
+  };
+  const { deleteDeps } = buildDeps({ notices: [otherHouseNotice] });
+  const response = await handleDeleteNotice(
+    new Request("http://localhost/api/notices/n-other", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "n-other" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 403);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.code, "FORBIDDEN");
 });
 
 test("POST/DELETE notices: 正常系で監査ログ", async () => {

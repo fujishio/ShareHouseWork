@@ -38,6 +38,7 @@ export type CreateNoticeDeps = {
 };
 
 export type DeleteNoticeDeps = {
+  readNotice: (noticeId: string) => Promise<Notice | null>;
   deleteNotice: (noticeId: string, deletedBy: string, deletedAt: string) => Promise<Notice | null>;
   appendAuditLog: (record: Omit<AuditLogRecord, "id">) => Promise<AuditLogRecord>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
@@ -147,6 +148,15 @@ export async function handleDeleteNotice(
   if (context instanceof Response) return context;
 
   const { id } = await params;
+
+  const existing = await deps.readNotice(id);
+  if (!existing || existing.deletedAt) {
+    return errorResponse("Notice not found", 404, "NOTICE_NOT_FOUND", { noticeId: id });
+  }
+  if (existing.houseId !== context.houseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { noticeId: id });
+  }
+
   const deletedAt = deps.now();
   const updated = await deps.deleteNotice(id, context.actor.name, deletedAt);
 
