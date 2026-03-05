@@ -24,7 +24,7 @@ function docToItem(id: string, data: FirebaseFirestore.DocumentData): ShoppingIt
   };
 }
 
-export async function readShoppingItems(houseId: string): Promise<ShoppingItem[]> {
+export async function listShoppingItems(houseId: string): Promise<ShoppingItem[]> {
   return readCollection({
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
@@ -33,7 +33,7 @@ export async function readShoppingItems(houseId: string): Promise<ShoppingItem[]
   });
 }
 
-export async function appendShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
+export async function createShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
   const data = {
     ...input,
     category: input.category ?? null,
@@ -45,7 +45,7 @@ export async function appendShoppingItem(input: CreateShoppingItemInput): Promis
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToItem });
 }
 
-export async function checkShoppingItem(
+export async function updateShoppingItemChecked(
   itemId: string,
   input: CheckShoppingItemInput,
   checkedAt: string
@@ -60,7 +60,7 @@ export async function checkShoppingItem(
   });
 }
 
-export async function uncheckShoppingItem(itemId: string): Promise<ShoppingItem | null> {
+export async function updateShoppingItemUnchecked(itemId: string): Promise<ShoppingItem | null> {
   return updateCollectionDocConditionally({
     collection: COLLECTION,
     id: itemId,
@@ -71,7 +71,7 @@ export async function uncheckShoppingItem(itemId: string): Promise<ShoppingItem 
   });
 }
 
-export async function cancelShoppingItem(
+export async function updateShoppingItemCanceled(
   itemId: string,
   canceledBy: string,
   canceledAt: string
@@ -85,3 +85,9 @@ export async function cancelShoppingItem(
     mapDoc: docToItem,
   });
 }
+
+export const readShoppingItems = listShoppingItems;
+export const appendShoppingItem = createShoppingItem;
+export const checkShoppingItem = updateShoppingItemChecked;
+export const uncheckShoppingItem = updateShoppingItemUnchecked;
+export const cancelShoppingItem = updateShoppingItemCanceled;

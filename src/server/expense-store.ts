@@ -1,9 +1,10 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { ExpenseRecord, CreateExpenseInput, CancelExpenseInput } from "@/types";
 import {
-  addCollectionDoc,
-  updateCollectionDocConditionally,
+  createCollectionDoc,
+  listCollection,
+  updateCollectionDoc,
 } from "@/server/store-utils";
+import { monthToDateRange } from "@/server/month-range";
 
 const COLLECTION = "expenses";
 
@@ -22,55 +23,44 @@ function docToRecord(id: string, data: FirebaseFirestore.DocumentData): ExpenseR
   };
 }
 
-function monthToDateRange(month: string): { from: string; to: string } | null {
-  const match = /^(\d{4})-(\d{2})$/.exec(month);
-  if (!match) return null;
-  const year = parseInt(match[1]!, 10);
-  const mon = parseInt(match[2]!, 10);
-  if (mon < 1 || mon > 12) return null;
-  const from = `${String(year).padStart(4, "0")}-${String(mon).padStart(2, "0")}-01`;
-  const nextMon = mon === 12 ? 1 : mon + 1;
-  const nextYear = mon === 12 ? year + 1 : year;
-  const to = `${String(nextYear).padStart(4, "0")}-${String(nextMon).padStart(2, "0")}-01`;
-  return { from, to };
-}
-
-export async function readExpenses(houseId: string, month?: string): Promise<ExpenseRecord[]> {
-  const db = getAdminFirestore();
-  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
-    .collection(COLLECTION)
-    .where("houseId", "==", houseId);
-
+export async function listExpenses(houseId: string, month?: string): Promise<ExpenseRecord[]> {
+  const where: { field: string; op: FirebaseFirestore.WhereFilterOp; value: unknown }[] = [
+    { field: "houseId", op: "==", value: houseId },
+  ];
   if (month) {
     const range = monthToDateRange(month);
     if (range) {
-      query = query
-        .where("purchasedAt", ">=", range.from)
-        .where("purchasedAt", "<", range.to);
+      where.push(
+        { field: "purchasedAt", op: ">=", value: range.from },
+        { field: "purchasedAt", op: "<", value: range.to }
+      );
     }
   }
 
-  query = query.orderBy("purchasedAt", "desc");
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => docToRecord(doc.id, doc.data()));
+  return listCollection({
+    collection: COLLECTION,
+    where,
+    orderBy: [{ field: "purchasedAt", direction: "desc" }],
+    mapDoc: docToRecord,
+  });
 }
 
-export async function appendExpense(input: CreateExpenseInput): Promise<ExpenseRecord> {
+export async function createExpense(input: CreateExpenseInput): Promise<ExpenseRecord> {
   const data = {
     ...input,
     canceledAt: null,
     canceledBy: null,
     cancelReason: null,
   };
-  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
+  return createCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
 }
 
-export async function cancelExpense(
+export async function updateExpenseCancellation(
   expenseId: string,
   input: CancelExpenseInput,
   canceledAt: string
 ): Promise<ExpenseRecord | null> {
-  return updateCollectionDocConditionally({
+  return updateCollectionDoc({
     collection: COLLECTION,
     id: expenseId,
     shouldUpdate: (data) => !data.canceledAt,
@@ -83,3 +73,7 @@ export async function cancelExpense(
     mapDoc: docToRecord,
   });
 }
+
+export const readExpenses = listExpenses;
+export const appendExpense = createExpense;
+export const cancelExpense = updateExpenseCancellation;

@@ -21,6 +21,7 @@
 | O | 高 | `GET /api/users` ハウス未所属時の全ユーザー漏洩 | 完了 |
 | D | 中 | サーバーコンポーネントの認証ワークアラウンド | 完了 |
 | M | 低 | Lint ルール厳格化・CI 整備 | 完了 |
+| R3 | 中 | Phase 3 Store 層の一貫性改善 | 完了 |
 
 ---
 
@@ -52,7 +53,7 @@
 
 ## R1. Phase 1 API 境界統一（テンプレート横展開）
 
-**状態:** 一部完了（2026-03-05）
+**状態:** 完了（2026-03-05）
 
 `REFACTOR.md` の Phase 1 に沿って、共通テンプレートを主要APIへ横展開。
 
@@ -86,6 +87,52 @@
 
 **次アクション**
 - Phase 2（型とモジュール境界の整理）へ着手
+
+---
+
+## R3. Phase 3 Store 層の一貫性改善
+
+**状態:** 一部完了（2026-03-05）
+
+`REFACTOR.md` の Phase 3 に沿って、Store の命名とクエリ組み立てを共通化。
+
+**対応内容**
+- `src/server/store-utils.ts`
+  - `listCollection()` を追加（`where`/`orderBy`/`limit` を統一的に扱う）
+  - `createCollectionDoc()` / `updateCollectionDoc()` / `readCollectionDoc()` を追加
+  - 既存 `readCollection` / `addCollectionDoc` / `updateCollectionDocConditionally` は互換ラッパー化
+- `src/server/month-range.ts` を新規追加
+  - `YYYY-MM` の月指定から `from/to` 範囲を返すロジックを共通化
+- 主要 Store の命名規約を整理（互換エイリアス維持）
+  - `audit-log-store.ts`: `listAuditLogs` / `createAuditLog`
+  - `expense-store.ts`: `listExpenses` / `createExpense` / `updateExpenseCancellation`
+  - `balance-adjustment-store.ts`: `listBalanceAdjustments` / `createBalanceAdjustment`
+  - `notice-store.ts`: `listNotices` / `createNotice` / `updateNoticeDeletion`
+  - `rule-store.ts`: `listRules` / `createRule` / `updateRuleDeletion`
+  - `shopping-store.ts`: `listShoppingItems` / `createShoppingItem` / `updateShoppingItem*`
+  - `task-completions-store.ts`: `listTaskCompletions` / `createTaskCompletion` / `updateTaskCompletionCancellation`
+  - `task-store.ts`: `listTasks` / `readTaskById` / `updateTaskDeletion`
+  - `house-store.ts`: `readHouseById` / `listHousesByMemberUid` / `updateHouse*`
+  - `user-store.ts`: `readUserById` / `listUsers` / `createOrUpdateUser` / `deleteUserById`
+  - `contribution-settings-store.ts`: `listContributionSettingsHistory` / `readCurrentContributionSettings` / `updateContribution*`
+- 監査ログの責務境界
+  - `audit-log-store` は「永続化のみ」を担当し、監査記録の要否判定は `src/server/api/**`（UseCase）側を維持
+- `docTo*` 明示化
+  - `contribution-settings-store.ts` で履歴変換を `docToContributionSettingsHistoryRecord()` に集約
+- クエリ規約の共通化
+  - `store-utils.ts` の `WhereClause`/`OrderBy` で `FieldPath` を許可し、`user-store.ts` の `documentId in (...)` クエリを共通化経由に統一
+  - `store-utils.ts` の `listCollection()` に `startAfter` を追加し、cursor ページング基盤を追加
+  - `audit-log-store.ts` / `audit-logs-api.ts` で cursor ページングを実装（`page.nextCursor` を返却）
+  - `notices-api.ts` / `rules-api.ts` / `shopping-api.ts` / `task-completions-api.ts` に cursor ページングを横展開（`cursor` + `limit` + `page.nextCursor`）
+
+**検証結果（2026-03-05）**
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm test`: PASS（97 passed / 0 failed）
+- `npm run build`: PASS（`middleware` deprecation warning のみ）
+
+**残タスク**
+- なし（Phase 3 完了）
 
 ---
 

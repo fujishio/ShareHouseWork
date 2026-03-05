@@ -5,6 +5,7 @@ import {
   handleCreateTaskCompletion,
   handleGetTaskCompletions,
 } from "./task-completions-api.ts";
+import { encodeDateIdCursor } from "./cursor-pagination.ts";
 import type { AuditLogRecord, Task, TaskCompletionRecord } from "../../types/index.ts";
 
 type Actor = { uid: string; name: string; email: string };
@@ -136,6 +137,47 @@ test("GET: from/to/filter/sort/limit が適用される", async () => {
   const body = (await readJson(response)) as { data: TaskCompletionRecord[] };
   assert.equal(body.data.length, 1);
   assert.equal(body.data[0]?.id, "c2");
+});
+
+test("GET: cursorページングで次ページを取得できる", async () => {
+  const completions: TaskCompletionRecord[] = [
+    {
+      id: "c1",
+      houseId: "house-id-001",
+      taskId: "t1",
+      taskName: "A",
+      points: 10,
+      completedBy: "あなた",
+      completedAt: "2026-03-03T00:00:00.000Z",
+      source: "app",
+    },
+    {
+      id: "c2",
+      houseId: "house-id-001",
+      taskId: "t1",
+      taskName: "B",
+      points: 10,
+      completedBy: "あなた",
+      completedAt: "2026-03-02T00:00:00.000Z",
+      source: "app",
+    },
+  ];
+  const { deps } = buildDeps({ completions });
+  const cursor = encodeDateIdCursor("2026-03-03T00:00:00.000Z", "c1");
+
+  const response = await handleGetTaskCompletions(
+    new Request(`http://localhost/api/task-completions?limit=1&cursor=${cursor}`),
+    deps
+  );
+  assert.equal(response.status, 200);
+
+  const body = (await readJson(response)) as {
+    data: TaskCompletionRecord[];
+    page: { nextCursor: string | null };
+  };
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0]?.id, "c2");
+  assert.equal(body.page.nextCursor, encodeDateIdCursor("2026-03-02T00:00:00.000Z", "c2"));
 });
 
 test("GET: 不正なfromクエリは400", async () => {

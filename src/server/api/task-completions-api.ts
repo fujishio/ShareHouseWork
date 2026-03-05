@@ -9,6 +9,7 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
+import { paginateByDateIdDesc } from "./cursor-pagination.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -68,6 +69,7 @@ export type CancelTaskCompletionDeps = Pick<
 const getTaskCompletionsQuerySchema = z.object({
   from: zIsoDateTimeString.optional(),
   to: zIsoDateTimeString.optional(),
+  cursor: z.string().trim().min(1).optional(),
   limit: z
     .preprocess((value) => {
       const numeric = Number(value);
@@ -100,9 +102,11 @@ export async function handleGetTaskCompletions(
   const fromRaw = searchParams.get("from");
   const toRaw = searchParams.get("to");
   const limitRaw = searchParams.get("limit");
+  const cursorRaw = searchParams.get("cursor");
   if (fromRaw) queryInput.from = fromRaw;
   if (toRaw) queryInput.to = toRaw;
   if (limitRaw) queryInput.limit = limitRaw;
+  if (cursorRaw) queryInput.cursor = cursorRaw;
 
   const parsedQuery = getTaskCompletionsQuerySchema.safeParse(queryInput);
   if (!parsedQuery.success) {
@@ -129,6 +133,7 @@ export async function handleGetTaskCompletions(
   const from = parsedQuery.data.from ? new Date(parsedQuery.data.from) : null;
   const to = parsedQuery.data.to ? new Date(parsedQuery.data.to) : null;
   const limit = parsedQuery.data.limit;
+  const cursor = parsedQuery.data.cursor;
 
   const records = await deps.readTaskCompletions(context.houseId);
   const filtered = records
@@ -139,13 +144,20 @@ export async function handleGetTaskCompletions(
       if (to && completedAt > to) return false;
       return true;
     })
-    .sort(
-      (a, b) =>
-        new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-    )
-    .slice(0, limit);
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
 
-  return Response.json({ data: filtered }, { status: 200 });
+  const page = paginateByDateIdDesc({
+    items: filtered,
+    getSortKey: (record) => record.completedAt,
+    getId: (record) => record.id,
+    limit,
+    cursor,
+  });
+  if (page.isInvalidCursor) {
+    return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
+  }
+
+  return Response.json({ data: page.data, page: { nextCursor: page.nextCursor } }, { status: 200 });
 }
 
 export async function handleCreateTaskCompletion(

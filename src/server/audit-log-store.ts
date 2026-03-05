@@ -1,5 +1,6 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
 import type { AuditLogRecord } from "@/types";
+import { createCollectionDoc, listCollection } from "@/server/store-utils";
+import { FieldPath } from "firebase-admin/firestore";
 
 const COLLECTION = "auditLogs";
 
@@ -20,39 +21,75 @@ export type ReadAuditLogsOptions = {
   to?: Date;
   action?: string;
   limit?: number;
+  cursor?: string;
 };
 
-export async function readAuditLogs(
+type AuditLogCursorPayload = {
+  createdAt: string;
+  id: string;
+};
+
+function encodeCursor(payload: AuditLogCursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor: string): AuditLogCursorPayload | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Partial<AuditLogCursorPayload>;
+    if (!parsed.createdAt || !parsed.id) return null;
+    return { createdAt: parsed.createdAt, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+export async function listAuditLogs(
   houseId: string,
   options: ReadAuditLogsOptions = {}
 ): Promise<AuditLogRecord[]> {
-  const { from, to, action, limit = 100 } = options;
-  const db = getAdminFirestore();
-
-  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
-    .collection(COLLECTION)
-    .where("houseId", "==", houseId);
+  const { from, to, action, limit = 100, cursor } = options;
+  const where: { field: string; op: FirebaseFirestore.WhereFilterOp; value: unknown }[] = [
+    { field: "houseId", op: "==", value: houseId },
+  ];
 
   if (action) {
-    query = query.where("action", "==", action);
+    where.push({ field: "action", op: "==", value: action });
   }
   if (from) {
-    query = query.where("createdAt", ">=", from.toISOString());
+    where.push({ field: "createdAt", op: ">=", value: from.toISOString() });
   }
   if (to) {
-    query = query.where("createdAt", "<=", to.toISOString());
+    where.push({ field: "createdAt", op: "<=", value: to.toISOString() });
   }
 
-  query = query.orderBy("createdAt", "desc").limit(limit);
+  const cursorPayload = cursor ? decodeCursor(cursor) : null;
 
-  const snapshot = await query.get();
-  return snapshot.docs.map((doc) => docToRecord(doc.id, doc.data()));
+  return listCollection({
+    collection: COLLECTION,
+    where,
+    orderBy: [
+      { field: "createdAt", direction: "desc" },
+      { field: FieldPath.documentId(), direction: "desc" },
+    ],
+    startAfter: cursorPayload ? [cursorPayload.createdAt, cursorPayload.id] : undefined,
+    limit,
+    mapDoc: docToRecord,
+  });
 }
 
-export async function appendAuditLog(
+export async function createAuditLog(
   record: Omit<AuditLogRecord, "id">
 ): Promise<AuditLogRecord> {
-  const db = getAdminFirestore();
-  const ref = await db.collection(COLLECTION).add(record);
-  return docToRecord(ref.id, record);
+  return createCollectionDoc({
+    collection: COLLECTION,
+    data: record,
+    mapDoc: docToRecord,
+  });
+}
+
+export const readAuditLogs = listAuditLogs;
+export const appendAuditLog = createAuditLog;
+
+export function createAuditLogCursor(record: Pick<AuditLogRecord, "id" | "createdAt">): string {
+  return encodeCursor({ id: record.id, createdAt: record.createdAt });
 }

@@ -86,14 +86,14 @@ export async function createHouse(input: CreateHouseInput): Promise<House> {
   return docToHouse(houseRef.id, data);
 }
 
-export async function getHouse(houseId: string): Promise<House | null> {
+export async function readHouseById(houseId: string): Promise<House | null> {
   const db = getAdminFirestore();
   const doc = await db.collection(COLLECTION).doc(houseId).get();
   if (!doc.exists) return null;
   return docToHouse(doc.id, doc.data()!);
 }
 
-export async function listHouses(uid: string): Promise<House[]> {
+export async function listHousesByMemberUid(uid: string): Promise<House[]> {
   const db = getAdminFirestore();
   const snapshot = await db
     .collection(COLLECTION)
@@ -103,7 +103,10 @@ export async function listHouses(uid: string): Promise<House[]> {
   return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data()));
 }
 
-export async function addHouseMember(houseId: string, userUid: string): Promise<House | null> {
+export async function updateHouseMemberAddition(
+  houseId: string,
+  userUid: string
+): Promise<House | null> {
   const db = getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(houseId);
   const doc = await ref.get();
@@ -120,7 +123,7 @@ export async function addHouseMember(houseId: string, userUid: string): Promise<
   return docToHouse(houseId, { ...data, memberUids });
 }
 
-export async function findHouseByNameAndJoinPassword(
+export async function readHouseByNameAndJoinPassword(
   name: string,
   joinPassword: string
 ): Promise<House | null> {
@@ -140,7 +143,10 @@ export async function findHouseByNameAndJoinPassword(
   return null;
 }
 
-export async function grantHostRole(houseId: string, userUid: string): Promise<House | null> {
+export async function updateHouseHostRoleGrant(
+  houseId: string,
+  userUid: string
+): Promise<House | null> {
   const db = getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(houseId);
   const doc = await ref.get();
@@ -157,13 +163,16 @@ export async function grantHostRole(houseId: string, userUid: string): Promise<H
   return docToHouse(houseId, { ...data, hostUids });
 }
 
-export async function getFirstHouseId(): Promise<string | null> {
+export async function readFirstHouseId(): Promise<string | null> {
   const db = getAdminFirestore();
   const snapshot = await db.collection(COLLECTION).limit(1).get();
   return snapshot.empty ? null : snapshot.docs[0]!.id;
 }
 
-export async function revokeHostRole(houseId: string, userUid: string): Promise<House | null> {
+export async function updateHouseHostRoleRevoke(
+  houseId: string,
+  userUid: string
+): Promise<House | null> {
   const db = getAdminFirestore();
   const ref = db.collection(COLLECTION).doc(houseId);
   const doc = await ref.get();
@@ -182,3 +191,11 @@ export async function revokeHostRole(houseId: string, userUid: string): Promise<
   await ref.update({ hostUids });
   return docToHouse(houseId, { ...data, hostUids });
 }
+
+export const getHouse = readHouseById;
+export const listHouses = listHousesByMemberUid;
+export const addHouseMember = updateHouseMemberAddition;
+export const findHouseByNameAndJoinPassword = readHouseByNameAndJoinPassword;
+export const grantHostRole = updateHouseHostRoleGrant;
+export const getFirstHouseId = readFirstHouseId;
+export const revokeHostRole = updateHouseHostRoleRevoke;

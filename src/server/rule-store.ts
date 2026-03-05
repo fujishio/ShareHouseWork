@@ -24,7 +24,7 @@ function docToRule(id: string, data: FirebaseFirestore.DocumentData): Rule {
   };
 }
 
-export async function readRules(houseId: string): Promise<Rule[]> {
+export async function listRules(houseId: string): Promise<Rule[]> {
   return readCollection({
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
@@ -33,7 +33,7 @@ export async function readRules(houseId: string): Promise<Rule[]> {
   });
 }
 
-export async function appendRule(input: CreateRuleInput): Promise<Rule> {
+export async function createRule(input: CreateRuleInput): Promise<Rule> {
   const data = {
     ...input,
     acknowledgedBy: [],
@@ -68,7 +68,7 @@ export async function acknowledgeRule(ruleId: string, memberName: string): Promi
   return docToRule(ruleId, { ...doc.data(), acknowledgedBy });
 }
 
-export async function deleteRule(
+export async function updateRuleDeletion(
   ruleId: string,
   deletedBy: string,
   deletedAt: string
@@ -82,3 +82,7 @@ export async function deleteRule(
     mapDoc: docToRule,
   });
 }
+
+export const readRules = listRules;
+export const appendRule = createRule;
+export const deleteRule = updateRuleDeletion;

@@ -5,6 +5,7 @@ import {
   handleDeleteNotice,
   handleGetNotices,
 } from "./notices-api.ts";
+import { encodeDateIdCursor } from "./cursor-pagination.ts";
 import type { AuditLogRecord, Notice } from "../../types/index.ts";
 
 type Actor = { uid: string; name: string; email: string };
@@ -92,6 +93,42 @@ test("GET notices: deletedAt ありを除外", async () => {
   assert.equal(response.status, 200);
   assert.equal(body.data.length, 1);
   assert.equal(body.data[0]?.id, "n1");
+});
+
+test("GET notices: cursorページングで次ページを取得できる", async () => {
+  const notices: Notice[] = [
+    {
+      id: "n1",
+      houseId: "house-id-001",
+      title: "1",
+      body: "",
+      postedBy: "あなた",
+      postedAt: "2026-03-03T00:00:00.000Z",
+      isImportant: false,
+    },
+    {
+      id: "n2",
+      houseId: "house-id-001",
+      title: "2",
+      body: "",
+      postedBy: "あなた",
+      postedAt: "2026-03-02T00:00:00.000Z",
+      isImportant: false,
+    },
+  ];
+  const { getDeps } = buildDeps({ notices });
+  const cursor = encodeDateIdCursor("2026-03-03T00:00:00.000Z", "n1");
+
+  const response = await handleGetNotices(
+    new Request(`http://localhost/api/notices?limit=1&cursor=${cursor}`),
+    getDeps
+  );
+  const body = (await response.json()) as { data: Notice[]; page: { nextCursor: string | null } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0]?.id, "n2");
+  assert.equal(body.page.nextCursor, encodeDateIdCursor("2026-03-02T00:00:00.000Z", "n2"));
 });
 
 test("POST notices: title不足は400", async () => {

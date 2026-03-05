@@ -15,6 +15,7 @@ import type {
 } from "../../types/index.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
+import { paginateByDateIdDesc } from "./cursor-pagination.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -97,13 +98,37 @@ const createShoppingSchema = z.object({
 const patchShoppingSchema = z.object({
   uncheck: z.boolean().optional(),
 });
+const getShoppingQuerySchema = z.object({
+  cursor: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+});
 
 export async function handleGetShoppingItems(request: Request, deps: GetShoppingDeps) {
   const context = await resolveHouseScopedContext(request, deps);
   if (context instanceof Response) return context;
 
+  const { searchParams } = new URL(request.url);
+  const parsedQuery = getShoppingQuerySchema.safeParse({
+    cursor: searchParams.get("cursor") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+  });
+  if (!parsedQuery.success) {
+    return validationError("Invalid query parameters", parsedQuery.error.issues);
+  }
+
   const items = await deps.readShoppingItems(context.houseId);
-  return Response.json({ data: items });
+  const page = paginateByDateIdDesc({
+    items,
+    getSortKey: (item) => item.addedAt,
+    getId: (item) => item.id,
+    limit: parsedQuery.data.limit,
+    cursor: parsedQuery.data.cursor,
+  });
+  if (page.isInvalidCursor) {
+    return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
+  }
+
+  return Response.json({ data: page.data, page: { nextCursor: page.nextCursor } });
 }
 
 export async function handleCreateShoppingItem(

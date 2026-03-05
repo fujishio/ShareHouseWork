@@ -6,6 +6,7 @@ import {
   handleGetShoppingItems,
   handlePatchShoppingItem,
 } from "./shopping-api.ts";
+import { encodeDateIdCursor } from "./cursor-pagination.ts";
 import type { AuditLogRecord, ShoppingItem } from "../../types/index.ts";
 
 type Actor = { uid: string; name: string; email: string };
@@ -85,6 +86,42 @@ test("GET shopping: 未認証は401", async () => {
   const { getDeps } = buildDeps({ actor: null });
   const response = await handleGetShoppingItems(new Request("http://localhost/api/shopping"), getDeps);
   assert.equal(response.status, 401);
+});
+
+test("GET shopping: cursorページングで次ページを取得できる", async () => {
+  const items: ShoppingItem[] = [
+    {
+      id: "s1",
+      houseId: "house-id-001",
+      name: "洗剤",
+      quantity: "1",
+      memo: "",
+      addedBy: "あなた",
+      addedAt: "2026-03-03",
+    },
+    {
+      id: "s2",
+      houseId: "house-id-001",
+      name: "ティッシュ",
+      quantity: "1",
+      memo: "",
+      addedBy: "あなた",
+      addedAt: "2026-03-02",
+    },
+  ];
+  const { getDeps } = buildDeps({ items });
+  const cursor = encodeDateIdCursor("2026-03-03", "s1");
+
+  const response = await handleGetShoppingItems(
+    new Request(`http://localhost/api/shopping?limit=1&cursor=${cursor}`),
+    getDeps
+  );
+  const body = (await response.json()) as { data: ShoppingItem[]; page: { nextCursor: string | null } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0]?.id, "s2");
+  assert.equal(body.page.nextCursor, encodeDateIdCursor("2026-03-02", "s2"));
 });
 
 test("POST shopping: name不足は400", async () => {

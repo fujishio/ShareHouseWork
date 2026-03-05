@@ -9,6 +9,7 @@ import type {
 } from "../../types/index.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
+import { paginateByDateIdDesc } from "./cursor-pagination.ts";
 import {
   errorResponse,
   readJsonBody,
@@ -49,13 +50,38 @@ const createNoticeSchema = z.object({
   isImportant: z.boolean().optional().default(false),
 });
 
+const getNoticesQuerySchema = z.object({
+  cursor: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+});
+
 export async function handleGetNotices(request: Request, deps: GetNoticesDeps) {
   const context = await resolveHouseScopedContext(request, deps);
   if (context instanceof Response) return context;
 
+  const { searchParams } = new URL(request.url);
+  const parsedQuery = getNoticesQuerySchema.safeParse({
+    cursor: searchParams.get("cursor") ?? undefined,
+    limit: searchParams.get("limit") ?? undefined,
+  });
+  if (!parsedQuery.success) {
+    return errorResponse("Invalid query parameters", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
+  }
+
   const notices = await deps.readNotices(context.houseId);
   const active = notices.filter((notice) => !notice.deletedAt);
-  return Response.json({ data: active });
+  const page = paginateByDateIdDesc({
+    items: active,
+    getSortKey: (notice) => notice.postedAt,
+    getId: (notice) => notice.id,
+    limit: parsedQuery.data.limit,
+    cursor: parsedQuery.data.cursor,
+  });
+  if (page.isInvalidCursor) {
+    return errorResponse("Invalid cursor", 400, "VALIDATION_ERROR");
+  }
+
+  return Response.json({ data: page.data, page: { nextCursor: page.nextCursor } });
 }
 
 export async function handleCreateNotice(request: Request, deps: CreateNoticeDeps) {

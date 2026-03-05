@@ -21,7 +21,7 @@ function docToNotice(id: string, data: FirebaseFirestore.DocumentData): Notice {
   };
 }
 
-export async function readNotices(houseId: string): Promise<Notice[]> {
+export async function listNotices(houseId: string): Promise<Notice[]> {
   return readCollection({
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
@@ -30,7 +30,7 @@ export async function readNotices(houseId: string): Promise<Notice[]> {
   });
 }
 
-export async function appendNotice(input: CreateNoticeInput): Promise<Notice> {
+export async function createNotice(input: CreateNoticeInput): Promise<Notice> {
   const data = {
     ...input,
     deletedAt: null,
@@ -39,7 +39,7 @@ export async function appendNotice(input: CreateNoticeInput): Promise<Notice> {
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToNotice });
 }
 
-export async function deleteNotice(
+export async function updateNoticeDeletion(
   noticeId: string,
   deletedBy: string,
   deletedAt: string
@@ -53,3 +53,7 @@ export async function deleteNotice(
     mapDoc: docToNotice,
   });
 }
+
+export const readNotices = listNotices;
+export const appendNotice = createNotice;
+export const deleteNotice = updateNoticeDeletion;

@@ -23,7 +23,7 @@ function docToRecord(id: string, data: FirebaseFirestore.DocumentData): TaskComp
   };
 }
 
-export async function readTaskCompletions(houseId: string): Promise<TaskCompletionRecord[]> {
+export async function listTaskCompletions(houseId: string): Promise<TaskCompletionRecord[]> {
   return readCollection({
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
@@ -32,7 +32,7 @@ export async function readTaskCompletions(houseId: string): Promise<TaskCompleti
   });
 }
 
-export async function appendTaskCompletion(
+export async function createTaskCompletion(
   record: Omit<TaskCompletionRecord, "id">
 ): Promise<TaskCompletionRecord> {
   const data = {
@@ -44,7 +44,7 @@ export async function appendTaskCompletion(
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
 }
 
-export async function cancelTaskCompletion(
+export async function updateTaskCompletionCancellation(
   completionId: string,
   canceledBy: string,
   cancelReason: string,
@@ -59,3 +59,7 @@ export async function cancelTaskCompletion(
     mapDoc: docToRecord,
   });
 }
+
+export const readTaskCompletions = listTaskCompletions;
+export const appendTaskCompletion = createTaskCompletion;
+export const cancelTaskCompletion = updateTaskCompletionCancellation;

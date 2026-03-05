@@ -20,7 +20,7 @@ function docToTask(id: string, data: FirebaseFirestore.DocumentData): Task {
   };
 }
 
-export async function readTasks(houseId: string): Promise<Task[]> {
+export async function listTasks(houseId: string): Promise<Task[]> {
   return readCollection({
     collection: COLLECTION,
     whereEquals: [
@@ -36,7 +36,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToTask });
 }
 
-export async function readTask(taskId: string): Promise<Task | null> {
+export async function readTaskById(taskId: string): Promise<Task | null> {
   const db = getAdminFirestore();
   const doc = await db.collection(COLLECTION).doc(taskId).get();
   if (!doc.exists) return null;
@@ -54,7 +54,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   });
 }
 
-export async function deleteTask(taskId: string, deletedAt: string): Promise<Task | null> {
+export async function updateTaskDeletion(taskId: string, deletedAt: string): Promise<Task | null> {
   return updateCollectionDocConditionally({
     collection: COLLECTION,
     id: taskId,
@@ -64,3 +64,7 @@ export async function deleteTask(taskId: string, deletedAt: string): Promise<Tas
     mapDoc: docToTask,
   });
 }
+
+export const readTasks = listTasks;
+export const readTask = readTaskById;
+export const deleteTask = updateTaskDeletion;

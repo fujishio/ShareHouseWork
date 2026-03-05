@@ -2,6 +2,7 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldPath } from "firebase-admin/firestore";
 import type { Member } from "@/types";
 import { z } from "zod";
+import { listCollection, readCollectionDoc } from "@/server/store-utils";
 
 const COLLECTION = "users";
 
@@ -20,43 +21,47 @@ function docToMember(
   return { id, ...parsed.data };
 }
 
-export async function getUser(uid: string): Promise<Member | null> {
-  const db = getAdminFirestore();
-  const doc = await db.collection(COLLECTION).doc(uid).get();
-  if (!doc.exists) return null;
-  return docToMember(doc.id, doc.data());
+export async function readUserById(uid: string): Promise<Member | null> {
+  const user = await readCollectionDoc({
+    collection: COLLECTION,
+    id: uid,
+    mapDoc: docToMember,
+  });
+  return user ?? null;
 }
 
 export async function listUsers(memberUids?: string[]): Promise<Member[]> {
-  const db = getAdminFirestore();
-
   if (memberUids && memberUids.length === 0) {
     return [];
   }
 
-  if (memberUids && memberUids.length > 0) {
-    const snapshot = await db
-      .collection(COLLECTION)
-      .where(FieldPath.documentId(), "in", memberUids)
-      .get();
-    return snapshot.docs
-      .map((doc) => docToMember(doc.id, doc.data()))
-      .filter((member): member is Member => member !== null);
-  }
+  const users = await listCollection({
+    collection: COLLECTION,
+    where:
+      memberUids && memberUids.length > 0
+        ? [{ field: FieldPath.documentId(), op: "in", value: memberUids }]
+        : [],
+    mapDoc: docToMember,
+  });
 
-  const snapshot = await db.collection(COLLECTION).get();
-  return snapshot.docs
-    .map((doc) => docToMember(doc.id, doc.data()))
+  return users
     .filter((member): member is Member => member !== null);
 }
 
-export async function upsertUser(uid: string, data: { name: string; color: string; email: string }): Promise<Member> {
+export async function createOrUpdateUser(
+  uid: string,
+  data: { name: string; color: string; email: string }
+): Promise<Member> {
   const db = getAdminFirestore();
   await db.collection(COLLECTION).doc(uid).set(data, { merge: true });
   return { id: uid, ...data };
 }
 
-export async function deleteUser(uid: string): Promise<void> {
+export async function deleteUserById(uid: string): Promise<void> {
   const db = getAdminFirestore();
   await db.collection(COLLECTION).doc(uid).delete();
 }
+
+export const getUser = readUserById;
+export const upsertUser = createOrUpdateUser;
+export const deleteUser = deleteUserById;

@@ -7,6 +7,7 @@ import {
   handleGetRules,
   handleUpdateRule,
 } from "./rules-api.ts";
+import { encodeDateIdCursor } from "./cursor-pagination.ts";
 import type { AuditLogRecord, Rule } from "../../types/index.ts";
 
 type Actor = { uid: string; name: string; email: string };
@@ -117,6 +118,42 @@ test("GET rules: deletedAt ありを除外", async () => {
   assert.equal(response.status, 200);
   assert.equal(body.data.length, 1);
   assert.equal(body.data[0]?.id, "r1");
+});
+
+test("GET rules: cursorページングで次ページを取得できる", async () => {
+  const rules: Rule[] = [
+    {
+      id: "r1",
+      houseId: "house-id-001",
+      title: "A",
+      body: "",
+      category: "共用部",
+      createdBy: "あなた",
+      createdAt: "2026-03-03T00:00:00.000Z",
+    },
+    {
+      id: "r2",
+      houseId: "house-id-001",
+      title: "B",
+      body: "",
+      category: "共用部",
+      createdBy: "あなた",
+      createdAt: "2026-03-02T00:00:00.000Z",
+    },
+  ];
+  const { getDeps } = buildDeps({ rules });
+  const cursor = encodeDateIdCursor("2026-03-03T00:00:00.000Z", "r1");
+
+  const response = await handleGetRules(
+    new Request(`http://localhost/api/rules?limit=1&cursor=${cursor}`),
+    getDeps
+  );
+  const body = (await response.json()) as { data: Rule[]; page: { nextCursor: string | null } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0]?.id, "r2");
+  assert.equal(body.page.nextCursor, encodeDateIdCursor("2026-03-02T00:00:00.000Z", "r2"));
 });
 
 test("POST rules: category不正は400", async () => {

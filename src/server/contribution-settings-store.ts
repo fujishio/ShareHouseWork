@@ -27,7 +27,18 @@ function buildInitialSettings(memberCount: number): ContributionSettings {
   };
 }
 
-export async function readContributionSettingsHistory(
+function docToContributionSettingsHistoryRecord(
+  data: FirebaseFirestore.DocumentData
+): ContributionSettingsHistoryRecord {
+  return {
+    houseId: data.houseId,
+    effectiveMonth: data.effectiveMonth,
+    monthlyAmountPerPerson: data.monthlyAmountPerPerson,
+    memberCount: data.memberCount,
+  };
+}
+
+export async function listContributionSettingsHistory(
   houseId: string
 ): Promise<ContributionSettingsHistoryRecord[]> {
   const db = getAdminFirestore();
@@ -49,12 +60,7 @@ export async function readContributionSettingsHistory(
     return [{ houseId, effectiveMonth: HISTORY_START_MONTH, ...initialSettings }];
   }
 
-  const records = snapshot.docs.map((doc) => ({
-    houseId: doc.data().houseId as string,
-    effectiveMonth: doc.data().effectiveMonth as string,
-    monthlyAmountPerPerson: doc.data().monthlyAmountPerPerson as number,
-    memberCount: doc.data().memberCount as number,
-  }));
+  const records = snapshot.docs.map((doc) => docToContributionSettingsHistoryRecord(doc.data()));
 
   const hasOnlyLegacySeed =
     records.length === 1 &&
@@ -102,12 +108,14 @@ export function resolveContributionSettingsAtMonth(
   return current;
 }
 
-export async function readContributionSettings(houseId: string): Promise<ContributionSettings> {
-  const history = await readContributionSettingsHistory(houseId);
+export async function readCurrentContributionSettings(
+  houseId: string
+): Promise<ContributionSettings> {
+  const history = await listContributionSettingsHistory(houseId);
   return resolveContributionSettingsAtMonth(history, toJstMonthKey());
 }
 
-export async function writeContributionSettings(
+export async function updateContributionSettingsForCurrentMonth(
   houseId: string,
   settings: ContributionSettings
 ): Promise<void> {
@@ -119,7 +127,7 @@ export async function writeContributionSettings(
     .set({ ...settings, houseId, effectiveMonth });
 }
 
-export async function syncContributionMemberCountForCurrentMonth(
+export async function updateContributionMemberCountForCurrentMonth(
   houseId: string,
   memberCount: number
 ): Promise<void> {
@@ -145,7 +153,7 @@ export async function syncContributionMemberCountForCurrentMonth(
     return;
   }
 
-  const current = await readContributionSettings(houseId);
+  const current = await readCurrentContributionSettings(houseId);
   await ref.set({
     houseId,
     effectiveMonth,
@@ -153,3 +161,9 @@ export async function syncContributionMemberCountForCurrentMonth(
     memberCount: normalizedMemberCount,
   });
 }
+
+export const readContributionSettingsHistory = listContributionSettingsHistory;
+export const readContributionSettings = readCurrentContributionSettings;
+export const writeContributionSettings = updateContributionSettingsForCurrentMonth;
+export const syncContributionMemberCountForCurrentMonth =
+  updateContributionMemberCountForCurrentMonth;
