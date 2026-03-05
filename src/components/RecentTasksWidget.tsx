@@ -146,6 +146,7 @@ export default function RecentTasksWidget({ tasks, houseId }: Props) {
     const pendingSet = new Set(pendingIds);
     return tasks.filter((task) => !pendingSet.has(task.id));
   }, [pendingIds, tasks]);
+  const topVisibleTasks = useMemo(() => visibleTasks.slice(0, 5), [visibleTasks]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">
@@ -159,11 +160,11 @@ export default function RecentTasksWidget({ tasks, houseId }: Props) {
         </Link>
       </div>
 
-      {visibleTasks.length === 0 ? (
+      {topVisibleTasks.length === 0 ? (
         <p className="text-sm text-stone-400 py-2 text-center">タスクがありません</p>
       ) : (
         <ul className="space-y-1">
-          {visibleTasks.map((task) => {
+          {topVisibleTasks.map((task) => {
             const lastCompletedAt = task.lastCompletedAtIso ? new Date(task.lastCompletedAtIso) : null;
             return (
               <li

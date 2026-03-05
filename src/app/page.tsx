@@ -33,7 +33,11 @@ function toMonthKeyFromIsoDateTime(value: string | undefined): string | undefine
   return toJstMonthKey(date);
 }
 
-function computeContributionData(records: TaskCompletionRecord[], users: Member[], now: Date): ContributionData[] {
+function computeContributionData(
+  records: TaskCompletionRecord[],
+  users: Member[],
+  now: Date,
+): ContributionData[] {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY);
   const pointsByName: Record<string, number> = {};
 
@@ -76,18 +80,31 @@ export default async function HomePage() {
     );
   }
 
-  const house = houseId ? await getHouse(houseId) : null;
-  const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
+  const housePromise = getHouse(houseId);
+  const usersPromise = housePromise.then((house) =>
+    house?.memberUids.length ? listUsers(house.memberUids) : [],
+  );
 
-  const [completions, tasks, allExpenses, balanceAdjustments, contributionHistory, allNotices, users] = await Promise.all([
+  const [
+    house,
+    completions,
+    tasks,
+    allExpenses,
+    balanceAdjustments,
+    contributionHistory,
+    allNotices,
+    users,
+  ] = await Promise.all([
+    housePromise,
     readTaskCompletions(houseId),
     readTasks(houseId),
     readExpenses(houseId),
     readBalanceAdjustments(houseId),
     readContributionSettingsHistory(houseId),
     readNotices(houseId),
-    house?.memberUids.length ? listUsers(house.memberUids) : Promise.resolve([]),
+    usersPromise,
   ]);
+  const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
 
   const latestByTask = getLatestCompletionByTask(completions);
   const priorityTasks = getPrioritizedTasks(latestByTask, now, tasks.length, tasks);
@@ -103,7 +120,7 @@ export default async function HomePage() {
     allExpenses,
     balanceAdjustments,
     contributionHistory,
-    { carryoverStartMonthKey }
+    { carryoverStartMonthKey },
   );
   const expenseSummary = {
     month: toLabelFromMonthKey(currentMonthKey),
@@ -116,7 +133,6 @@ export default async function HomePage() {
     .filter((n) => !n.deletedAt)
     .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
     .slice(0, 5);
-
 
   return (
     <div className="space-y-4">

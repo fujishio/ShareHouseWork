@@ -1,10 +1,18 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import type { BalanceAdjustmentRecord, ExpenseRecord } from "@/types";
-import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
 import { useExpenseSection } from "@/hooks/useExpenseSection";
+
+const ExpenseCategoryChart = dynamic(() => import("./ExpenseCategoryChart"), {
+  loading: () => (
+    <div className="flex h-32 items-center justify-center text-sm text-stone-400">
+      読み込み中...
+    </div>
+  ),
+});
 
 type Props = {
   initialExpenses: ExpenseRecord[];
@@ -142,7 +150,10 @@ export default function ExpenseSection({
         )}
       </div>
 
-      <div id="balance-adjustment" className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
+      <div
+        id="balance-adjustment"
+        className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm"
+      >
         <h3 className="mb-3 text-sm font-bold text-stone-800">残高調整</h3>
 
         <form
@@ -191,7 +202,10 @@ export default function ExpenseSection({
 
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             <div className="min-w-0">
-              <label htmlFor="adjust-balance-input" className="mb-1 block text-xs font-medium text-stone-600">
+              <label
+                htmlFor="adjust-balance-input"
+                className="mb-1 block text-xs font-medium text-stone-600"
+              >
                 {adjustMode === "rewrite" ? "目標残高（円）" : "調整額（円）"}
               </label>
               <input
@@ -206,7 +220,10 @@ export default function ExpenseSection({
               />
             </div>
             <div className="min-w-0">
-              <label htmlFor="adjust-date" className="mb-1 block text-xs font-medium text-stone-600">
+              <label
+                htmlFor="adjust-date"
+                className="mb-1 block text-xs font-medium text-stone-600"
+              >
                 調整日
               </label>
               <input
@@ -222,7 +239,10 @@ export default function ExpenseSection({
           </div>
 
           <div>
-            <label htmlFor="adjust-reason" className="mb-1 block text-xs font-medium text-stone-600">
+            <label
+              htmlFor="adjust-reason"
+              className="mb-1 block text-xs font-medium text-stone-600"
+            >
               調整理由
             </label>
             <input
@@ -260,7 +280,9 @@ export default function ExpenseSection({
                   className="flex items-center gap-3 rounded-xl bg-stone-50 px-3 py-2.5"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-stone-800">{adjustment.reason}</p>
+                    <p className="truncate text-sm font-medium text-stone-800">
+                      {adjustment.reason}
+                    </p>
                     <p className="mt-0.5 text-xs text-stone-400">
                       {dateStr} · {adjustment.adjustedBy}
                     </p>

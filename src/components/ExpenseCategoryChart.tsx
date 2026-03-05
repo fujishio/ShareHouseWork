@@ -1,10 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import {
-  EXPENSE_CATEGORIES,
-  EXPENSE_CATEGORY_COLORS,
-} from "@/domain/expenses/expense-categories";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_COLORS } from "@/domain/expenses/expense-categories";
 import type { ExpenseCategory, ExpenseRecord } from "@/types";
 
 type Props = {
@@ -12,25 +10,28 @@ type Props = {
 };
 
 export default function ExpenseCategoryChart({ expenses }: Props) {
-  const activeExpenses = expenses.filter((e) => !e.canceledAt);
+  const data = useMemo(() => {
+    const totals = expenses.reduce<Record<ExpenseCategory, number>>(
+      (acc, expense) => {
+        if (!expense.canceledAt) {
+          acc[expense.category] += expense.amount;
+        }
+        return acc;
+      },
+      {
+        "水道・光熱費": 0,
+        食費: 0,
+        消耗品: 0,
+        日用品: 0,
+        その他: 0,
+      },
+    );
 
-  const totals = activeExpenses.reduce<Record<ExpenseCategory, number>>(
-    (acc, expense) => {
-      acc[expense.category] += expense.amount;
-      return acc;
-    },
-    {
-      "水道・光熱費": 0,
-      "食費": 0,
-      "消耗品": 0,
-      "日用品": 0,
-      "その他": 0,
-    }
-  );
-
-  const data = EXPENSE_CATEGORIES
-    .map((category) => ({ name: category, value: totals[category] }))
-    .filter((entry) => entry.value > 0);
+    return EXPENSE_CATEGORIES.map((category) => ({
+      name: category,
+      value: totals[category],
+    })).filter((entry) => entry.value > 0);
+  }, [expenses]);
 
   if (data.length === 0) {
     return (
@@ -54,15 +55,10 @@ export default function ExpenseCategoryChart({ expenses }: Props) {
             innerRadius={32}
           >
             {data.map((entry) => (
-              <Cell
-                key={entry.name}
-                fill={EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8"}
-              />
+              <Cell key={entry.name} fill={EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8"} />
             ))}
           </Pie>
-          <Tooltip
-            formatter={(value: number) => `¥${value.toLocaleString()}`}
-          />
+          <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
         </PieChart>
       </ResponsiveContainer>
       <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
@@ -71,14 +67,11 @@ export default function ExpenseCategoryChart({ expenses }: Props) {
             <span
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
               style={{
-                backgroundColor:
-                  EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8",
+                backgroundColor: EXPENSE_CATEGORY_COLORS[entry.name] ?? "#94a3b8",
               }}
             />
             <span className="truncate">{entry.name}</span>
-            <span className="ml-auto shrink-0 font-medium">
-              ¥{entry.value.toLocaleString()}
-            </span>
+            <span className="ml-auto shrink-0 font-medium">¥{entry.value.toLocaleString()}</span>
           </li>
         ))}
       </ul>

@@ -1,12 +1,14 @@
 "use client";
 
 import { X } from "lucide-react";
-import TaskCompleteModal from "./modals/TaskCompleteModal";
-import ShoppingFormModal from "./modals/ShoppingFormModal";
-import NoticeFormModal from "./modals/NoticeFormModal";
-import ExpenseFormModal from "./modals/ExpenseFormModal";
-import RuleFormModal from "./modals/RuleFormModal";
+import dynamic from "next/dynamic";
 import { useContextualFAB } from "@/hooks/useContextualFAB";
+
+const TaskCompleteModal = dynamic(() => import("./modals/TaskCompleteModal"));
+const ShoppingFormModal = dynamic(() => import("./modals/ShoppingFormModal"));
+const NoticeFormModal = dynamic(() => import("./modals/NoticeFormModal"));
+const ExpenseFormModal = dynamic(() => import("./modals/ExpenseFormModal"));
+const RuleFormModal = dynamic(() => import("./modals/RuleFormModal"));
 
 export default function ContextualFAB() {
   const { pathname, config, isOpen, modalRef, openModal, closeModal } = useContextualFAB();
