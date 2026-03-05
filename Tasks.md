@@ -13,10 +13,10 @@
 | 最高 | TASK-P5 | 未認証エンドポイントのセキュリティ修正 | 完了 | 1 |
 | 高 | TASK-P7 | joinPassword の API レスポンス漏洩防止 | 完了 | 1 |
 | 高 | TASK-P8 | GET /api/users からメールアドレスを除外 | 完了 | 1 |
-| 最高 | TASK-P6 | マルチテナント分離（全コレクションに houseId 追加） | 未着手 | 2 |
-| 高 | TASK-P2 | Firebase 本番デプロイ構成を追加 | 未着手 | 3 |
-| 高 | TASK-P3 | 本番環境変数・Secret 設定 | 未着手 | 3 |
-| 高 | TASK-P4 | Firestore 本番反映手順の固定化 | 未着手 | 3 |
+| 最高 | TASK-P6 | マルチテナント分離（全コレクションに houseId 追加） | 完了 | 2 |
+| 高 | TASK-P2 | Firebase 本番デプロイ構成を追加 | 完了 | 3 |
+| 高 | TASK-P3 | 本番環境変数・Secret 設定 | 完了 | 3 |
+| 高 | TASK-P4 | Firestore 本番反映手順の固定化 | 完了 | 3 |
 | 中 | TASK-P9 | 全件取得のスケーラビリティ改善 | 未着手 | 4 |
 | 中 | TASK-5 | Discord 通知 MVP 実装 | 未着手 | 5 |
 | 中 | TASK-P10 | ユーザー退会・データ削除フロー | 未着手 | 5 |
@@ -138,7 +138,7 @@ UI でメンバー一覧表示に必要なのは `name` と `color` のみであ
 
 ### TASK-P6: マルチテナント分離（全コレクションに houseId 追加）
 
-**状態**: 未着手
+**状態**: 完了
 **優先度**: 最高（複数ハウスが共存する時点でデータが混在・相互参照できる致命的欠陥）
 
 **発覚した問題**
@@ -180,19 +180,21 @@ UI でメンバー一覧表示に必要なのは `name` と `color` のみであ
 
 ### TASK-P2: Firebase 本番デプロイ構成を追加
 
-**状態**: 未着手
+**状態**: 完了
 **優先度**: 高
 
 **内容**
-- Firebase での実行方式（App Hosting / Hosting + Functions）を確定する。
-- `firebase.json` に本番デプロイ用設定を追加し、emulator 設定と併存できる形に整理する。
-- `.firebaserc` の default プロジェクトを本番 project id に切り替える（`demo-sharehouse-work` 固定を解消）。
+- Firebase での実行方式を確定: ホスティングは Vercel。Firebase は Auth + Firestore のみ使用（Firebase Hosting / Functions は使用しない）。
+- `firebase.json` に `"indexes": "firestore.indexes.json"` を追加し、rules と indexes を同時にデプロイできるようにした。
+- `.firebaserc` の `default` を `sharehousework`（本番）に変更。ローカルエミュレーター用に `development` エイリアス（`demo-sharehouse-work`）を追加。
+  - 本番デプロイ: `firebase deploy --only firestore:rules,firestore:indexes`
+  - ローカルエミュレーター: `firebase emulators:start --project development`
 
 ---
 
 ### TASK-P3: 本番環境変数・Secret 設定
 
-**状態**: 未着手
+**状態**: 完了
 **優先度**: 高
 
 **内容**
@@ -200,16 +202,24 @@ UI でメンバー一覧表示に必要なのは `name` と `color` のみであ
 - Client: `NEXT_PUBLIC_FIREBASE_*` を本番値へ設定し、`NEXT_PUBLIC_USE_FIREBASE_EMULATOR` は本番で無効化する。
 - 公開リポジトリ運用として、実値はコミットせず `.env.example` はサンプル値のみ維持する。
 
+**対応内容**
+- `.env.example` のプレースホルダーを説明的な値（`"AIzaSy..."` 等）に改善し、各変数の取得元をコメントで記載。
+- `DEPLOY.md` を新規作成し、Vercel 環境変数の設定手順・Firestore デプロイ手順・ローカル開発手順を文書化。
+
 ---
 
 ### TASK-P4: Firestore 本番反映手順の固定化
 
-**状態**: 未着手
+**状態**: 完了
 **優先度**: 高
 
 **内容**
 - `firestore.rules` の本番反映（`firebase deploy --only firestore:rules`）をデプロイ手順に追加する。
 - 将来の複合インデックス追加に備え、`firestore.indexes.json` を管理対象に追加し、`firebase deploy --only firestore:indexes` 手順を確立する。
+
+**対応内容**
+- `DEPLOY.md` セクション2を拡充：管理ファイル一覧・用途別コマンド3種・インデックス追加手順・デプロイ確認方法を追記。
+- `firebase.json` は `firestore:rules` と `firestore:indexes` の両方を既に参照済み（TASK-P2 で対応済み）。
 
 ---
 
