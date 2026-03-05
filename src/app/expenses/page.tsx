@@ -68,8 +68,18 @@ export default async function ExpensesPage({
   const nextMonthKey = addOneMonth(targetMonthKey);
   const canGoNext = targetMonthKey < currentMonthKey;
 
-  const houseId = await resolveRequestHouseId() ?? "";
-  const house = houseId ? await getHouse(houseId) : null;
+  const houseId = await resolveRequestHouseId();
+  if (!houseId) {
+    return (
+      <div className="space-y-4">
+        <section className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
+          <h3 className="font-bold text-stone-800">費用管理</h3>
+          <p className="mt-2 text-sm text-stone-500">ハウスに参加すると費用情報が表示されます。</p>
+        </section>
+      </div>
+    );
+  }
+  const house = await getHouse(houseId);
   const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
   const [allExpenses, balanceAdjustments, contributionHistory] = await Promise.all([
     readExpenses(houseId),

@@ -30,6 +30,10 @@ export async function getUser(uid: string): Promise<Member | null> {
 export async function listUsers(memberUids?: string[]): Promise<Member[]> {
   const db = getAdminFirestore();
 
+  if (memberUids && memberUids.length === 0) {
+    return [];
+  }
+
   if (memberUids && memberUids.length > 0) {
     const snapshot = await db
       .collection(COLLECTION)

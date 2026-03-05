@@ -18,7 +18,8 @@ export async function GET(request: Request) {
   if (!actor) return unauthorizedResponse();
 
   const houseId = await resolveActorHouseId(actor.uid);
-  const memberUids = houseId ? (await getHouse(houseId))?.memberUids : undefined;
+  if (!houseId) return errorJson("No house found for user", "NO_HOUSE", 403);
+  const memberUids = (await getHouse(houseId))?.memberUids ?? [];
 
   const users = await listUsers(memberUids);
   // Strip email from each user before returning (TASK-P8)
