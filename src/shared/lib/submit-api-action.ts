@@ -6,7 +6,7 @@ type SubmitApiActionOptions = {
   successMessage: string;
   fallbackErrorMessage: string;
   networkErrorMessage?: string;
-  onSuccess?: () => Promise<void> | void;
+  onSuccess?: (response: Response) => Promise<void> | void;
   onError?: (message: string) => void;
 };
 
@@ -29,7 +29,7 @@ export async function submitApiAction(options: SubmitApiActionOptions): Promise<
       return false;
     }
 
-    await onSuccess?.();
+    await onSuccess?.(response);
     showToast({ level: "success", message: successMessage });
     return true;
   } catch {

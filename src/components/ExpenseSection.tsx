@@ -1,19 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
-import type {
-  BalanceAdjustmentRecord,
-  ExpenseRecord,
-} from "@/types";
+import type { BalanceAdjustmentRecord, ExpenseRecord } from "@/types";
 import ExpenseCategoryChart from "./ExpenseCategoryChart";
 import { LoadingNotice } from "./RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { showToast } from "@/shared/lib/toast";
-import { apiFetch, readJson } from "@/shared/lib/fetch-client";
-import { isDataObjectResponse } from "@/shared/lib/response-guards";
-import { toLocalDateInputValue } from "@/shared/lib/time";
+import { useExpenseSection } from "@/hooks/useExpenseSection";
 
 type Props = {
   initialExpenses: ExpenseRecord[];
@@ -22,10 +13,6 @@ type Props = {
   initialCarryover: number;
   initialMonthlyContribution: number;
 };
-
-function toMonthPrefix(month: string): string {
-  return month.slice(0, 7);
-}
 
 function formatPurchaseDateLabel(purchasedAt: string): string {
   const datePart = purchasedAt.slice(0, 10);
@@ -43,142 +30,46 @@ export default function ExpenseSection({
   initialCarryover,
   initialMonthlyContribution,
 }: Props) {
-  const router = useRouter();
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
-  const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustmentRecord[]>(
-    initialBalanceAdjustments
-  );
-  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [isAdjustmentHistoryExpanded, setIsAdjustmentHistoryExpanded] = useState(false);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [adjustMode, setAdjustMode] = useState<"rewrite" | "amount">("rewrite");
-  const [balanceInput, setBalanceInput] = useState("");
-  const [adjustReason, setAdjustReason] = useState("");
-  const [adjustDate, setAdjustDate] = useState(toLocalDateInputValue);
-  const [isAdjusting, setIsAdjusting] = useState(false);
-
-  const monthPrefix = toMonthPrefix(currentMonth);
-  const currentMonthExpenses = expenses.filter(
-    (e) => e.purchasedAt.startsWith(monthPrefix) && !e.canceledAt
-  );
-
-  const monthHistoryExpenses = [...expenses]
-    .filter((e) => e.purchasedAt.startsWith(monthPrefix))
-    .sort((a, b) => new Date(b.purchasedAt).getTime() - new Date(a.purchasedAt).getTime());
-  const visibleHistory = isHistoryExpanded ? monthHistoryExpenses : monthHistoryExpenses.slice(0, 5);
-  const monthAdjustments = [...balanceAdjustments]
-    .filter((adjustment) => adjustment.adjustedAt.startsWith(monthPrefix))
-    .sort((a, b) => new Date(b.adjustedAt).getTime() - new Date(a.adjustedAt).getTime());
-  const visibleAdjustments = isAdjustmentHistoryExpanded
-    ? monthAdjustments
-    : monthAdjustments.slice(0, 5);
-  const currentMonthSpent = currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const currentMonthAdjustment = monthAdjustments.reduce((sum, adjustment) => sum + adjustment.amount, 0);
-  const currentBalance =
-    initialCarryover + initialMonthlyContribution - currentMonthSpent + currentMonthAdjustment;
-
-  async function handleCancel(expense: ExpenseRecord) {
-    setCancelingId(expense.id);
-    try {
-      const response = await apiFetch(`/api/expenses/${expense.id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cancelReason: "登録間違い",
-        }),
-      });
-
-      if (!response.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(response, "支出の取消に失敗しました"),
-        });
-        return;
-      }
-
-      const json = await readJson<{ data: ExpenseRecord }>(
-        response,
-        isDataObjectResponse<ExpenseRecord>
-      );
-      setExpenses((prev) =>
-        prev.map((e) => (e.id === expense.id ? json.data : e))
-      );
-      showToast({ level: "success", message: "支出を取り消しました" });
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setCancelingId(null);
-    }
-  }
-
-  async function handleSubmitAdjustment(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const normalized = balanceInput.replace(/[,\s]/g, "");
-    if (!/^-?\d+$/.test(normalized)) {
-      showToast({ level: "error", message: "数値で入力してください" });
-      return;
-    }
-    const parsed = Number(normalized);
-
-    let amount: number;
-    if (adjustMode === "rewrite") {
-      amount = parsed - currentBalance;
-      if (amount === 0) {
-        showToast({ level: "error", message: "現在残高と同じです" });
-        return;
-      }
-    } else {
-      amount = parsed;
-      if (amount === 0) {
-        showToast({ level: "error", message: "調整額は0以外を入力してください" });
-        return;
-      }
-    }
-
-    setIsAdjusting(true);
-    try {
-      const response = await apiFetch("/api/balance-adjustments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, reason: adjustReason.trim(), adjustedAt: adjustDate }),
-      });
-
-      if (!response.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(response, "残高調整の登録に失敗しました"),
-        });
-        return;
-      }
-
-      const json = await readJson<{ data: BalanceAdjustmentRecord }>(
-        response,
-        isDataObjectResponse<BalanceAdjustmentRecord>
-      );
-      setBalanceAdjustments((prev) => [json.data, ...prev]);
-      setBalanceInput("");
-      setAdjustReason("");
-      showToast({ level: "success", message: "残高調整を登録しました" });
-      router.refresh();
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setIsAdjusting(false);
-    }
-  }
+  const {
+    currentMonthExpenses,
+    monthHistoryExpenses,
+    visibleHistory,
+    monthAdjustments,
+    visibleAdjustments,
+    currentBalance,
+    cancelingId,
+    isHistoryExpanded,
+    isAdjustmentHistoryExpanded,
+    adjustMode,
+    balanceInput,
+    adjustReason,
+    adjustDate,
+    isAdjusting,
+    setIsHistoryExpanded,
+    setIsAdjustmentHistoryExpanded,
+    setAdjustMode,
+    setBalanceInput,
+    setAdjustReason,
+    setAdjustDate,
+    cancelExpense,
+    submitAdjustment,
+  } = useExpenseSection({
+    initialExpenses,
+    initialBalanceAdjustments,
+    currentMonth,
+    initialCarryover,
+    initialMonthlyContribution,
+  });
 
   return (
     <div className="space-y-4">
       {cancelingId !== null && <LoadingNotice message="支出を更新中..." />}
 
-      {/* Category chart */}
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">カテゴリ別内訳</h3>
         <ExpenseCategoryChart expenses={currentMonthExpenses} />
       </div>
 
-      {/* Expense history */}
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">支出履歴</h3>
 
@@ -199,7 +90,11 @@ export default function ExpenseSection({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className={`truncate text-sm font-medium ${isCanceled ? "line-through text-stone-400" : "text-stone-800"}`}>
+                      <p
+                        className={`truncate text-sm font-medium ${
+                          isCanceled ? "line-through text-stone-400" : "text-stone-800"
+                        }`}
+                      >
                         {expense.title}
                       </p>
                       {isCanceled && (
@@ -212,7 +107,11 @@ export default function ExpenseSection({
                       {dateStr} · {expense.purchasedBy} · {expense.category}
                     </p>
                   </div>
-                  <span className={`shrink-0 text-sm font-bold ${isCanceled ? "text-stone-400" : "text-red-600"}`}>
+                  <span
+                    className={`shrink-0 text-sm font-bold ${
+                      isCanceled ? "text-stone-400" : "text-red-600"
+                    }`}
+                  >
                     ¥{expense.amount.toLocaleString()}
                   </span>
                   {!isCanceled && (
@@ -220,7 +119,7 @@ export default function ExpenseSection({
                       type="button"
                       aria-label="取消"
                       disabled={cancelingId === expense.id}
-                      onClick={() => handleCancel(expense)}
+                      onClick={() => cancelExpense(expense)}
                       className="shrink-0 rounded-lg p-1.5 text-stone-400 hover:bg-stone-200 hover:text-stone-600 transition-colors disabled:opacity-40"
                     >
                       <Trash2 size={14} />
@@ -246,12 +145,20 @@ export default function ExpenseSection({
       <div id="balance-adjustment" className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-bold text-stone-800">残高調整</h3>
 
-        <form onSubmit={handleSubmitAdjustment} className="space-y-3 rounded-xl bg-stone-50 p-3 mb-3">
-          {/* Mode toggle */}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitAdjustment();
+          }}
+          className="space-y-3 rounded-xl bg-stone-50 p-3 mb-3"
+        >
           <div className="flex rounded-lg border border-stone-200 bg-white p-0.5 text-xs font-medium">
             <button
               type="button"
-              onClick={() => { setAdjustMode("rewrite"); setBalanceInput(""); }}
+              onClick={() => {
+                setAdjustMode("rewrite");
+                setBalanceInput("");
+              }}
               className={`flex-1 rounded-md py-1.5 transition-colors ${
                 adjustMode === "rewrite"
                   ? "bg-amber-500 text-white"
@@ -262,7 +169,10 @@ export default function ExpenseSection({
             </button>
             <button
               type="button"
-              onClick={() => { setAdjustMode("amount"); setBalanceInput("0"); }}
+              onClick={() => {
+                setAdjustMode("amount");
+                setBalanceInput("0");
+              }}
               className={`flex-1 rounded-md py-1.5 transition-colors ${
                 adjustMode === "amount"
                   ? "bg-amber-500 text-white"
@@ -289,7 +199,7 @@ export default function ExpenseSection({
                 type="text"
                 required
                 value={balanceInput}
-                onChange={(e) => setBalanceInput(e.target.value)}
+                onChange={(event) => setBalanceInput(event.target.value)}
                 disabled={isAdjusting}
                 placeholder={adjustMode === "rewrite" ? String(currentBalance) : "例: -2000"}
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
@@ -304,7 +214,7 @@ export default function ExpenseSection({
                 type="date"
                 required
                 value={adjustDate}
-                onChange={(e) => setAdjustDate(e.target.value)}
+                onChange={(event) => setAdjustDate(event.target.value)}
                 disabled={isAdjusting}
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
@@ -320,7 +230,7 @@ export default function ExpenseSection({
               type="text"
               required
               value={adjustReason}
-              onChange={(e) => setAdjustReason(e.target.value)}
+              onChange={(event) => setAdjustReason(event.target.value)}
               disabled={isAdjusting}
               placeholder="例: 立替精算"
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"

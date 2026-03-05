@@ -45,10 +45,12 @@ erDiagram
 | field | type | 必須 | 説明 |
 |---|---|---|---|
 | `name` | string | Yes | ハウス名 |
-| `description` | string | Yes | 説明（空文字あり） |
+| `description` | string \| null | Yes | 説明 |
 | `ownerUid` | string \| null | Yes | 所有者 UID |
 | `memberUids` | string[] | Yes | 所属ユーザー UID 配列 |
+| `hostUids` | string[] | Yes | ホスト権限を持つ UID 配列 |
 | `createdAt` | string(ISO8601) | Yes | 作成日時 |
+| `joinPasswordHash` | string | No | 参加パスワードの scrypt ハッシュ |
 
 ### `tasks`
 - 用途: 家事マスタ（論理削除あり）。
@@ -56,6 +58,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `name` | string | Yes | タスク名 |
 | `category` | enum string | Yes | `炊事・洗濯` 等 |
 | `points` | number(int>=1) | Yes | 貢献ポイント |
@@ -68,6 +71,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `taskId` | string | Yes | `tasks` のID |
 | `taskName` | string | Yes | 完了時点のタスク名スナップショット |
 | `points` | number | Yes | 完了時点のポイント |
@@ -84,6 +88,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `title` | string | Yes | 品目 |
 | `amount` | number(>0) | Yes | 金額 |
 | `category` | enum string | Yes | `水道・光熱費` 等 |
@@ -99,6 +104,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `name` | string | Yes | 品名 |
 | `quantity` | string | Yes | 数量（自由入力） |
 | `memo` | string | Yes | メモ |
@@ -116,6 +122,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `title` | string | Yes | ルールタイトル |
 | `body` | string | Yes | 本文 |
 | `category` | enum string | Yes | `ゴミ捨て` 等 |
@@ -132,6 +139,7 @@ erDiagram
 
 | field | type | 必須 | 説明 |
 |---|---|---|---|
+| `houseId` | string | Yes | 所属ハウス ID |
 | `title` | string | Yes | タイトル |
 | `body` | string | Yes | 本文 |
 | `postedBy` | string | Yes | 投稿者名 |

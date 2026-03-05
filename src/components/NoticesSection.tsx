@@ -1,62 +1,30 @@
 "use client";
 
-import { useState } from "react";
 import { Bell, AlertCircle, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { Notice } from "@/types";
 import { formatRelativeTime } from "@/shared/lib/time";
 import { LoadingNotice } from "./RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { useNoticesSection } from "@/hooks/useNoticesSection";
 
 type Props = {
   initialNotices: Notice[];
 };
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-function isOld(postedAt: string): boolean {
-  return Date.now() - new Date(postedAt).getTime() > THIRTY_DAYS_MS;
-}
-
 export default function NoticesSection({ initialNotices }: Props) {
-  const [notices, setNotices] = useState<Notice[]>(initialNotices);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [oldExpanded, setOldExpanded] = useState(false);
-
-  async function handleDelete(notice: Notice) {
-    setDeletingId(notice.id);
-    try {
-      const response = await apiFetch(`/api/notices/${notice.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(response, "お知らせ削除に失敗しました"),
-        });
-        return;
-      }
-      setNotices((prev) => prev.filter((n) => n.id !== notice.id));
-      showToast({ level: "success", message: "お知らせを削除しました" });
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  const recentNotices = notices.filter((n) => !isOld(n.postedAt));
-  const oldNotices = notices.filter((n) => isOld(n.postedAt));
-
-  const importantNotices = recentNotices.filter((n) => n.isImportant);
-  const regularNotices = recentNotices.filter((n) => !n.isImportant);
+  const {
+    deletingId,
+    oldExpanded,
+    importantNotices,
+    regularNotices,
+    oldNotices,
+    setOldExpanded,
+    deleteNotice,
+  } = useNoticesSection(initialNotices);
 
   return (
     <div className="space-y-4">
       {deletingId !== null && <LoadingNotice message="お知らせを更新中..." />}
 
-      {/* Important notices */}
       {importantNotices.length > 0 && (
         <div className="rounded-2xl border border-red-200/60 bg-red-50/50 shadow-sm">
           <div className="px-4 pt-4 pb-3 border-b border-red-100 flex items-center gap-2">
@@ -72,7 +40,7 @@ export default function NoticesSection({ initialNotices }: Props) {
                 key={notice.id}
                 notice={notice}
                 deletingId={deletingId}
-                onDelete={handleDelete}
+                onDelete={deleteNotice}
                 important
               />
             ))}
@@ -80,7 +48,6 @@ export default function NoticesSection({ initialNotices }: Props) {
         </div>
       )}
 
-      {/* Regular notices */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
         <div className="px-4 pt-4 pb-3 border-b border-stone-100">
           <h2 className="font-bold text-stone-800">お知らせ</h2>
@@ -90,9 +57,7 @@ export default function NoticesSection({ initialNotices }: Props) {
         </div>
 
         {regularNotices.length === 0 ? (
-          <p className="py-8 text-center text-sm text-stone-400">
-            お知らせはありません
-          </p>
+          <p className="py-8 text-center text-sm text-stone-400">お知らせはありません</p>
         ) : (
           <ul className="divide-y divide-stone-100">
             {regularNotices.map((notice) => (
@@ -100,7 +65,7 @@ export default function NoticesSection({ initialNotices }: Props) {
                 key={notice.id}
                 notice={notice}
                 deletingId={deletingId}
-                onDelete={handleDelete}
+                onDelete={deleteNotice}
                 important={false}
               />
             ))}
@@ -108,17 +73,14 @@ export default function NoticesSection({ initialNotices }: Props) {
         )}
       </div>
 
-      {/* Old notices (collapsed) */}
       {oldNotices.length > 0 && (
         <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
           <button
             type="button"
-            onClick={() => setOldExpanded((v) => !v)}
+            onClick={() => setOldExpanded((value) => !value)}
             className="w-full flex items-center justify-between px-4 py-3 text-left"
           >
-            <span className="text-sm font-medium text-stone-500">
-              過去のお知らせ（{oldNotices.length}件）
-            </span>
+            <span className="text-sm font-medium text-stone-500">過去のお知らせ（{oldNotices.length}件）</span>
             {oldExpanded ? (
               <ChevronUp size={16} className="text-stone-400" />
             ) : (
@@ -132,7 +94,7 @@ export default function NoticesSection({ initialNotices }: Props) {
                   key={notice.id}
                   notice={notice}
                   deletingId={deletingId}
-                  onDelete={handleDelete}
+                  onDelete={deleteNotice}
                   important={notice.isImportant}
                 />
               ))}
@@ -167,9 +129,7 @@ function NoticeItem({ notice, deletingId, onDelete, important }: NoticeItemProps
         <p className={`text-sm font-medium leading-snug ${important ? "text-red-700" : "text-stone-800"}`}>
           {notice.title}
         </p>
-        {notice.body && (
-          <p className="mt-1 text-sm text-stone-600 whitespace-pre-wrap">{notice.body}</p>
-        )}
+        {notice.body && <p className="mt-1 text-sm text-stone-600 whitespace-pre-wrap">{notice.body}</p>}
         <p className="text-xs text-stone-400 mt-1">
           {notice.postedBy} · {formatRelativeTime(postedAt)}
         </p>

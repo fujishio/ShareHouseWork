@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { RuleCategory } from "@/types";
 import { ErrorNotice } from "@/components/RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { showToast } from "@/shared/lib/toast";
-import { apiFetch } from "@/shared/lib/fetch-client";
-import {
-  RULE_CATEGORIES,
-  isRuleCategory,
-} from "@/shared/constants/rule";
+import { RULE_CATEGORIES } from "@/shared/constants/rule";
+import { useRuleFormModal } from "@/hooks/useRuleFormModal";
 
 const CATEGORY_EMOJI: Record<RuleCategory, string> = {
   "ゴミ捨て": "🗑",
@@ -20,65 +13,41 @@ const CATEGORY_EMOJI: Record<RuleCategory, string> = {
   "その他": "📋",
 };
 
-const CATEGORIES: { value: RuleCategory; label: string }[] = RULE_CATEGORIES.map(
-  (value) => ({ value, label: `${CATEGORY_EMOJI[value]} ${value}` })
-);
+const CATEGORIES: { value: RuleCategory; label: string }[] = RULE_CATEGORIES.map((value) => ({
+  value,
+  label: `${CATEGORY_EMOJI[value]} ${value}`,
+}));
 
 type Props = {
   onClose: () => void;
 };
 
 export default function RuleFormModal({ onClose }: Props) {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [category, setCategory] = useState<RuleCategory>("その他");
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!title.trim()) return;
-
-    setSubmitting(true);
-    setErrorMessage(null);
-    try {
-      const response = await apiFetch("/api/rules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          body: body.trim(),
-          category,
-        }),
-      });
-      if (!response.ok) {
-        const message = await getApiErrorMessage(response, "ルール追加に失敗しました");
-        setErrorMessage(message);
-        showToast({ level: "error", message });
-        return;
-      }
-      router.refresh();
-      showToast({ level: "success", message: "ルールを追加しました" });
-      onClose();
-    } catch {
-      const message = "通信エラーが発生しました";
-      setErrorMessage(message);
-      showToast({ level: "error", message });
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const {
+    title,
+    body,
+    category,
+    submitting,
+    errorMessage,
+    setTitle,
+    setBody,
+    setCategoryValue,
+    submit,
+  } = useRuleFormModal(onClose);
 
   return (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 shrink-0">
         <h2 className="text-sm font-bold text-stone-800">ルールを追加</h2>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+      >
         {errorMessage && <ErrorNotice message={errorMessage} />}
         <div>
           <label htmlFor="modal-rule-title" className="mb-1 block text-xs font-medium text-stone-600">
@@ -88,7 +57,7 @@ export default function RuleFormModal({ onClose }: Props) {
             id="modal-rule-title"
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="例: ゴミは前日の夜に出す"
             required
             autoFocus
@@ -103,7 +72,7 @@ export default function RuleFormModal({ onClose }: Props) {
           <textarea
             id="modal-rule-body"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(event) => setBody(event.target.value)}
             placeholder="補足説明があれば記入してください"
             rows={3}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
@@ -117,16 +86,12 @@ export default function RuleFormModal({ onClose }: Props) {
           <select
             id="modal-rule-category"
             value={category}
-            onChange={(e) => {
-              if (isRuleCategory(e.target.value)) {
-                setCategory(e.target.value);
-              }
-            }}
+            onChange={(event) => setCategoryValue(event.target.value)}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
           >
-            {CATEGORIES.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
+            {CATEGORIES.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
               </option>
             ))}
           </select>

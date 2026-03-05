@@ -1,80 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  DEFAULT_EXPENSE_CATEGORY,
-  EXPENSE_CATEGORIES,
-  isExpenseCategory,
-} from "@/domain/expenses/expense-categories";
-import type { ExpenseCategory } from "@/types";
+import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { ErrorNotice } from "@/components/RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { showToast } from "@/shared/lib/toast";
-import { toLocalDateInputValue } from "@/shared/lib/time";
-import { apiFetch } from "@/shared/lib/fetch-client";
+import { useExpenseFormModal } from "@/hooks/useExpenseFormModal";
 
 type Props = {
   onClose: () => void;
 };
 
 export default function ExpenseFormModal({ onClose }: Props) {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>(DEFAULT_EXPENSE_CATEGORY);
-  const [purchasedAt, setPurchasedAt] = useState(toLocalDateInputValue);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    const parsedAmount = Number(amount);
-    if (!title.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      return;
-    }
-
-    setSubmitting(true);
-    setErrorMessage(null);
-    try {
-      const response = await apiFetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          amount: parsedAmount,
-          category,
-          purchasedAt,
-        }),
-      });
-      if (!response.ok) {
-        const message = await getApiErrorMessage(response, "支出の登録に失敗しました");
-        setErrorMessage(message);
-        showToast({ level: "error", message });
-        return;
-      }
-      router.refresh();
-      showToast({ level: "success", message: "支出を登録しました" });
-      onClose();
-    } catch {
-      const message = "通信エラーが発生しました";
-      setErrorMessage(message);
-      showToast({ level: "error", message });
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const {
+    title,
+    amount,
+    category,
+    purchasedAt,
+    submitting,
+    errorMessage,
+    setTitle,
+    setAmount,
+    setCategoryValue,
+    setPurchasedAt,
+    submit,
+  } = useExpenseFormModal(onClose);
 
   return (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-100 shrink-0">
         <h2 className="text-sm font-bold text-stone-800">支出を記録</h2>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+      >
         {errorMessage && <ErrorNotice message={errorMessage} />}
         <div>
           <label htmlFor="modal-expense-title" className="mb-1 block text-xs font-medium text-stone-600">
@@ -84,7 +45,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
             id="modal-expense-title"
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="例: トイレットペーパー"
             required
             autoFocus
@@ -101,7 +62,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
               id="modal-expense-amount"
               type="number"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(event) => setAmount(event.target.value)}
               placeholder="0"
               min={1}
               required
@@ -117,7 +78,7 @@ export default function ExpenseFormModal({ onClose }: Props) {
               id="modal-expense-date"
               type="date"
               value={purchasedAt}
-              onChange={(e) => setPurchasedAt(e.target.value)}
+              onChange={(event) => setPurchasedAt(event.target.value)}
               required
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
             />
@@ -131,15 +92,13 @@ export default function ExpenseFormModal({ onClose }: Props) {
           <select
             id="modal-expense-category"
             value={category}
-            onChange={(e) => {
-              if (isExpenseCategory(e.target.value)) {
-                setCategory(e.target.value);
-              }
-            }}
+            onChange={(event) => setCategoryValue(event.target.value)}
             className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
           >
-            {EXPENSE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
+            {EXPENSE_CATEGORIES.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
+              </option>
             ))}
           </select>
         </div>

@@ -1,19 +1,13 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useMonthlyContributionCarousel } from "@/hooks/useMonthlyContributionCarousel";
 
 const RADIAN = Math.PI / 180;
-const COLORS = ["#d97706", "#57534e", "#059669", "#db2777", "#0284c7", "#7c3aed"];
-
-type MonthMemberShare = {
-  name: string;
-  points: number;
-};
-
 type MonthShare = {
   monthKey: string;
   total: number;
-  members: MonthMemberShare[];
+  members: { name: string; points: number }[];
 };
 
 type LabelProps = {
@@ -55,12 +49,9 @@ function renderLabel(props: LabelProps) {
   );
 }
 
-function formatMonthLabel(monthKey: string): string {
-  const [year, month] = monthKey.split("-");
-  return `${year}年${Number(month)}月`;
-}
-
 export default function MonthlyContributionCarousel({ months }: Props) {
+  const { carouselMonths } = useMonthlyContributionCarousel(months);
+
   return (
     <section className="rounded-2xl border border-stone-200/60 bg-white p-4 shadow-sm">
       <h3 className="font-bold text-stone-800">月別の過去割合</h3>
@@ -70,13 +61,7 @@ export default function MonthlyContributionCarousel({ months }: Props) {
 
       <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1" dir="rtl">
         <div className="flex snap-x snap-mandatory gap-3">
-          {months.map((month) => {
-            const chartData = month.members.map((member, index) => ({
-              name: member.name,
-              value: member.points,
-              color: COLORS[index % COLORS.length],
-            }));
-
+          {carouselMonths.map((month) => {
             return (
               <article
                 key={month.monthKey}
@@ -85,12 +70,12 @@ export default function MonthlyContributionCarousel({ months }: Props) {
               >
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-stone-800">
-                    {formatMonthLabel(month.monthKey)}
+                    {month.monthLabel}
                   </h4>
                   <span className="text-xs text-stone-400">合計 {month.total}pt</span>
                 </div>
 
-                {chartData.length === 0 ? (
+                {month.chartData.length === 0 ? (
                   <p className="mt-4 text-sm text-stone-400">記録なし</p>
                 ) : (
                   <>
@@ -98,7 +83,7 @@ export default function MonthlyContributionCarousel({ months }: Props) {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={chartData}
+                            data={month.chartData}
                             cx="50%"
                             cy="50%"
                             innerRadius={48}
@@ -109,7 +94,7 @@ export default function MonthlyContributionCarousel({ months }: Props) {
                             labelLine={false}
                             label={renderLabel}
                           >
-                            {chartData.map((entry) => (
+                            {month.chartData.map((entry) => (
                               <Cell key={entry.name} fill={entry.color} />
                             ))}
                           </Pie>

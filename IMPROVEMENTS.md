@@ -14,6 +14,7 @@
 | R0 | 中 | Phase 0 ベースライン固定（rules test ポート競合対応） | 一部完了 |
 | R1 | 中 | Phase 1 API 境界統一（テンプレート横展開） | 完了 |
 | R4 | 中 | Phase 4 テスト再編と不足補完（API/Rules/Store） | 完了 |
+| R5 | 中 | Phase 5 フロントエンド分割（RulesSection 起点） | 完了 |
 
 ## 完了済みタスク一覧
 
@@ -176,7 +177,7 @@
 
 ## R4. Phase 4 テスト再編と不足補完
 
-**状態:** 一部完了（2026-03-05）
+**状態:** 完了（2026-03-05）
 
 `REFACTOR.md` の Phase 4 に沿って、Server API テストの共通化と失敗系補完を実施。
 
@@ -211,6 +212,65 @@
 
 **残タスク**
 - なし（Phase 4 完了）
+
+---
+
+## R5. Phase 5 フロントエンド分割
+
+**状態:** 一部完了（2026-03-05）
+
+`REFACTOR.md` の Phase 5 に沿って、`RulesSection` を対象に UI / 状態管理 / API 通信の分離を開始。
+
+**対応内容**
+- `src/hooks/useRulesSection.ts` を新規追加
+  - Rules の一覧状態、カテゴリ折りたたみ、編集状態、更新系 API 通信（ack/delete/update）を集約
+  - API 送信を `submitApiAction()` 経由に統一
+- `src/hooks/useExpenseSection.ts` を新規追加
+  - 支出履歴・残高調整の状態と計算ロジックを `ExpenseSection` から分離
+  - 取消/残高調整 API 通信を `submitApiAction()` 経由へ統一
+- `src/hooks/useShoppingSection.ts` を新規追加
+  - 買い物項目一覧、購入確認ダイアログ、アーカイブ表示状態を `ShoppingSection` から分離
+  - 購入/未購入戻し/削除/費用追加 API 通信を `submitApiAction()` ベースに統一
+- `src/hooks/useRecentCompletionsSection.ts` を新規追加
+  - 完了履歴一覧、取り消しドラフト、取り消し送信状態を `RecentCompletionsSection` から分離
+  - 完了取り消し API 通信を `submitApiAction()` へ統一
+- `src/hooks/useTaskCompleteModal.ts` を新規追加
+  - タスク読込、カテゴリ選択、完了送信状態、フィードバック表示を `TaskCompleteModal` から分離
+  - 完了登録 API 通信を `submitApiAction()` へ統一
+- `src/hooks/useExpenseFormModal.ts` / `useShoppingFormModal.ts` / `useRuleFormModal.ts` / `useNoticeFormModal.ts` を新規追加
+  - 各 FormModal の入力状態・送信状態・エラー状態をコンポーネント本体から分離
+  - 送信処理を `submitApiAction()` へ統一し、`router.refresh()` + `onClose()` を共通パターン化
+- `src/hooks/useContextualFAB.tsx` を新規追加
+  - パスごとの FAB 設定、モーダル開閉、フォーカストラップ、Esc クローズ責務を `ContextualFAB` から分離
+- `src/hooks/useNoticesSection.ts` を新規追加
+  - お知らせ一覧の分類（重要/通常/過去）、折りたたみ状態、削除処理を `NoticesSection` から分離
+  - 削除 API 通信を `submitApiAction()` へ統一
+- `src/hooks/useContributionWidget.ts` / `src/hooks/useMonthlyContributionCarousel.ts` を新規追加
+  - チャート描画用のデータ整形・集計責務を表示コンポーネントから分離
+- `src/components/RulesSection.tsx` を軽量化
+  - 画面構成とイベント受け渡しに責務を限定
+- `src/components/ExpenseSection.tsx` / `src/components/ShoppingSection.tsx` を軽量化
+  - 画面描画中心へ責務を寄せ、状態管理とデータ更新を Hook 側へ移管
+- `src/components/RecentCompletionsSection.tsx` / `src/components/modals/TaskCompleteModal.tsx` を軽量化
+  - 表示ロジック中心に整理し、状態・通信・副作用処理を Hook 側へ移管
+- `src/components/modals/{ExpenseFormModal,ShoppingFormModal,RuleFormModal,NoticeFormModal}.tsx` を軽量化
+  - 表示ロジック中心に整理し、入力状態・送信処理は Hook 側へ移管
+- `src/components/ContextualFAB.tsx` / `src/components/NoticesSection.tsx` を軽量化
+  - 表示とイベント配線へ責務を絞り、状態管理・副作用・通信は Hook 側へ移管
+- `src/components/ContributionWidget.tsx` / `src/components/MonthlyContributionCarousel.tsx` を軽量化
+  - 描画ロジック中心に整理し、データ整形は Hook 側へ移管
+- ルール画面の表示部品を分割
+  - 追加: `src/components/sections/rules/{constants,RuleEditForm,PendingRuleItem,RuleItem}.ts(x)`
+  - 既存の 1 ファイル肥大化（444行）を分解し、画面単位変更時の影響範囲を縮小
+- `src/shared/lib/submit-api-action.ts`
+  - `onSuccess` へ `Response` を受け渡せるよう拡張し、更新レスポンス反映パターンを統一
+
+**検証結果（2026-03-05）**
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
+**残タスク**
+- なし（Phase 5 完了）
 
 ---
 

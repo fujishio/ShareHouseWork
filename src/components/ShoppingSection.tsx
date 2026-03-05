@@ -1,25 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { Check, Trash2, RotateCcw } from "lucide-react";
-import type { ShoppingItem, ExpenseCategory } from "@/types";
-import {
-  DEFAULT_EXPENSE_CATEGORY,
-  EXPENSE_CATEGORIES,
-  isExpenseCategory,
-} from "@/domain/expenses/expense-categories";
+import type { ShoppingItem } from "@/types";
+import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
-import { getApiErrorMessage } from "@/shared/lib/api-error";
-import { showToast } from "@/shared/lib/toast";
-import { apiFetch, readJson } from "@/shared/lib/fetch-client";
-import { isDataObjectResponse } from "@/shared/lib/response-guards";
+import { useShoppingSection } from "@/hooks/useShoppingSection";
 
 type Props = {
   initialItems: ShoppingItem[];
-  currentMonth: string; // "YYYY-MM"
+  currentMonth: string;
 };
-
-const RECENT_PURCHASED_MONTHS = 2;
 
 function formatDate(value: string): string {
   const datePart = value.slice(0, 10);
@@ -30,164 +20,28 @@ function formatDate(value: string): string {
   return `${Number(monthLike)}/${Number(dayLike)}`;
 }
 
-function subtractMonths(monthKey: string, months: number): string {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (!Number.isInteger(year) || !Number.isInteger(month)) {
-    return monthKey;
-  }
-  const date = new Date(Date.UTC(year, month - 1, 1));
-  date.setUTCMonth(date.getUTCMonth() - months);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function isRecentPurchased(checkedAt: string, currentMonth: string): boolean {
-  if (checkedAt.length < 7) {
-    return false;
-  }
-  const checkedMonth = checkedAt.slice(0, 7);
-  const thresholdMonth = subtractMonths(currentMonth, RECENT_PURCHASED_MONTHS - 1);
-  return checkedMonth >= thresholdMonth;
-}
-
 export default function ShoppingSection({ initialItems, currentMonth }: Props) {
-  const [items, setItems] = useState<ShoppingItem[]>(initialItems);
-  const [checkingId, setCheckingId] = useState<string | null>(null);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
-  const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
-  const [pendingCheckItem, setPendingCheckItem] = useState<ShoppingItem | null>(null);
-  const [pendingAmount, setPendingAmount] = useState("");
-  const [pendingCategory, setPendingCategory] = useState<ExpenseCategory>(DEFAULT_EXPENSE_CATEGORY);
-
-  const activeItems = items.filter((item) => !item.canceledAt && !item.checkedAt);
-  const checkedItems = items
-    .filter((item) => !item.canceledAt && item.checkedAt)
-    .sort((a, b) => (b.checkedAt ?? "").localeCompare(a.checkedAt ?? ""));
-  const recentCheckedItems = checkedItems.filter(
-    (item) => item.checkedAt && isRecentPurchased(item.checkedAt, currentMonth)
-  );
-  const archivedCheckedItems = checkedItems.filter(
-    (item) => item.checkedAt && !isRecentPurchased(item.checkedAt, currentMonth)
-  );
-  const thisMonthCheckedCount = checkedItems.filter(
-    (item) => item.checkedAt?.startsWith(currentMonth)
-  ).length;
-
-  function openCheckDialog(item: ShoppingItem) {
-    setPendingCheckItem(item);
-    setPendingAmount("");
-    setPendingCategory(item.category ?? DEFAULT_EXPENSE_CATEGORY);
-  }
-
-  async function handleConfirmCheck(addToExpenses: boolean) {
-    if (!pendingCheckItem) return;
-    const item = pendingCheckItem;
-    setPendingCheckItem(null);
-    setCheckingId(item.id);
-    try {
-      const checkResponse = await apiFetch(`/api/shopping/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!checkResponse.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(checkResponse, "購入済み更新に失敗しました"),
-        });
-        return;
-      }
-      const checkJson = await readJson<{ data: ShoppingItem }>(
-        checkResponse,
-        isDataObjectResponse<ShoppingItem>
-      );
-      setItems((prev) => prev.map((i) => (i.id === item.id ? checkJson.data : i)));
-
-      if (addToExpenses) {
-        const expenseResponse = await apiFetch("/api/expenses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: item.name,
-            amount: Number(pendingAmount),
-            category: pendingCategory,
-            purchasedAt: checkJson.data.checkedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-          }),
-        });
-        if (!expenseResponse.ok) {
-          showToast({
-            level: "error",
-            message: await getApiErrorMessage(expenseResponse, "費用の登録に失敗しました"),
-          });
-          showToast({ level: "success", message: "購入済みにしました（費用の登録は失敗しました）" });
-          return;
-        }
-        showToast({ level: "success", message: "購入済みにして費用に追加しました" });
-      } else {
-        showToast({ level: "success", message: "購入済みにしました" });
-      }
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setCheckingId(null);
-      setPendingAmount("");
-    }
-  }
-
-  async function handleUncheck(item: ShoppingItem) {
-    setCheckingId(item.id);
-    try {
-      const response = await apiFetch(`/api/shopping/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uncheck: true }),
-      });
-      if (!response.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(response, "未購入への戻しに失敗しました"),
-        });
-        return;
-      }
-      const json = await readJson<{ data: ShoppingItem }>(
-        response,
-        isDataObjectResponse<ShoppingItem>
-      );
-      setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
-      showToast({ level: "success", message: "未購入に戻しました" });
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setCheckingId(null);
-    }
-  }
-
-  async function handleCancel(item: ShoppingItem) {
-    setCancelingId(item.id);
-    try {
-      const response = await apiFetch(`/api/shopping/${item.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        showToast({
-          level: "error",
-          message: await getApiErrorMessage(response, "削除に失敗しました"),
-        });
-        return;
-      }
-      const json = await readJson<{ data: ShoppingItem }>(
-        response,
-        isDataObjectResponse<ShoppingItem>
-      );
-      setItems((prev) => prev.map((i) => (i.id === item.id ? json.data : i)));
-      showToast({ level: "success", message: "項目を削除しました" });
-    } catch {
-      showToast({ level: "error", message: "通信エラーが発生しました" });
-    } finally {
-      setCancelingId(null);
-    }
-  }
+  const {
+    activeItems,
+    checkedItems,
+    recentCheckedItems,
+    archivedCheckedItems,
+    thisMonthCheckedCount,
+    checkingId,
+    cancelingId,
+    showArchivedPurchasedItems,
+    pendingCheckItem,
+    pendingAmount,
+    pendingCategory,
+    setShowArchivedPurchasedItems,
+    setPendingAmount,
+    setPendingCategoryValue,
+    openCheckDialog,
+    closeCheckDialog,
+    confirmCheck,
+    uncheckItem,
+    cancelItem,
+  } = useShoppingSection({ initialItems, currentMonth });
 
   return (
     <div className="space-y-4">
@@ -195,15 +49,14 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         <LoadingNotice message="買い物リストを更新中..." />
       )}
 
-      {/* Purchase confirmation dialog */}
       {pendingCheckItem && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/30"
-          onClick={() => setPendingCheckItem(null)}
+          onClick={closeCheckDialog}
         >
           <div
             className="w-full max-w-md rounded-t-2xl bg-white p-4 space-y-3 pb-8"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div>
               <p className="text-xs text-stone-400 mb-0.5">購入済みにする</p>
@@ -211,13 +64,11 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">
-                金額（円）
-              </label>
+              <label className="mb-1 block text-xs font-medium text-stone-600">金額（円）</label>
               <input
                 type="number"
                 value={pendingAmount}
-                onChange={(e) => setPendingAmount(e.target.value)}
+                onChange={(event) => setPendingAmount(event.target.value)}
                 placeholder="0"
                 min={1}
                 autoFocus
@@ -226,20 +77,16 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-stone-600">
-                カテゴリ
-              </label>
+              <label className="mb-1 block text-xs font-medium text-stone-600">カテゴリ</label>
               <select
                 value={pendingCategory}
-                onChange={(e) => {
-                  if (isExpenseCategory(e.target.value)) {
-                    setPendingCategory(e.target.value);
-                  }
-                }}
+                onChange={(event) => setPendingCategoryValue(event.target.value)}
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
-                {EXPENSE_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {EXPENSE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
                 ))}
               </select>
             </div>
@@ -247,14 +94,14 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => handleConfirmCheck(false)}
+                onClick={() => void confirmCheck(false)}
                 className="flex-1 rounded-xl border border-stone-300 py-2.5 text-sm font-semibold text-stone-600 hover:bg-stone-50 transition-colors"
               >
                 費用に追加せず完了
               </button>
               <button
                 type="button"
-                onClick={() => handleConfirmCheck(true)}
+                onClick={() => void confirmCheck(true)}
                 disabled={!pendingAmount || Number(pendingAmount) <= 0}
                 className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
               >
@@ -265,7 +112,6 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         </div>
       )}
 
-      {/* Shopping list */}
       <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
         <div className="px-4 pt-4 pb-3 border-b border-stone-100">
           <div>
@@ -277,9 +123,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         </div>
 
         {activeItems.length === 0 ? (
-          <p className="py-8 text-center text-sm text-stone-400">
-            リストは空です
-          </p>
+          <p className="py-8 text-center text-sm text-stone-400">リストは空です</p>
         ) : (
           <ul className="divide-y divide-stone-100">
             {activeItems.map((item) => (
@@ -298,9 +142,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                       <span className="text-xs text-stone-400">{item.quantity}</span>
                     )}
                   </div>
-                  {item.memo && (
-                    <p className="mt-0.5 text-xs text-stone-400">{item.memo}</p>
-                  )}
+                  {item.memo && <p className="mt-0.5 text-xs text-stone-400">{item.memo}</p>}
                   <p className="mt-0.5 text-xs text-stone-300">
                     {item.addedBy} · {formatDate(item.addedAt)}
                   </p>
@@ -309,7 +151,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                   type="button"
                   aria-label="削除"
                   disabled={cancelingId === item.id}
-                  onClick={() => handleCancel(item)}
+                  onClick={() => void cancelItem(item)}
                   className="flex-shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 transition-colors disabled:opacity-40"
                 >
                   <Trash2 size={14} />
@@ -320,7 +162,6 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
         )}
       </div>
 
-      {/* Purchased items */}
       {checkedItems.length > 0 && (
         <div className="rounded-2xl border border-stone-200/60 bg-white shadow-sm">
           <div className="px-4 pt-4 pb-3 border-b border-stone-100 flex items-center gap-2">
@@ -352,7 +193,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                   type="button"
                   aria-label="未購入に戻す"
                   disabled={checkingId === item.id}
-                  onClick={() => handleUncheck(item)}
+                  onClick={() => void uncheckItem(item)}
                   className="flex-shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 transition-colors disabled:opacity-40"
                 >
                   <RotateCcw size={14} />
@@ -395,7 +236,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                         type="button"
                         aria-label="未購入に戻す"
                         disabled={checkingId === item.id}
-                        onClick={() => handleUncheck(item)}
+                        onClick={() => void uncheckItem(item)}
                         className="flex-shrink-0 rounded-lg p-1.5 text-stone-300 hover:bg-stone-100 hover:text-stone-500 transition-colors disabled:opacity-40"
                       >
                         <RotateCcw size={14} />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Trophy } from "lucide-react";
 import type { ContributionData } from "@/types";
+import { useContributionWidget } from "@/hooks/useContributionWidget";
 
 const RADIAN = Math.PI / 180;
 
@@ -51,15 +52,7 @@ function renderLabel(props: LabelProps) {
 }
 
 export default function ContributionWidget({ data, myPoints, myRank, currentUserId }: Props) {
-  const chartData = data
-    .filter((d) => d.totalPoints > 0)
-    .map((d) => ({
-      name: d.member.id === currentUserId ? "あなた" : d.member.name,
-      value: d.totalPoints,
-      color: d.member.color,
-    }));
-
-  const totalPoints = data.reduce((sum, d) => sum + d.totalPoints, 0);
+  const { chartData, totalPoints } = useContributionWidget(data, currentUserId);
 
   return (
     <div className="bg-gradient-to-br from-white to-stone-100/60 rounded-2xl shadow-sm border border-stone-200/60 p-4">
