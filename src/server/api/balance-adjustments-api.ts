@@ -4,18 +4,18 @@ import {
   zNonEmptyTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import type {
-  ApiErrorResponse,
   AuditLogRecord,
   BalanceAdjustmentRecord,
   CreateBalanceAdjustmentInput,
 } from "../../types/index.ts";
 import { logAppAuditEvent } from "./audit-log-service.ts";
-
-type AuthenticatedUser = {
-  uid: string;
-  name: string;
-  email: string;
-};
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  validationError,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 export type GetBalanceAdjustmentsDeps = {
   readBalanceAdjustments: (
@@ -48,24 +48,12 @@ const createBalanceAdjustmentSchema = z.object({
 
 const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 export async function handleGetBalanceAdjustments(
   request: Request,
   deps: GetBalanceAdjustmentsDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { searchParams } = new URL(request.url);
   const monthRaw = searchParams.get("month") ?? undefined;
@@ -75,7 +63,7 @@ export async function handleGetBalanceAdjustments(
   }
   const month = parsedMonth.data;
 
-  const adjustments = await deps.readBalanceAdjustments(houseId, month);
+  const adjustments = await deps.readBalanceAdjustments(context.houseId, month);
   return Response.json({ data: adjustments });
 }
 
@@ -83,63 +71,41 @@ export async function handleCreateBalanceAdjustment(
   request: Request,
   deps: CreateBalanceAdjustmentDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
-
-  const parsed = createBalanceAdjustmentSchema.safeParse(body);
+  const parsed = createBalanceAdjustmentSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     if (firstIssue?.path[0] === "amount") {
-      return errorResponse(
-        "amount must be a non-zero number",
-        400,
-        "VALIDATION_ERROR",
-        parsed.error.issues
-      );
+      return validationError("amount must be a non-zero number", parsed.error.issues);
     }
     if (firstIssue?.path[0] === "reason") {
-      return errorResponse("reason is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+      return validationError("reason is required", parsed.error.issues);
     }
     if (firstIssue?.path[0] === "adjustedAt") {
-      return errorResponse(
-        "Invalid adjustedAt date",
-        400,
-        "VALIDATION_ERROR",
-        parsed.error.issues
-      );
+      return validationError("Invalid adjustedAt date", parsed.error.issues);
     }
-    return errorResponse(
-      "Missing or invalid fields",
-      400,
-      "VALIDATION_ERROR",
-      parsed.error.issues
-    );
+    return validationError("Missing or invalid fields", parsed.error.issues);
   }
 
   const input: CreateBalanceAdjustmentInput = {
-    houseId,
+    houseId: context.houseId,
     amount: parsed.data.amount,
     reason: parsed.data.reason,
-    adjustedBy: actor.name,
+    adjustedBy: context.actor.name,
     adjustedAt: parsed.data.adjustedAt,
   };
 
   const created = await deps.appendBalanceAdjustment(input);
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "balance_adjustment_created",
-    actor: actor.name,
+    actor: context.actor.name,
     details: {
       adjustmentId: created.id,
       amount: created.amount,

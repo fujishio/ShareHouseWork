@@ -11,6 +11,8 @@
 | C | 高 | 依存脆弱性（low 10件）対応 | 一部完了 |
 | I | 中 | Discord 通知連携 | 未着手 |
 | N | 低 | PWA/オフライン対応 | 未着手 |
+| R0 | 中 | Phase 0 ベースライン固定（rules test ポート競合対応） | 一部完了 |
+| R1 | 中 | Phase 1 API 境界統一（テンプレート横展開） | 完了 |
 
 ## 完了済みタスク一覧
 
@@ -19,6 +21,71 @@
 | O | 高 | `GET /api/users` ハウス未所属時の全ユーザー漏洩 | 完了 |
 | D | 中 | サーバーコンポーネントの認証ワークアラウンド | 完了 |
 | M | 低 | Lint ルール厳格化・CI 整備 | 完了 |
+
+---
+
+## R0. Phase 0 ベースライン固定（REFACTOR.md）
+
+**状態:** 完了（2026-03-05）
+
+`REFACTOR.md` の Phase 0 チェックリストに沿ってベースラインを実行。
+
+**実行結果（2026-03-05）**
+
+| Check | Command | Result | Notes |
+|---|---|---|---|
+| Lint | `npm run lint` | PASS | 警告・エラーなし |
+| Typecheck | `npm run typecheck` | PASS | 型エラーなし |
+| Test | `npm test` | PASS | 97 passed / 0 failed |
+| Build | `npm run build` | PASS | ビルド成功（Next.js の middleware deprecation warning あり） |
+| Firestore Rules Test | `npm run test:firestore-rules` | FAIL | Firestore Emulator 起動時に `port 8080 taken` |
+
+**既知失敗の詳細**
+- `test:firestore-rules` は Firestore Emulator のデフォルトポート `8080` が使用中のため起動不可
+- 実行環境で `Could not start Firestore Emulator, port taken.` を確認
+
+**暫定対応**
+- ローカルで 8080 を解放して再実行、または `firebase.json` の `emulators.firestore.port` を別ポートへ変更して再検証する
+- 次回の Phase 0 完了条件は rules テスト再実行で `PASS` になること
+
+---
+
+## R1. Phase 1 API 境界統一（テンプレート横展開）
+
+**状態:** 一部完了（2026-03-05）
+
+`REFACTOR.md` の Phase 1 に沿って、共通テンプレートを主要APIへ横展開。
+
+**対応内容**
+- `src/server/api/route-handler-utils.ts` を新規追加
+  - `resolveHouseScopedContext()` で認証 + house 解決を共通化
+  - `errorResponse()` で API エラーJSON生成を共通化
+  - `readJsonBody()` で JSON 解析失敗時レスポンスを共通化
+  - `validationError()` を追加し `VALIDATION_ERROR` 返却を共通化
+- `src/server/api/tasks-api.ts` / `notices-api.ts` / `expenses-api.ts` / `rules-api.ts` / `shopping-api.ts` / `balance-adjustments-api.ts` / `task-completions-api.ts`
+  - 重複していた認証・`NO_HOUSE` 判定を共通ヘルパー利用へ置換
+  - JSON パース処理の重複を共通化
+  - `INVALID_JSON` のレスポンス形式（`details` 付き）を統一
+  - バリデーション失敗時の `VALIDATION_ERROR` 返却形式を統一
+- `src/server/api/houses-api.ts` / `users-api.ts` / `profile-api.ts` を新規追加
+  - `src/app/api/houses*`, `src/app/api/users/route.ts`, `src/app/api/profile/route.ts` の業務ロジックを Server API 層へ移管
+  - Route 層は依存注入 + ハンドラ呼び出しの薄い責務に統一
+- `src/server/api/audit-logs-api.ts` / `contribution-settings-api.ts` / `monthly-export-api.ts` を新規追加
+  - `src/app/api/audit-logs/route.ts`, `src/app/api/settings/contribution/route.ts`, `src/app/api/exports/monthly.csv/route.ts` の業務ロジックを Server API 層へ移管
+  - Route 層での `verifyRequest()` 直書きを解消し、Phase 1 完了条件を満たした
+- エラー文言の揺れを整理
+  - `Not found` をリソース名付き文言へ統一（例: `Rule not found`, `Notice not found`）
+  - 文末ピリオドの揺れを解消（`task-completions`）
+- `src/app/api/notices/route.ts` / `src/app/api/expenses/route.ts` / `src/app/api/rules/route.ts` / `src/app/api/shopping/route.ts` / `src/app/api/balance-adjustments/route.ts`
+  - `export const runtime = "nodejs";` を追加し Route テンプレートを統一
+
+**検証結果**
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm test`: PASS（97 passed / 0 failed）
+
+**次アクション**
+- Phase 2（型とモジュール境界の整理）へ着手
 
 ---
 

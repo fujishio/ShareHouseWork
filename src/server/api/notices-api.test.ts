@@ -138,7 +138,7 @@ test("DELETE notices: not foundは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await response.json()) as { error?: string; code?: string };
-  assert.equal(body.error, "Not found");
+  assert.equal(body.error, "Notice not found");
   assert.equal(body.code, "NOTICE_NOT_FOUND");
 });
 

@@ -225,7 +225,7 @@ test("PATCH rules: not foundは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await response.json()) as { error?: string; code?: string };
-  assert.equal(body.error, "Not found");
+  assert.equal(body.error, "Rule not found");
   assert.equal(body.code, "RULE_NOT_FOUND");
 });
 

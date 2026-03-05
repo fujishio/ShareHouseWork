@@ -6,6 +6,8 @@ import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendNotice, readNotices } from "@/server/notice-store";
 
+export const runtime = "nodejs";
+
 const getDeps = {
   readNotices,
   resolveActorHouseId,

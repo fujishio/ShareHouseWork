@@ -1,88 +1,22 @@
+import { handleJoinHouse } from "@/server/api/houses-api";
 import { findHouseByNameAndJoinPassword, addHouseMember } from "@/server/house-store";
 import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import { getUser } from "@/server/user-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { takeRateLimit } from "@/server/rate-limit";
-import { z } from "zod";
-import { zNonEmptyTrimmedString, zTrimmedString } from "@/shared/lib/api-validation";
-import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
-const joinHouseSchema = z.object({
-  houseName: zNonEmptyTrimmedString.pipe(z.string().max(100)),
-  joinPassword: zTrimmedString.pipe(z.string().min(8).max(128)),
-});
+const deps = {
+  findHouseByNameAndJoinPassword,
+  addHouseMember,
+  syncContributionMemberCountForCurrentMonth,
+  getUser,
+  takeRateLimit,
+  verifyRequest,
+  unauthorizedResponse,
+};
 
 export async function POST(request: Request) {
-  let actor;
-  try {
-    actor = await verifyRequest(request);
-  } catch {
-    return unauthorizedResponse();
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorJson(
-      "Invalid JSON",
-      "INVALID_JSON",
-      400,
-      "Request body must be valid JSON."
-    );
-  }
-
-  const parsed = joinHouseSchema.safeParse(body);
-  if (!parsed.success) {
-    return errorJson("Invalid body", "VALIDATION_ERROR", 400, parsed.error.issues);
-  }
-
-  const { houseName, joinPassword } = parsed.data;
-  const userUid = actor.uid;
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const rateLimit = takeRateLimit({
-    key: `houses:join:${ip}:${userUid}`,
-    limit: 10,
-    windowMs: 60_000,
-  });
-  if (!rateLimit.allowed) {
-    const retryAfterSeconds = Math.max(
-      1,
-      Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
-    );
-    return errorJson(
-      "Too many join attempts. Please retry later.",
-      "RATE_LIMITED",
-      429,
-      { retryAfterSeconds }
-    );
-  }
-
-  const user = await getUser(userUid);
-  if (!user) {
-    return errorJson("ユーザーが見つかりません", "USER_NOT_FOUND", 404, { userUid });
-  }
-
-  const house = await findHouseByNameAndJoinPassword(houseName, joinPassword);
-  if (!house) {
-    return errorJson(
-      "ハウスが見つかりません。ハウス名か合言葉をご確認ください",
-      "HOUSE_NOT_FOUND",
-      404,
-      { houseName }
-    );
-  }
-
-  const updated = await addHouseMember(house.id, userUid);
-  if (!updated) {
-    return errorJson("メンバー追加に失敗しました", "MEMBER_ADD_FAILED", 500, {
-      houseId: house.id,
-      userUid,
-    });
-  }
-  await syncContributionMemberCountForCurrentMonth(updated.id, updated.memberUids.length);
-
-  return successJson(updated, { status: 200 });
+  return handleJoinHouse(request, deps);
 }

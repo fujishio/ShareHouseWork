@@ -3,6 +3,8 @@ import { appendAuditLog } from "@/server/audit-log-store";
 import { verifyRequest, unauthorizedResponse, resolveActorHouseId } from "@/server/auth";
 import { appendRule, readRules } from "@/server/rule-store";
 
+export const runtime = "nodejs";
+
 const getDeps = {
   readRules,
   resolveActorHouseId,

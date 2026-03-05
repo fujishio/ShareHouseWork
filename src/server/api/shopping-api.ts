@@ -9,20 +9,21 @@ import {
   zTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import type {
-  ApiErrorResponse,
   AuditLogRecord,
   CreateShoppingItemInput,
   ShoppingItem,
 } from "../../types/index.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  validationError,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 type Params = { params: Promise<{ id: string }> };
-type AuthenticatedUser = {
-  uid: string;
-  name: string;
-  email: string;
-};
 
 export type GetShoppingDeps = {
   readShoppingItems: (houseId: string) => Promise<ShoppingItem[]>;
@@ -97,23 +98,11 @@ const patchShoppingSchema = z.object({
   uncheck: z.boolean().optional(),
 });
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 export async function handleGetShoppingItems(request: Request, deps: GetShoppingDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
-
-  const items = await deps.readShoppingItems(houseId);
+  const items = await deps.readShoppingItems(context.houseId);
   return Response.json({ data: items });
 }
 
@@ -121,44 +110,37 @@ export async function handleCreateShoppingItem(
   request: Request,
   deps: CreateShoppingDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
-
-  const parsed = createShoppingSchema.safeParse(body);
+  const parsed = createShoppingSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     if (firstIssue?.path[0] === "addedAt") {
-      return errorResponse("Invalid addedAt date", 400, "VALIDATION_ERROR", parsed.error.issues);
+      return validationError("Invalid addedAt date", parsed.error.issues);
     }
-    return errorResponse("name is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+    return validationError("name is required", parsed.error.issues);
   }
 
   const input: CreateShoppingItemInput = {
-    houseId,
+    houseId: context.houseId,
     name: parsed.data.name,
     quantity: parsed.data.quantity,
     memo: parsed.data.memo,
     category: parsed.data.category,
-    addedBy: actor.name,
+    addedBy: context.actor.name,
     addedAt: parsed.data.addedAt,
   };
 
   const created = await deps.appendShoppingItem(input);
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "shopping_created",
-    actor: actor.name,
+    actor: context.actor.name,
     details: {
       shoppingItemId: created.id,
       name: created.name,
@@ -176,42 +158,35 @@ export async function handlePatchShoppingItem(
   { params }: Params,
   deps: PatchShoppingDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const parsed = patchShoppingSchema.safeParse(body);
+  const parsed = patchShoppingSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
-    return errorResponse("Invalid JSON", 400, "VALIDATION_ERROR", parsed.error.issues);
+    return validationError("Invalid body", parsed.error.issues);
   }
 
-  const existing = (await deps.readShoppingItems(houseId)).find((item) => item.id === id);
+  const existing = (await deps.readShoppingItems(context.houseId)).find((item) => item.id === id);
   if (!existing) {
-    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
+    return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   if (parsed.data.uncheck === true) {
     const updated = await deps.uncheckShoppingItem(id);
     if (!updated) {
-      return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
+      return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
     }
 
     if (existing.checkedAt && !existing.canceledAt) {
       await logAppAuditEvent(deps, {
-        houseId,
+        houseId: context.houseId,
         action: "shopping_unchecked",
-        actor: actor.name,
+        actor: context.actor.name,
         details: {
           shoppingItemId: updated.id,
           name: updated.name,
@@ -223,16 +198,20 @@ export async function handlePatchShoppingItem(
 
   const checkedAt = getJstDateString();
 
-  const updated = await deps.checkShoppingItem(id, { checkedBy: actor.name }, checkedAt);
+  const updated = await deps.checkShoppingItem(
+    id,
+    { checkedBy: context.actor.name },
+    checkedAt
+  );
   if (!updated) {
-    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
+    return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   if (!existing.checkedAt && !existing.canceledAt && updated.checkedAt) {
     await logAppAuditEvent(deps, {
-      houseId,
+      houseId: context.houseId,
       action: "shopping_checked",
-      actor: actor.name,
+      actor: context.actor.name,
       details: {
         shoppingItemId: updated.id,
         name: updated.name,
@@ -249,31 +228,28 @@ export async function handleDeleteShoppingItem(
   { params }: Params,
   deps: DeleteShoppingDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
-  const existing = (await deps.readShoppingItems(houseId)).find((item) => item.id === id);
+  const existing = (await deps.readShoppingItems(context.houseId)).find((item) => item.id === id);
   if (!existing) {
-    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
+    return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   const canceledAt = getJstDateString();
 
-  const updated = await deps.cancelShoppingItem(id, actor.name, canceledAt);
+  const updated = await deps.cancelShoppingItem(id, context.actor.name, canceledAt);
   if (!updated) {
-    return errorResponse("Not found", 404, "SHOPPING_NOT_FOUND");
+    return errorResponse("Shopping item not found", 404, "SHOPPING_NOT_FOUND");
   }
 
   if (!existing.canceledAt && updated.canceledAt) {
     await logAppAuditEvent(deps, {
-      houseId,
+      houseId: context.houseId,
       action: "shopping_canceled",
-      actor: actor.name,
+      actor: context.actor.name,
       details: {
         shoppingItemId: updated.id,
         name: updated.name,

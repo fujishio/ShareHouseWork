@@ -147,7 +147,7 @@ test("GET: 不正なfromクエリは400", async () => {
 
   assert.equal(response.status, 400);
   const body = (await readJson(response)) as { error?: string; code?: string };
-  assert.equal(body.error, "Invalid from query. Use ISO date string.");
+  assert.equal(body.error, "Invalid from query. Use ISO date string");
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
@@ -160,7 +160,7 @@ test("GET: 不正なtoクエリは400", async () => {
 
   assert.equal(response.status, 400);
   const body = (await readJson(response)) as { error?: string; code?: string };
-  assert.equal(body.error, "Invalid to query. Use ISO date string.");
+  assert.equal(body.error, "Invalid to query. Use ISO date string");
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
@@ -224,7 +224,7 @@ test("POST: 存在しないtaskIdは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await readJson(response)) as { error?: string; code?: string };
-  assert.equal(body.error, "taskId does not exist.");
+  assert.equal(body.error, "Task not found");
   assert.equal(body.code, "TASK_NOT_FOUND");
 });
 
@@ -325,7 +325,7 @@ test("PATCH: 対象なしは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await readJson(response)) as { error?: string; code?: string };
-  assert.equal(body.error, "Task completion not found.");
+  assert.equal(body.error, "Task completion not found");
   assert.equal(body.code, "TASK_COMPLETION_NOT_FOUND");
 });
 
@@ -360,7 +360,7 @@ test("PATCH: 既に取消済みは409", async () => {
 
   assert.equal(response.status, 409);
   const body = (await readJson(response)) as { error?: string; code?: string };
-  assert.equal(body.error, "Task completion is already canceled.");
+  assert.equal(body.error, "Task completion is already canceled");
   assert.equal(body.code, "TASK_COMPLETION_ALREADY_CANCELED");
 });
 

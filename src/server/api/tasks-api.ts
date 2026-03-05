@@ -3,19 +3,19 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { TASK_CATEGORIES } from "../../shared/constants/task.ts";
 import type {
-  ApiErrorResponse,
   CreateTaskInput,
   Task,
   UpdateTaskInput,
 } from "../../types/index.ts";
 import { z } from "zod";
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 type Params = { params: Promise<{ id: string }> };
-type AuthenticatedUser = {
-  uid: string;
-  name: string;
-  email: string;
-};
 
 export type GetTasksDeps = {
   readTasks: (houseId: string) => Promise<Task[]>;
@@ -55,15 +55,6 @@ const taskSchema = z.object({
   frequencyDays: z.coerce.number().int().min(1),
 });
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 function taskValidationError(issues: z.ZodIssue[]) {
   const issue = issues[0];
   if (issue?.path[0] === "name") {
@@ -87,42 +78,26 @@ function taskValidationError(issues: z.ZodIssue[]) {
 }
 
 export async function handleGetTasks(request: Request, deps: GetTasksDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
-
-  const tasks = await deps.readTasks(houseId);
+  const tasks = await deps.readTasks(context.houseId);
   return Response.json({ data: tasks });
 }
 
 export async function handleCreateTask(request: Request, deps: CreateTaskDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse(
-      "Invalid JSON",
-      400,
-      "INVALID_JSON",
-      "Request body must be valid JSON."
-    );
-  }
-
-  const parsed = taskSchema.safeParse(body);
+  const parsed = taskSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     return taskValidationError(parsed.error.issues);
   }
 
   const input: CreateTaskInput = {
-    houseId,
+    houseId: context.houseId,
     name: parsed.data.name,
     category: parsed.data.category,
     points: parsed.data.points,
@@ -138,34 +113,22 @@ export async function handleUpdateTask(
   { params }: Params,
   deps: UpdateTaskDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const actorHouseId = await deps.resolveActorHouseId(actor.uid);
-  if (!actorHouseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
   const targetTask = await deps.readTask(id);
   if (!targetTask || targetTask.deletedAt) {
     return errorResponse("Task not found", 404, "TASK_NOT_FOUND", { taskId: id });
   }
-  if (targetTask.houseId !== actorHouseId) {
+  if (targetTask.houseId !== context.houseId) {
     return errorResponse("Forbidden", 403, "FORBIDDEN", { taskId: id });
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse(
-      "Invalid JSON",
-      400,
-      "INVALID_JSON",
-      "Request body must be valid JSON."
-    );
-  }
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const parsed = taskSchema.safeParse(body);
+  const parsed = taskSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     return taskValidationError(parsed.error.issues);
   }
@@ -190,18 +153,15 @@ export async function handleDeleteTask(
   { params }: Params,
   deps: DeleteTaskDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const actorHouseId = await deps.resolveActorHouseId(actor.uid);
-  if (!actorHouseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
   const targetTask = await deps.readTask(id);
   if (!targetTask || targetTask.deletedAt) {
     return errorResponse("Task not found", 404, "TASK_NOT_FOUND", { taskId: id });
   }
-  if (targetTask.houseId !== actorHouseId) {
+  if (targetTask.houseId !== context.houseId) {
     return errorResponse("Forbidden", 403, "FORBIDDEN", { taskId: id });
   }
 

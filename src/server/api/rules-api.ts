@@ -1,5 +1,4 @@
 import type {
-  ApiErrorResponse,
   AuditLogRecord,
   CreateRuleInput,
   Rule,
@@ -12,6 +11,13 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { RULE_CATEGORIES } from "../../shared/constants/rule.ts";
 import { logAppAuditEvent } from "./audit-log-service.ts";
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  validationError,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 const ruleCategorySchema = z.enum(RULE_CATEGORIES);
 const createRuleSchema = z.object({
@@ -22,11 +28,6 @@ const createRuleSchema = z.object({
 const updateRuleSchema = createRuleSchema;
 
 type Params = { params: Promise<{ id: string }> };
-type AuthenticatedUser = {
-  uid: string;
-  name: string;
-  email: string;
-};
 
 export type GetRulesDeps = {
   readRules: (houseId: string) => Promise<Rule[]>;
@@ -71,66 +72,47 @@ export type DeleteRuleDeps = {
   now: () => string;
 };
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 export async function handleGetRules(request: Request, deps: GetRulesDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
-
-  const rules = await deps.readRules(houseId);
+  const rules = await deps.readRules(context.houseId);
   const active = rules.filter((r) => !r.deletedAt);
   return Response.json({ data: active });
 }
 
 export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
-
-  const parsed = createRuleSchema.safeParse(body);
+  const parsed = createRuleSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     if (firstIssue?.path[0] === "title") {
-      return errorResponse("title is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+      return validationError("title is required", parsed.error.issues);
     }
-    return errorResponse("Invalid category", 400, "VALIDATION_ERROR", parsed.error.issues);
+    return validationError("Invalid category", parsed.error.issues);
   }
 
   const createdAt = deps.now();
   const input: CreateRuleInput = {
-    houseId,
+    houseId: context.houseId,
     title: parsed.data.title,
     body: parsed.data.body,
     category: parsed.data.category,
-    createdBy: actor.name,
+    createdBy: context.actor.name,
     createdAt,
   };
 
   const created = await deps.appendRule(input);
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "rule_created",
-    actor: actor.name,
+    actor: context.actor.name,
     details: {
       ruleId: created.id,
       title: created.title,
@@ -146,28 +128,21 @@ export async function handleUpdateRule(
   { params }: Params,
   deps: UpdateRuleDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const parsed = updateRuleSchema.safeParse(body);
+  const parsed = updateRuleSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     if (firstIssue?.path[0] === "title") {
-      return errorResponse("title is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+      return validationError("title is required", parsed.error.issues);
     }
-    return errorResponse("Invalid category", 400, "VALIDATION_ERROR", parsed.error.issues);
+    return validationError("Invalid category", parsed.error.issues);
   }
 
   const input: UpdateRuleInput = {
@@ -179,13 +154,13 @@ export async function handleUpdateRule(
 
   const updated = await deps.updateRule(id, input);
   if (!updated) {
-    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
   }
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "rule_updated",
-    actor: actor.name,
+    actor: context.actor.name,
     details: { ruleId: id, title: updated.title, category: parsed.data.category },
   });
 
@@ -197,23 +172,20 @@ export async function handleAcknowledgeRule(
   { params }: Params,
   deps: AcknowledgeRuleDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
-  const updated = await deps.acknowledgeRule(id, actor.name);
+  const updated = await deps.acknowledgeRule(id, context.actor.name);
   if (!updated) {
-    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
   }
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "rule_acknowledged",
-    actor: actor.name,
+    actor: context.actor.name,
     details: { ruleId: id, title: updated.title },
   });
 
@@ -225,25 +197,22 @@ export async function handleDeleteRule(
   { params }: Params,
   deps: DeleteRuleDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
   const deletedAt = deps.now();
-  const updated = await deps.deleteRule(id, actor.name, deletedAt);
+  const updated = await deps.deleteRule(id, context.actor.name, deletedAt);
 
   if (!updated) {
-    return errorResponse("Not found", 404, "RULE_NOT_FOUND");
+    return errorResponse("Rule not found", 404, "RULE_NOT_FOUND");
   }
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "rule_deleted",
-    actor: actor.name,
+    actor: context.actor.name,
     details: { ruleId: id, title: updated.title },
   });
 

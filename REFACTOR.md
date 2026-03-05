@@ -143,3 +143,93 @@
 1. Phase 0 を実施し、ベースライン結果を `IMPROVEMENTS.md` に記録
 2. API 2-3本を対象に Phase 1 のテンプレート実装を作成
 3. `docTo*` 変換の明示化対象を洗い出し、Phase 3 の作業チケット化
+
+## 10. Phase 0 チェックリスト（実行用）
+
+実施日: `YYYY-MM-DD`  
+実施者: `name`
+
+### 10.1 事前確認
+
+- [ ] `git status` で差分を確認（意図しない変更がない）
+- [ ] `.env.local` が開発用設定になっている
+- [ ] 依存がインストール済み（`npm ci` または `npm install` 済み）
+
+### 10.2 ベースライン実行
+
+以下を順番に実行し、結果を記録する。
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+### 10.3 記録テンプレート
+
+| Check | Command | Result | Notes |
+|---|---|---|---|
+| Lint | `npm run lint` | `PASS / FAIL` | 失敗時は最初の1件を記録 |
+| Typecheck | `npm run typecheck` | `PASS / FAIL` | 型エラー件数を記録 |
+| Test | `npm test` | `PASS / FAIL` | 失敗したテスト名を記録 |
+| Build | `npm run build` | `PASS / FAIL` | 失敗時は原因（例: フォント取得） |
+
+### 10.4 追加確認（推奨）
+
+- [ ] `npm run test:firestore-rules` を実行してルールテスト結果を記録
+- [ ] 失敗項目を `IMPROVEMENTS.md` の「未完了タスク一覧」に転記
+- [ ] 実行ログに秘密情報が含まれていないことを確認
+
+### 10.5 Secret スキャン（コミット前必須）
+
+```bash
+rg -n --hidden -S "(api[_-]?key|apikey|secret|token|private[_-]?key|client[_-]?secret|BEGIN [A-Z ]+PRIVATE KEY|x-api-key|authorization:|AIza[0-9A-Za-z_-]{35}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})" .
+```
+
+### 10.6 Phase 0 完了条件（チェック）
+
+- [ ] 主要4コマンドの結果が記録済み
+- [ ] FAIL がある場合、再現手順と暫定対応を記録済み
+- [ ] `IMPROVEMENTS.md` と差分内容が同期済み
+
+### 10.7 最新実行結果（2026-03-05）
+
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm test`: PASS（97 passed / 0 failed）
+- `npm run build`: PASS（`middleware` deprecation warning のみ）
+- `npm run test:firestore-rules`: FAIL（`port 8080 taken`）
+- 詳細記録先: `IMPROVEMENTS.md` の `R0` セクション
+
+## 11. Phase 1 完了レビュー（チェックリスト）
+
+### 11.1 Route 層責務
+
+- [x] `src/app/api/**/route.ts` が「依存注入 + ハンドラ呼び出し」の薄い層になっている
+- [x] 認証・認可・バリデーション・監査ログは `src/server/api/**` 側に集約されている
+- [x] 主要 Route で `export const runtime = "nodejs";` が統一されている
+
+### 11.2 エラー形式
+
+- [x] `INVALID_JSON` は共通形式（`error`, `code`, `details`）で返る
+- [x] `VALIDATION_ERROR` は `validationError()` 経由で返る
+- [x] 同一エラーコードでメッセージの揺れがない（例: `*_NOT_FOUND`）
+
+### 11.3 認証・ハウス解決
+
+- [x] 認証は `resolveAuthenticatedActor()` または `resolveHouseScopedContext()` を利用
+- [x] `NO_HOUSE` の返却条件が API 間で一貫している
+- [x] Route 層での `verifyRequest()` 直書きロジックが残っていない
+
+### 11.4 検証
+
+- [x] `npm run lint` が成功
+- [x] `npm run typecheck` が成功
+- [x] `npm test` が成功
+- [x] 実施結果を `IMPROVEMENTS.md` に同期済み
+
+### 11.5 判定
+
+- Phase 1 は **完了**（チェック 14/14 完了）
+- 備考: `audit-logs` / `settings/contribution` / `exports/monthly.csv` の Route 直書き認証を `src/server/api` へ移管済み

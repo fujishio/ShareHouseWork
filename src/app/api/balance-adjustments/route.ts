@@ -9,6 +9,8 @@ import {
   readBalanceAdjustments,
 } from "@/server/balance-adjustment-store";
 
+export const runtime = "nodejs";
+
 const getDeps = {
   readBalanceAdjustments,
   resolveActorHouseId,

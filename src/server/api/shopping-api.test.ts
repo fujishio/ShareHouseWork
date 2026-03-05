@@ -183,7 +183,7 @@ test("PATCH shopping: not foundは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await response.json()) as { error?: string; code?: string };
-  assert.equal(body.error, "Not found");
+  assert.equal(body.error, "Shopping item not found");
   assert.equal(body.code, "SHOPPING_NOT_FOUND");
 });
 
@@ -227,7 +227,7 @@ test("DELETE shopping: not foundは404", async () => {
 
   assert.equal(response.status, 404);
   const body = (await response.json()) as { error?: string; code?: string };
-  assert.equal(body.error, "Not found");
+  assert.equal(body.error, "Shopping item not found");
   assert.equal(body.code, "SHOPPING_NOT_FOUND");
 });
 

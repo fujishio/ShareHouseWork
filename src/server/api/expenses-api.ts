@@ -7,19 +7,19 @@ import {
   zNonEmptyTrimmedString,
 } from "../../shared/lib/api-validation.ts";
 import type {
-  ApiErrorResponse,
   AuditLogRecord,
   CreateExpenseInput,
   ExpenseRecord,
 } from "../../types/index.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
-
-type AuthenticatedUser = {
-  uid: string;
-  name: string;
-  email: string;
-};
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  validationError,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 export type GetExpensesDeps = {
   readExpenses: (houseId: string, month?: string) => Promise<ExpenseRecord[]>;
@@ -76,21 +76,9 @@ const deleteExpenseSchema = z.object({
 
 const monthParamSchema = z.string().regex(/^\d{4}-\d{2}$/).optional();
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 export async function handleGetExpenses(request: Request, deps: GetExpensesDeps) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { searchParams } = new URL(request.url);
   const monthRaw = searchParams.get("month") ?? undefined;
@@ -100,7 +88,7 @@ export async function handleGetExpenses(request: Request, deps: GetExpensesDeps)
   }
   const month = parsedMonth.data;
 
-  const expenses = await deps.readExpenses(houseId, month);
+  const expenses = await deps.readExpenses(context.houseId, month);
   return Response.json({ data: expenses });
 }
 
@@ -108,20 +96,12 @@ export async function handleCreateExpense(
   request: Request,
   deps: CreateExpenseDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
-
-  const parsed = createExpenseSchema.safeParse(body);
+  const parsed = createExpenseSchema.safeParse(parsedBody.body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     if (firstIssue?.path[0] === "title") {
@@ -155,20 +135,20 @@ export async function handleCreateExpense(
   }
 
   const input: CreateExpenseInput = {
-    houseId,
+    houseId: context.houseId,
     title: parsed.data.title,
     amount: parsed.data.amount,
     category: parsed.data.category,
-    purchasedBy: actor.name,
+    purchasedBy: context.actor.name,
     purchasedAt: parsed.data.purchasedAt,
   };
 
   const created = await deps.appendExpense(input);
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "expense_created",
-    actor: actor.name,
+    actor: context.actor.name,
     details: {
       expenseId: created.id,
       title: created.title,
@@ -186,11 +166,8 @@ export async function handleDeleteExpense(
   { params }: { params: Promise<{ id: string }> },
   deps: DeleteExpenseDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { id } = await params;
 
@@ -203,12 +180,12 @@ export async function handleDeleteExpense(
 
   const parsed = deleteExpenseSchema.safeParse(body);
   if (!parsed.success) {
-    return errorResponse("cancelReason is required", 400, "VALIDATION_ERROR", parsed.error.issues);
+    return validationError("cancelReason is required", parsed.error.issues);
   }
   const cancelReason = parsed.data.cancelReason;
 
   const canceledAt = deps.now();
-  const existing = (await deps.readExpenses(houseId)).find((expense) => expense.id === id);
+  const existing = (await deps.readExpenses(context.houseId)).find((expense) => expense.id === id);
   if (!existing) {
     return errorResponse("Expense not found", 404, "EXPENSE_NOT_FOUND");
   }
@@ -216,7 +193,7 @@ export async function handleDeleteExpense(
   const updated = await deps.cancelExpense(
     id,
     {
-      canceledBy: actor.name,
+      canceledBy: context.actor.name,
       cancelReason,
     },
     canceledAt
@@ -228,9 +205,9 @@ export async function handleDeleteExpense(
 
   if (!existing.canceledAt && updated.canceledAt) {
     await logAppAuditEvent(deps, {
-      houseId,
+      houseId: context.houseId,
       action: "expense_canceled",
-      actor: actor.name,
+      actor: context.actor.name,
       createdAt: canceledAt,
       details: {
         expenseId: updated.id,

@@ -1,5 +1,4 @@
 import type {
-  ApiErrorResponse,
   AuditLogRecord,
   Task,
   TaskCompletionRecord,
@@ -10,12 +9,13 @@ import {
 } from "../../shared/lib/api-validation.ts";
 import { z } from "zod";
 import { logAppAuditEvent } from "./audit-log-service.ts";
-
-type AuthenticatedActor = {
-  uid: string;
-  name: string;
-  email: string;
-};
+import {
+  errorResponse,
+  readJsonBody,
+  resolveHouseScopedContext,
+  validationError,
+  type AuthenticatedUser,
+} from "./route-handler-utils.ts";
 
 export type TaskCompletionsApiDeps = {
   readTasks: (houseId: string) => Promise<Task[]>;
@@ -33,7 +33,7 @@ export type TaskCompletionsApiDeps = {
     record: Omit<AuditLogRecord, "id">
   ) => Promise<AuditLogRecord>;
   resolveActorHouseId: (uid: string) => Promise<string | null>;
-  verifyRequest: (request: Request) => Promise<AuthenticatedActor>;
+  verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
 };
@@ -88,24 +88,12 @@ const cancelTaskCompletionSchema = z.object({
   cancelReason: zNonEmptyTrimmedString,
 });
 
-function errorResponse(
-  error: string,
-  status: number,
-  code: string,
-  details?: unknown
-) {
-  return Response.json({ error, code, details } satisfies ApiErrorResponse, { status });
-}
-
 export async function handleGetTaskCompletions(
   request: Request,
   deps: GetTaskCompletionsDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
-
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
   const { searchParams } = new URL(request.url);
   const queryInput: Record<string, string> = {};
@@ -121,7 +109,7 @@ export async function handleGetTaskCompletions(
     const firstIssue = parsedQuery.error.issues[0];
     if (firstIssue?.path[0] === "from") {
       return errorResponse(
-        "Invalid from query. Use ISO date string.",
+        "Invalid from query. Use ISO date string",
         400,
         "VALIDATION_ERROR",
         parsedQuery.error.issues
@@ -129,20 +117,20 @@ export async function handleGetTaskCompletions(
     }
     if (firstIssue?.path[0] === "to") {
       return errorResponse(
-        "Invalid to query. Use ISO date string.",
+        "Invalid to query. Use ISO date string",
         400,
         "VALIDATION_ERROR",
         parsedQuery.error.issues
       );
     }
-    return errorResponse("Invalid limit query.", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
+    return errorResponse("Invalid limit query", 400, "VALIDATION_ERROR", parsedQuery.error.issues);
   }
 
   const from = parsedQuery.data.from ? new Date(parsedQuery.data.from) : null;
   const to = parsedQuery.data.to ? new Date(parsedQuery.data.to) : null;
   const limit = parsedQuery.data.limit;
 
-  const records = await deps.readTaskCompletions(houseId);
+  const records = await deps.readTaskCompletions(context.houseId);
   const filtered = records
     .filter((record) => {
       const completedAt = new Date(record.completedAt);
@@ -164,44 +152,41 @@ export async function handleCreateTaskCompletion(
   request: Request,
   deps: CreateTaskCompletionDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const context = await resolveHouseScopedContext(request, deps);
+  if (context instanceof Response) return context;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  const rawPayload: unknown = await request.json().catch(() => null);
-  const parsedPayload = createTaskCompletionSchema.safeParse(rawPayload);
+  const parsedPayload = createTaskCompletionSchema.safeParse(parsedBody.body);
   if (!parsedPayload.success) {
-    return errorResponse(
+    return validationError(
       "Invalid payload. Required: taskId(string), completedAt(ISO string), source(app)",
-      400,
-      "VALIDATION_ERROR",
       parsedPayload.error.issues
     );
   }
   const { taskId, completedAt, source } = parsedPayload.data;
 
-  const tasks = await deps.readTasks(houseId);
+  const tasks = await deps.readTasks(context.houseId);
   const task = tasks.find((item) => item.id === taskId);
   if (!task) {
-    return errorResponse("taskId does not exist.", 404, "TASK_NOT_FOUND");
+    return errorResponse("Task not found", 404, "TASK_NOT_FOUND");
   }
 
   const created = await deps.appendTaskCompletion({
-    houseId,
+    houseId: context.houseId,
     taskId,
     taskName: task.name,
     points: task.points,
-    completedBy: actor.name,
+    completedBy: context.actor.name,
     completedAt,
     source,
   });
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: context.houseId,
     action: "task_completion_created",
-    actor: actor.name,
+    actor: context.actor.name,
     details: {
       taskId: created.taskId,
       taskName: created.taskName,
@@ -214,62 +199,53 @@ export async function handleCreateTaskCompletion(
 
 export async function handleCancelTaskCompletion(
   request: Request,
-  context: { params: Promise<{ id: string }> },
+  routeContext: { params: Promise<{ id: string }> },
   deps: CancelTaskCompletionDeps
 ) {
-  const actor = await deps.verifyRequest(request).catch(() => null);
-  if (!actor) return deps.unauthorizedResponse();
+  const authContext = await resolveHouseScopedContext(request, deps);
+  if (authContext instanceof Response) return authContext;
 
-  const houseId = await deps.resolveActorHouseId(actor.uid);
-  if (!houseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+  const { id } = await routeContext.params;
 
-  const { id } = await context.params;
+  const parsedBody = await readJsonBody(request);
+  if (!parsedBody.ok) return parsedBody.response;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Invalid JSON", 400, "INVALID_JSON");
-  }
-
-  const parsedBody = cancelTaskCompletionSchema.safeParse(body);
-  if (!parsedBody.success) {
-    return errorResponse(
+  const parsedCancelBody = cancelTaskCompletionSchema.safeParse(parsedBody.body);
+  if (!parsedCancelBody.success) {
+    return validationError(
       "cancelReason is required.",
-      400,
-      "VALIDATION_ERROR",
-      parsedBody.error.issues
+      parsedCancelBody.error.issues
     );
   }
-  const cancelReason = parsedBody.data.cancelReason;
+  const cancelReason = parsedCancelBody.data.cancelReason;
 
-  const existing = (await deps.readTaskCompletions(houseId)).find(
+  const existing = (await deps.readTaskCompletions(authContext.houseId)).find(
     (record) => record.id === id
   );
   if (!existing) {
-    return errorResponse("Task completion not found.", 404, "TASK_COMPLETION_NOT_FOUND");
+    return errorResponse("Task completion not found", 404, "TASK_COMPLETION_NOT_FOUND");
   }
 
   if (existing.canceledAt) {
-    return errorResponse("Task completion is already canceled.", 409, "TASK_COMPLETION_ALREADY_CANCELED");
+    return errorResponse("Task completion is already canceled", 409, "TASK_COMPLETION_ALREADY_CANCELED");
   }
 
   const canceledAt = deps.now();
   const updated = await deps.cancelTaskCompletion(
     id,
-    actor.name,
+    authContext.actor.name,
     cancelReason,
     canceledAt
   );
 
   if (!updated) {
-    return errorResponse("Task completion not found.", 404, "TASK_COMPLETION_NOT_FOUND");
+    return errorResponse("Task completion not found", 404, "TASK_COMPLETION_NOT_FOUND");
   }
 
   await logAppAuditEvent(deps, {
-    houseId,
+    houseId: authContext.houseId,
     action: "task_completion_canceled",
-    actor: actor.name,
+    actor: authContext.actor.name,
     createdAt: canceledAt,
     details: {
       completionId: updated.id,
