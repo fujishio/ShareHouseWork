@@ -32,13 +32,17 @@ export type CreateTaskDeps = {
 };
 
 export type UpdateTaskDeps = {
+  readTask: (taskId: string) => Promise<Task | null>;
   updateTask: (id: string, input: UpdateTaskInput) => Promise<Task | null>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
 };
 
 export type DeleteTaskDeps = {
+  readTask: (taskId: string) => Promise<Task | null>;
   deleteTask: (id: string, deletedAt: string) => Promise<Task | null>;
+  resolveActorHouseId: (uid: string) => Promise<string | null>;
   verifyRequest: (request: Request) => Promise<AuthenticatedUser>;
   unauthorizedResponse: (message?: string) => Response;
   now: () => string;
@@ -137,7 +141,17 @@ export async function handleUpdateTask(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const actorHouseId = await deps.resolveActorHouseId(actor.uid);
+  if (!actorHouseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
+  const targetTask = await deps.readTask(id);
+  if (!targetTask || targetTask.deletedAt) {
+    return errorResponse("Task not found", 404, "TASK_NOT_FOUND", { taskId: id });
+  }
+  if (targetTask.houseId !== actorHouseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { taskId: id });
+  }
 
   let body: unknown;
   try {
@@ -179,7 +193,18 @@ export async function handleDeleteTask(
   const actor = await deps.verifyRequest(request).catch(() => null);
   if (!actor) return deps.unauthorizedResponse();
 
+  const actorHouseId = await deps.resolveActorHouseId(actor.uid);
+  if (!actorHouseId) return errorResponse("No house found for user", 403, "NO_HOUSE");
+
   const { id } = await params;
+  const targetTask = await deps.readTask(id);
+  if (!targetTask || targetTask.deletedAt) {
+    return errorResponse("Task not found", 404, "TASK_NOT_FOUND", { taskId: id });
+  }
+  if (targetTask.houseId !== actorHouseId) {
+    return errorResponse("Forbidden", 403, "FORBIDDEN", { taskId: id });
+  }
+
   const deleted = await deps.deleteTask(id, deps.now());
   if (!deleted) {
     return errorResponse("Task not found", 404, "TASK_NOT_FOUND", { taskId: id });

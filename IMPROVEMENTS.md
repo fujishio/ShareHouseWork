@@ -1,191 +1,170 @@
-# ShareHouseWork 改善案（DATABASE準拠）
+# ShareHouseWork 改善案
 
-最終更新: 2026-03-03
-基準ドキュメント: `DATABASE.md`（Firestore設計）
-
----
-
-## 1. 目的
-- `IMPROVEMENTS.md` を現行の DB/実装定義に合わせる。
-- Firestore 前提の運用改善項目を明確化する。
-- 古い前提（LINE 連携前提、`/data/*.json` 前提）を除去する。
-- 当面の対象外として、DB移行（RDB化）と認証基盤の刷新（NextAuth等）は扱わない。
+最終更新: 2026-03-05
+基準: セキュリティレビュー（2026-03-05）+ 既存改善案の棚卸し
 
 ---
 
-## 2. 現状サマリー（2026-03-03）
+## 0. 進捗サマリー（2026-03-05 時点）
 
-| 項目 | 状態 |
+- [x] A. `/api/houses/[id]/members` POST の認証・権限チェック追加
+- [x] B. `/api/tasks/[id]` PATCH/DELETE のクロスハウス防止
+- [~] C. 依存脆弱性対応（`npm audit fix` 実施済み。high 3件は解消、low 10件は残）
+- [x] G. `joinPassword` の最小文字数バリデーション追加（8文字）
+- [x] J. セキュリティヘッダー追加（CSP / X-Frame-Options / X-Content-Type-Options）
+- [ ] D/E/F/H/I/K/L/M/N は未着手
+
+---
+
+## 1. 優先度: 高（即時対応）
+
+### A. `/api/houses/[id]/members` POST — 認証の欠落
+
+**深刻度:** CRITICAL
+**状態:** ✅ 完了（2026-03-05）
+
+POST エンドポイントに `verifyRequest()` が呼ばれておらず、認証なしで誰でも任意のユーザーを任意のハウスに追加できる。
+
+**影響:**
+- 攻撃者が他人のハウスに侵入し、全データ（費用・タスク・ルール等）にアクセス可能
+- マルチテナントのデータ分離が完全に破綻する
+
+**対応:**
+- `verifyRequest()` を追加
+- ホスト権限チェック（`house.hostUids.includes(actor.uid)`）を追加
+- 実装済み: 未認証 `401` / 非ホスト `401`
+
+**ファイル:** `src/app/api/houses/[id]/members/route.ts`
+
+---
+
+### B. `/api/tasks/[id]` PATCH/DELETE — クロスハウスのタスク改ざん
+
+**深刻度:** CRITICAL
+**状態:** ✅ 完了（2026-03-05）
+
+認証はされているが、タスクが自分のハウスに属するかチェックしていない。ハウスAのユーザーがハウスBのタスクを編集・削除できる。
+
+**対応:**
+- `resolveActorHouseId()` でハウスを特定
+- タスクの所属ハウスと照合してから操作を許可する
+- 実装済み: `readTask()` 追加、`houseId` 不一致は `403 FORBIDDEN`
+- テスト追加: 別ハウスの PATCH/DELETE が `403` になることを確認
+
+**ファイル:** `src/server/api/tasks-api.ts`（handleUpdateTask, handleDeleteTask）, `src/server/task-store.ts`, `src/server/api/tasks-api.test.ts`
+
+---
+
+### C. 依存パッケージの脆弱性（13件: high 3, low 10）
+
+**深刻度:** HIGH
+**状態:** 🟡 一部完了（2026-03-05）
+
+| パッケージ | 深刻度 | 概要 |
+|-----------|--------|------|
+| hono <=4.12.3 | HIGH | Cookie Injection, SSE Injection, 静的ファイルアクセス |
+| @hono/node-server <1.19.10 | HIGH | エンコードスラッシュによる認可バイパス |
+| tar <=7.5.9 | HIGH | ハードリンクパストラバーサル |
+| firebase-admin 依存チェーン | LOW | @tootallnate/once の制御フロースコーピング |
+
+**対応状況:**
+- `npm audit fix` 実施済み
+- 解消済み: `hono`, `@hono/node-server`, `tar`（high 3件）
+- 残課題: `@tootallnate/once` 由来の low 10件（`npm audit fix --force` で `firebase-admin@10.3.0` へダウングレードが必要なため見送り）
+- 現在方針: breaking change を伴うため別タスクで計画対応
+
+---
+
+## 2. 優先度: 中
+
+### D. サーバーコンポーネントの認証ワークアラウンド
+**状態:** ⏳ 未着手
+
+`src/app/page.tsx` で `HOUSE_MEMBERS[0]` をハードコードしており、マルチユーザー環境で誤ったユーザーのデータが表示される。Firebase セッション Cookie 等でサーバー側ユーザー特定が必要。
+
+### E. 入力文字列の長さ制限
+**状態:** ⏳ 未着手
+
+`zNonEmptyTrimmedString` に `max()` がなく、巨大な文字列を送信可能。全 API の Zod スキーマに `.max()` を追加すべき。
+
+**対象ファイル:**
+- `src/server/api/tasks-api.ts`
+- `src/server/api/expenses-api.ts`
+- `src/server/api/notices-api.ts`
+- `src/server/api/rules-api.ts`
+- `src/server/api/shopping-api.ts`
+- `src/server/api/balance-adjustments-api.ts`
+- `src/app/api/houses/route.ts`
+- `src/app/api/profile/route.ts`
+
+### F. レート制限
+**状態:** ⏳ 未着手
+
+`/api/houses/join`（パスワード認証）などにレート制限がなく、ブルートフォース攻撃が可能。Vercel middleware またはカスタムレート制限の導入を検討。
+
+### G. ハウス参加パスワードの強度バリデーション
+**状態:** ✅ 完了（2026-03-05）
+
+`joinPassword` に最低文字数等の制約がない。`zTrimmedString.min(8)` 等を追加すべき。
+- 実装済み:
+  - `src/app/api/houses/join/route.ts` で `joinPassword` を最小8文字
+  - `src/app/api/houses/route.ts` で作成時の `joinPassword` を空文字または8文字以上に制約
+
+### H. CSV/集計の日付比較ルール監査
+**状態:** ⏳ 未着手
+
+混在比較の自動検知が未実施。
+
+### I. Discord 通知要件
+**状態:** ⏳ 未着手
+
+外部通知を Discord Incoming Webhook に統一し、主要イベント（`task.completed`, `notice.created`, `expense.added`, `shopping.checked`）をリアルタイム共有する。通知設定はハウス単位、配信は非同期キュー方式。
+
+---
+
+## 3. 優先度: 低
+
+### J. セキュリティヘッダー
+**状態:** ✅ 完了（2026-03-05）
+
+`Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` を `next.config.ts` の headers で設定。
+- 実装済み: `next.config.ts` に全パス向けヘッダー設定を追加
+
+### K. Firestore インデックスの重複
+**状態:** ⏳ 未着手
+
+`firestore.indexes.json` に `auditLogs` の重複インデックスあり。不要な方を削除する。
+
+### L. CSV エクスポートの運用拡張
+**状態:** ⏳ 未着手
+
+運用手順（配布先、命名規則、保管期間、再出力手順）を `docs/` に追記する。
+
+### M. Lint/Format 強化
+**状態:** ⏳ 未着手
+
+lint ルールの厳格化、整形ルール統一。
+
+### N. PWA/オフライン
+**状態:** ⏳ 未着手
+
+優先課題完了後に再評価。
+
+---
+
+## 4. セキュリティレビューで確認済み（問題なし）
+
+| 項目 | 評価 |
 |------|------|
-| DB基盤 | Firestore（`DATABASE.md` 準拠） |
-| 認証 | Firebase Auth の Bearer IDトークン検証（`verifyRequest()`） |
-| LINE関連 | 実装・設計の主軸ではない（本ドキュメントから削除） |
-| 通知配信 | アプリ内通知は実装済み。外部通知（Discord/メール）は未実装 |
-| 設定画面 | 通知文言をメールに統一、ログアウト導線を追加 |
-| テスト | **80 pass / 0 fail** |
-| 型チェック | `npx tsc --noEmit` 通過 |
-| 監査ログ | 全CUD対応（rules/notices/task-completions/expenses/shopping） |
-| API入力検証 | zod導入を拡大（`task-completions/expenses/shopping/rules/notices/tasks/houses` 適用済み） |
-| 日付運用 | 日時（ISO8601）/日付（`YYYY-MM-DD`）を用途別に運用し、API境界で正規化 |
-| CI | `npm test` + `npm run build` 実行。不要な NEXTAUTH 環境変数を削除済み |
-| 認証なし公開エンドポイント | `/exports/monthly.csv`, `/tasks` GET, `/users` GET, `/houses` GET に `verifyRequest()` 追加済み（2026-03-03 対応完了） |
-
----
-
-## 3. DATABASE.md と整合した前提
-
-### 3.1 コレクション（現行）
-- `users`
-- `houses`
-- `tasks`
-- `taskCompletions`
-- `expenses`
-- `shoppingItems`
-- `rules`
-- `notices`
-- `contributionSettings`
-- `auditLogs`
-
-### 3.2 データ運用ルール（現行）
-- 論理削除: `tasks`, `rules`, `notices` は `deletedAt` 管理。
-- 取消: `taskCompletions`, `expenses`, `shoppingItems` は `canceledAt` 系で管理。
-- 履歴の `*By` は UID ではなく表示名（`actor.name`）で保存。
-- Firestore の参照整合性は API 層で担保。
-
-### 3.3 認証/実行者名の扱い（現行）
-- API は `Authorization: Bearer <Firebase ID token>` を検証。
-- `completedBy`, `purchasedBy`, `postedBy` などはクライアント入力ではなく、`verifyRequest()` で取得した `actor.name` を使用。
-
----
-
-## 4. 高優先度 完了済み項目（設計記録）
-
-> タスクの状態管理・着手順は [Tasks.md](Tasks.md) を参照。
-
-### L. ✅ 認証なし公開エンドポイントの修正（2026-03-03）
-
-GET エンドポイント 4 件（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses`）に `verifyRequest()` を追加。
-`/api/users` POST と `/api/houses` POST は登録フロー用として意図的に認証なし（コメントで明記済み）。
-
-### M. ✅ `/api/exports/monthly.csv` の `month` パラメータ zod バリデーション（2026-03-03）
-
-`monthQuerySchema` を追加し `YYYY-MM` 形式（`/^\d{4}-(0[1-9]|1[0-2])$/`）を検証。
-不正値は `{ error, code: "VALIDATION_ERROR", details }` で 400 を返す。
-
-### E. ✅ Firestore セキュリティルールの最小権限化（2026-03-03）
-
-- クライアントからの Firestore 直接 read/write を禁止（API経由のみ）。
-- `firestore.rules.test.ts` による Emulator ルールテストを追加。
-- CI に `npm run test:firestore-rules` ステップを追加。
-
-### D. ✅ `actor.name` 永続化方針の明文化（2026-03-02）
-
-履歴の `actor.name` / `*By` は「記録時の表示名スナップショットを固定保存」。後日の表示名変更時に既存履歴は再解決しない。`DATABASE.md` / `Overview.md` に反映済み。
-
-### A. ✅ 監査ログの対象を全 CUD に拡張
-
-`rules` / `notices` / `taskCompletions` / `expenses` / `shoppingItems` の全 CUD に `appendAuditLog` を実装済み。既取消/既チェック状態の再実行では重複ログを抑止。
-
-### F. ✅ API統合テストの運用継続
-
-主要 API（`task-completions`, `expenses`, `shopping`, `rules`）の正常系/異常系テストを追加済み。新規 API 追加時の同時テスト追加を運用ルールとして継続。
-
----
-
-## 5. 優先度: 中（高優先の次）
-
-### B. APIバリデーションの統一（zod）
-
-**対応状況（2026-03-03）**
-- `task-completions` / `expenses` / `shopping` / `rules` / `notices` / `tasks` / `houses` API に zod スキーマを導入。
-- `shared/lib/api-validation.ts` に共通スキーマ（trim, ISO日付, ISO日時）を追加。
-- `shared/lib/api-validation.ts` に `apiErrorResponse()` を追加し、共通エラーレスポンス生成を導入。
-- `/api/audit-logs/route.ts` の `parseLimit()` / `parseDate()` を zod クエリバリデーションに置き換え。
-- エラー形式を `{ error, code, details }` に統一（`audit-logs` / `exports/monthly.csv` / `notices/[id]` を含む未統一ルートを補完）。
-
-### C. 日付フォーマットの扱いを明示し、混在バグを予防
-
-**対応状況（2026-03-02）**
-- `types/index.ts` に `IsoDateTimeString` / `IsoDateString` / `YearMonthString` を追加。
-- `shared/lib/date-normalization.ts` で日付・日時の正規化関数を共通化。
-- `DATABASE.md` に API境界での正規化ルールを追記。
-
-**残課題**
-- CSV/集計の比較ルール監査（混在比較の自動検知）。
-
-### G. インデックス/クエリ運用の明文化
-- `docs/firestore-query-index-operations.md` を追加。
-- 複合インデックス追加の判断基準と本番反映手順を固定化。
-
-### K. Discord通知要件（新規）
-
-**目的**
-- 外部通知を Discord に統一し、主要イベントをリアルタイム共有する。
-
-**機能要件（MVP）**
-- 送信方式は Discord Incoming Webhook を採用する（Bot は将来拡張）。
-- 通知イベントを定義する: `task.completed`, `notice.created`, `expense.added`, `shopping.checked`。
-- 通知設定をハウス単位で保持する: `enabled`, `importantOnly`, `webhookUrl`, `updatedAt`, `updatedBy`。
-- イベント発生時は同期送信せず、通知キューに積んで非同期送信する。
-- 重要通知のみ送るフィルタ（`importantOnly`）を実装する。
-
-**非機能要件**
-- 冪等性: `eventId + destination` で重複送信を防止する。
-- 再送: 失敗時は指数バックオフでリトライし、上限超過時は dead-letter に退避する。
-- 監視: 成功件数/失敗件数/最終エラーを記録し、運用で追跡可能にする。
-- セキュリティ: Webhook URL は Secret Manager または `.env.local` に保存し、リポジトリにコミットしない。
-
-**実装方針**
-- Firestore に `notificationSettings`（設定）と `notificationQueue`（配信キュー）コレクションを追加。
-- API 層はイベント生成のみ行い、送信処理は Cloud Functions/Worker に分離する。
-- メッセージテンプレートはイベントごとに固定化し、将来の i18n 可能な構造にする。
-
-**受け入れ基準**
-- 設定ONのハウスでイベント発生時、Discord チャンネルに1回だけ通知される。
-- 一時失敗時に自動再送され、重複通知が発生しない。
-- 設定OFF時は通知が送信されない。
-
----
-
-## 6. 優先度: 低（後段で対応）
-
-### H. CSVエクスポートの運用拡張
-- `taskCompletions` / `expenses` / `shoppingItems` の月次出力は実装済み。
-- 運用手順（配布先、命名規則、保管期間、再出力手順）を `docs/` に追記する。
-
-### I. Lint/Format 強化
-- lint ルールの厳格化、整形ルール統一。
-
-### J. PWA/オフライン
-- 優先課題完了後に再評価。
-
----
-
-## 7. 完了済み（現行実装で確認済み）
-
-| 項目 | 状態 |
-|------|------|
-| Firestore ストア実装 | 完了 |
-| Firebase Auth Bearer 検証 | 完了 |
-| `MEMBER_NAMES` 一元化 | 完了 |
-| `toJstMonthKey` / `toLocalDateInputValue` 集約 | 完了 |
-| ルール確認ロジックの意図コメント化 | 完了 |
-| rules/notices/task-completions の監査ログ | 完了 |
-| expenses/shopping の監査ログ | 完了 |
-| 設定画面のログアウト導線 | 完了 |
-| 通知設定文言のメール統一 | 完了 |
-| `package.json` `"type": "module"` | 完了 |
-| `npm test` 80件 pass | 完了 |
-| `npx tsc --noEmit` 通過 | 完了 |
-| CI の不要な NEXTAUTH 環境変数削除 | 完了（2026-03-03） |
-| L: 認証なしエンドポイント修正（`/exports/monthly.csv`, `/tasks`, `/users`, `/houses` GET） | 完了（2026-03-03） |
-| M: `/exports/monthly.csv` の `month` パラメータ zod バリデーション追加 | 完了（2026-03-03） |
-| E: Firestore Emulator ルールテスト追加（`firestore.rules.test.ts` + CI ステップ） | 完了（2026-03-03） |
-| B: APIバリデーションの統一（zod）残課題（`audit-logs`/エラー形式統一） | 完了（2026-03-03） |
-
----
-
-## 8. 直近の確認ログ（2026-03-03）
-- `npm test`: 80 pass / 0 fail
-- `npx tsc --noEmit`: エラーなし
-- CI: `npm test` + `npm run test:firestore-rules` + `npm run build` を実行（NEXTAUTH 環境変数削除済み）
+| Firestore ルール | `allow read, write: if false` — 全クライアント直接アクセス拒否 |
+| 秘密情報管理 | `.env.local` で管理、`.gitignore` 済み、ハードコードなし |
+| 認証フロー | Firebase ID Token + Bearer ヘッダー、サーバー検証 |
+| パスワードハッシュ | scrypt + salt + timingSafeEqual |
+| 監査ログ | 全 CUD 操作をハウススコープで記録 |
+| ハウススコープ分離 | 大半のルートで `resolveActorHouseId()` による適切なデータ分離 |
+| CSRF | Bearer トークン認証のため暗黙的に保護 |
+| XSS | React の自動エスケープ、`dangerouslySetInnerHTML` 使用なし |
+| NoSQL インジェクション | Firestore SDK のパラメータ化クエリ使用 |
+| 入力バリデーション | 全 API で Zod スキーマによる検証 |
+| console.log | 機密情報のログ出力なし |
+| eval/Function | 動的コード実行なし |

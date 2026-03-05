@@ -1,17 +1,21 @@
 import { handleDeleteTask, handleUpdateTask } from "@/server/api/tasks-api";
-import { verifyRequest, unauthorizedResponse } from "@/server/auth";
-import { deleteTask, updateTask } from "@/server/task-store";
+import { resolveActorHouseId, verifyRequest, unauthorizedResponse } from "@/server/auth";
+import { deleteTask, readTask, updateTask } from "@/server/task-store";
 
 export const runtime = "nodejs";
 
 const updateDeps = {
+  readTask,
   updateTask,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
 };
 
 const deleteDeps = {
+  readTask,
   deleteTask,
+  resolveActorHouseId,
   verifyRequest,
   unauthorizedResponse,
   now: () => new Date().toISOString(),

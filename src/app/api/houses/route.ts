@@ -12,7 +12,9 @@ export const runtime = "nodejs";
 const createHouseSchema = z.object({
   name: zNonEmptyTrimmedString,
   description: zTrimmedString.optional(),
-  joinPassword: zTrimmedString.optional(),
+  joinPassword: zTrimmedString
+    .pipe(z.string().refine((value) => value.length === 0 || value.length >= 8))
+    .optional(),
 });
 
 export async function GET(request: Request) {

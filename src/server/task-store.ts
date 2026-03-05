@@ -4,6 +4,7 @@ import {
   readCollection,
   updateCollectionDocConditionally,
 } from "@/server/store-utils";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 
 const COLLECTION = "tasks";
 
@@ -33,6 +34,13 @@ export async function readTasks(houseId: string): Promise<Task[]> {
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   const data = { ...input, deletedAt: null };
   return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToTask });
+}
+
+export async function readTask(taskId: string): Promise<Task | null> {
+  const db = getAdminFirestore();
+  const doc = await db.collection(COLLECTION).doc(taskId).get();
+  if (!doc.exists) return null;
+  return docToTask(doc.id, doc.data()!);
 }
 
 export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {

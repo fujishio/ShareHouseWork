@@ -11,16 +11,17 @@ import type { Task } from "../../types/index.ts";
 type Actor = { uid: string; name: string; email: string };
 const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
 
-function buildDeps(options?: { actor?: Actor | null; tasks?: Task[] }) {
+function buildDeps(options?: { actor?: Actor | null; tasks?: Task[]; houseId?: string }) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const tasks = options?.tasks ?? [];
+  const houseId = options?.houseId ?? "house-id-001";
 
   const verifyRequest = async () => {
     if (!actor) throw new Error("unauthorized");
     return actor;
   };
 
-  const resolveActorHouseId = async () => "house-id-001";
+  const resolveActorHouseId = async () => houseId;
 
   return {
     getDeps: {
@@ -39,18 +40,22 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[] }) {
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
     updateDeps: {
+      readTask: async (id: string) => tasks.find((item) => item.id === id) ?? null,
       updateTask: async (id: string) => {
         const task = tasks.find((item) => item.id === id);
         return task ? { ...task, name: "更新後タスク" } : null;
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
     },
     deleteDeps: {
+      readTask: async (id: string) => tasks.find((item) => item.id === id) ?? null,
       deleteTask: async (id: string, deletedAt: string) => {
         const task = tasks.find((item) => item.id === id);
         return task ? { ...task, deletedAt } : null;
       },
+      resolveActorHouseId,
       verifyRequest,
       unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
       now: () => "2026-03-02T00:00:00.000Z",
@@ -145,6 +150,39 @@ test("PATCH tasks: not foundは404", async () => {
   assert.equal(response.status, 404);
 });
 
+test("PATCH tasks: 別houseのtaskは403", async () => {
+  const tasks: Task[] = [
+    {
+      id: "t1",
+      houseId: "house-id-999",
+      name: "掃除",
+      category: "共用部の掃除",
+      points: 2,
+      frequencyDays: 7,
+    },
+  ];
+  const { updateDeps } = buildDeps({ tasks, houseId: "house-id-001" });
+  const response = await handleUpdateTask(
+    new Request("http://localhost/api/tasks/t1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: "掃除",
+        category: "共用部の掃除",
+        points: 2,
+        frequencyDays: 7,
+      }),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "t1" }) },
+    updateDeps
+  );
+
+  assert.equal(response.status, 403);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Forbidden");
+  assert.equal(body.code, "FORBIDDEN");
+});
+
 test("DELETE tasks: not foundは404", async () => {
   const { deleteDeps } = buildDeps({ tasks: [] });
   const response = await handleDeleteTask(
@@ -181,4 +219,29 @@ test("DELETE tasks: 正常系", async () => {
   assert.equal(response.status, 200);
   const body = (await response.json()) as { data: Task };
   assert.equal(body.data.id, "t1");
+});
+
+test("DELETE tasks: 別houseのtaskは403", async () => {
+  const tasks: Task[] = [
+    {
+      id: "t1",
+      houseId: "house-id-999",
+      name: "掃除",
+      category: "共用部の掃除",
+      points: 2,
+      frequencyDays: 7,
+    },
+  ];
+  const { deleteDeps } = buildDeps({ tasks, houseId: "house-id-001" });
+
+  const response = await handleDeleteTask(
+    new Request("http://localhost/api/tasks/t1", { method: "DELETE" }),
+    { params: Promise.resolve({ id: "t1" }) },
+    deleteDeps
+  );
+
+  assert.equal(response.status, 403);
+  const body = (await response.json()) as { error?: string; code?: string };
+  assert.equal(body.error, "Forbidden");
+  assert.equal(body.code, "FORBIDDEN");
 });

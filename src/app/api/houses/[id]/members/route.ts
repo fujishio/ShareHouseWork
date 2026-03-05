@@ -1,6 +1,7 @@
-import { addHouseMember } from "@/server/house-store";
+import { addHouseMember, getHouse } from "@/server/house-store";
 import { syncContributionMemberCountForCurrentMonth } from "@/server/contribution-settings-store";
 import { getUser } from "@/server/user-store";
+import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { z } from "zod";
 import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
 import { errorJson, successJson } from "@/shared/lib/api-response";
@@ -16,7 +17,21 @@ const addHouseMemberSchema = z.object({
 });
 
 export async function POST(request: Request, { params }: Params) {
+  let actor;
+  try {
+    actor = await verifyRequest(request);
+  } catch {
+    return unauthorizedResponse();
+  }
+
   const { id } = await params;
+  const house = await getHouse(id);
+  if (!house) {
+    return errorJson("House not found", "HOUSE_NOT_FOUND", 404, { houseId: id });
+  }
+  if (!house.hostUids.includes(actor.uid)) {
+    return unauthorizedResponse("Host permission required");
+  }
 
   let body: unknown;
   try {

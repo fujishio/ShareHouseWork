@@ -3,14 +3,14 @@ import { syncContributionMemberCountForCurrentMonth } from "@/server/contributio
 import { getUser } from "@/server/user-store";
 import { verifyRequest, unauthorizedResponse } from "@/server/auth";
 import { z } from "zod";
-import { zNonEmptyTrimmedString } from "@/shared/lib/api-validation";
+import { zNonEmptyTrimmedString, zTrimmedString } from "@/shared/lib/api-validation";
 import { errorJson, successJson } from "@/shared/lib/api-response";
 
 export const runtime = "nodejs";
 
 const joinHouseSchema = z.object({
   houseName: zNonEmptyTrimmedString,
-  joinPassword: zNonEmptyTrimmedString,
+  joinPassword: zTrimmedString.pipe(z.string().min(8)),
 });
 
 export async function POST(request: Request) {
