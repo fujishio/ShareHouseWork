@@ -72,6 +72,14 @@
         { "fieldPath": "houseId", "order": "ASCENDING" },
         { "fieldPath": "adjustedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "houses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberUids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

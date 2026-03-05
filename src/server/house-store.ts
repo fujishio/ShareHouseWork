@@ -104,12 +104,32 @@ export async function listHousesByMemberUid(
   db?: FirebaseFirestore.Firestore
 ): Promise<House[]> {
   const firestore = db ?? getAdminFirestore();
-  const snapshot = await firestore
-    .collection(COLLECTION)
-    .where("memberUids", "array-contains", uid)
-    .orderBy("createdAt", "desc")
-    .get();
-  return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data() as FirestoreHouseDoc));
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTION)
+      .where("memberUids", "array-contains", uid)
+      .orderBy("createdAt", "desc")
+      .get();
+    return snapshot.docs.map((doc) => docToHouse(doc.id, doc.data() as FirestoreHouseDoc));
+  } catch (error) {
+    // If index build is not ready yet, fall back to local sort.
+    const message = error instanceof Error ? error.message : "";
+    if (!message.includes("FAILED_PRECONDITION")) {
+      throw error;
+    }
+
+    const fallbackSnapshot = await firestore
+      .collection(COLLECTION)
+      .where("memberUids", "array-contains", uid)
+      .get();
+    return fallbackSnapshot.docs
+      .map((doc) => docToHouse(doc.id, doc.data() as FirestoreHouseDoc))
+      .sort((a, b) => {
+        const aTime = Number.isNaN(Date.parse(a.createdAt)) ? 0 : Date.parse(a.createdAt);
+        const bTime = Number.isNaN(Date.parse(b.createdAt)) ? 0 : Date.parse(b.createdAt);
+        return bTime - aTime;
+      });
+  }
 }
 
 export async function updateHouseMemberAddition(
