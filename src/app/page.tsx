@@ -9,6 +9,7 @@ import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readExpenses } from "@/server/expense-store";
+import { readBalanceAdjustments } from "@/server/balance-adjustment-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { readNotices } from "@/server/notice-store";
 import { listUsers } from "@/server/user-store";
@@ -58,9 +59,10 @@ export default async function HomePage() {
   const house = houseId ? await getHouse(houseId) : null;
   const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
 
-  const [completions, allExpenses, contributionHistory, allNotices, users] = await Promise.all([
+  const [completions, allExpenses, balanceAdjustments, contributionHistory, allNotices, users] = await Promise.all([
     readTaskCompletions(houseId),
     readExpenses(houseId),
+    readBalanceAdjustments(houseId),
     readContributionSettingsHistory(houseId),
     readNotices(houseId),
     listUsers(),
@@ -74,6 +76,7 @@ export default async function HomePage() {
   const summary = calculateMonthlyExpenseSummary(
     currentMonthKey,
     allExpenses,
+    balanceAdjustments,
     contributionHistory,
     { carryoverStartMonthKey }
   );

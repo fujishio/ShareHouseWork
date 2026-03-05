@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { toJstMonthKey } from "@/shared/lib/time";
 import { Wallet } from "lucide-react";
 import { readExpenses } from "@/server/expense-store";
+import { readBalanceAdjustments } from "@/server/balance-adjustment-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import ExpenseSection from "@/components/ExpenseSection";
@@ -70,14 +71,16 @@ export default async function ExpensesPage({
   const houseId = await resolveRequestHouseId() ?? "";
   const house = houseId ? await getHouse(houseId) : null;
   const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
-  const [allExpenses, contributionHistory] = await Promise.all([
+  const [allExpenses, balanceAdjustments, contributionHistory] = await Promise.all([
     readExpenses(houseId),
+    readBalanceAdjustments(houseId),
     readContributionSettingsHistory(houseId),
   ]);
 
   const summary = calculateMonthlyExpenseSummary(
     targetMonthKey,
     allExpenses,
+    balanceAdjustments,
     contributionHistory,
     { carryoverStartMonthKey }
   );
@@ -107,6 +110,12 @@ export default async function ExpensesPage({
         <div className="flex items-center gap-2 mb-3">
           <Wallet size={18} className="text-amber-500" />
           <h2 className="font-bold text-stone-800">費用残高</h2>
+          <a
+            href="#balance-adjustment"
+            className="ml-auto text-xs text-amber-500 hover:text-amber-600"
+          >
+            残高調整 →
+          </a>
         </div>
 
         <div className="flex items-baseline gap-1 mb-1">
@@ -140,6 +149,13 @@ export default async function ExpensesPage({
           </div>
         </div>
 
+        {summary.monthlyAdjustment !== 0 && (
+          <p className={`mb-3 text-xs ${summary.monthlyAdjustment > 0 ? "text-emerald-600" : "text-red-500"}`}>
+            当月残高調整 {summary.monthlyAdjustment > 0 ? "+" : ""}¥
+            {summary.monthlyAdjustment.toLocaleString()}
+          </p>
+        )}
+
         <div>
           <div className="flex justify-between text-xs text-stone-400 mb-1">
             <span>年間使用率</span>
@@ -162,7 +178,13 @@ export default async function ExpensesPage({
         </div>
       </div>
 
-      <ExpenseSection initialExpenses={allExpenses} currentMonth={targetMonthKey} />
+      <ExpenseSection
+        initialExpenses={allExpenses}
+        initialBalanceAdjustments={balanceAdjustments}
+        currentMonth={targetMonthKey}
+        initialCarryover={summary.carryover}
+        initialMonthlyContribution={summary.monthlyContribution}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type {
+  BalanceAdjustmentRecord,
   ContributionSettingsHistoryRecord,
   ExpenseRecord,
 } from "@/types";
@@ -54,6 +55,7 @@ type Result = {
   carryover: number;
   monthlyContribution: number;
   monthlySpent: number;
+  monthlyAdjustment: number;
   balance: number;
   usageRate: number;
 };
@@ -65,6 +67,7 @@ type Options = {
 export function calculateMonthlyExpenseSummary(
   targetMonthKey: string,
   expenses: ExpenseRecord[],
+  balanceAdjustments: BalanceAdjustmentRecord[],
   contributionHistory: ContributionSettingsHistoryRecord[],
   options?: Options
 ): Result {
@@ -86,6 +89,14 @@ export function calculateMonthlyExpenseSummary(
     acc[monthKey] = (acc[monthKey] ?? 0) + expense.amount;
     return acc;
   }, {});
+  const adjustmentByMonth = balanceAdjustments.reduce<Record<string, number>>((acc, adjustment) => {
+    const monthKey = adjustment.adjustedAt.slice(0, 7);
+    if (!MONTH_KEY_REGEX.test(monthKey)) {
+      return acc;
+    }
+    acc[monthKey] = (acc[monthKey] ?? 0) + adjustment.amount;
+    return acc;
+  }, {});
 
   const yearStartMonth = firstMonthOfYear(targetMonthKey);
   const carryoverStartMonth =
@@ -103,6 +114,7 @@ export function calculateMonthlyExpenseSummary(
       carryover: 0,
       monthlyContribution: 0,
       monthlySpent: 0,
+      monthlyAdjustment: 0,
       balance: 0,
       usageRate: 0,
     };
@@ -113,13 +125,15 @@ export function calculateMonthlyExpenseSummary(
   while (compareMonthKey(monthKey, targetMonthKey) < 0) {
     const contribution = resolveMonthlyContribution(contributionHistory, monthKey);
     const spent = spentByMonth[monthKey] ?? 0;
-    carryover += contribution - spent;
+    const adjustment = adjustmentByMonth[monthKey] ?? 0;
+    carryover += contribution - spent + adjustment;
     monthKey = addOneMonth(monthKey);
   }
 
   const monthlyContribution = resolveMonthlyContribution(contributionHistory, targetMonthKey);
   const monthlySpent = spentByMonth[targetMonthKey] ?? 0;
-  const balance = carryover + monthlyContribution - monthlySpent;
+  const monthlyAdjustment = adjustmentByMonth[targetMonthKey] ?? 0;
+  const balance = carryover + monthlyContribution - monthlySpent + monthlyAdjustment;
 
   let yearContributed = 0;
   let yearSpent = 0;
@@ -127,6 +141,7 @@ export function calculateMonthlyExpenseSummary(
   while (compareMonthKey(monthKey, targetMonthKey) <= 0) {
     yearContributed += resolveMonthlyContribution(contributionHistory, monthKey);
     yearSpent += spentByMonth[monthKey] ?? 0;
+    yearSpent -= adjustmentByMonth[monthKey] ?? 0;
     monthKey = addOneMonth(monthKey);
   }
 
@@ -135,6 +150,7 @@ export function calculateMonthlyExpenseSummary(
     carryover,
     monthlyContribution,
     monthlySpent,
+    monthlyAdjustment,
     balance,
     usageRate: calculateUsageRate(yearContributed, yearSpent),
   };

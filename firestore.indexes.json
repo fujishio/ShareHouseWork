@@ -64,6 +64,14 @@
         { "fieldPath": "houseId", "order": "ASCENDING" },
         { "fieldPath": "deletedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "balanceAdjustments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "houseId", "order": "ASCENDING" },
+        { "fieldPath": "adjustedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

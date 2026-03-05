@@ -77,6 +77,7 @@ export type AuditAction =
   | "task_completion_canceled"
   | "expense_created"
   | "expense_canceled"
+  | "balance_adjustment_created"
   | "shopping_created"
   | "shopping_checked"
   | "shopping_unchecked"
@@ -193,6 +194,26 @@ export type ExpenseListResponse = ApiSuccessResponse<ExpenseRecord[]>;
 export type ExpenseCreateResponse = ApiSuccessResponse<ExpenseRecord>;
 export type ExpenseCancelResponse = ApiSuccessResponse<ExpenseRecord>;
 export type ContributionSettingsResponse = ApiSuccessResponse<ContributionSettings>;
+
+export type BalanceAdjustmentRecord = {
+  id: string;
+  houseId: string;
+  amount: MoneyYen;
+  reason: string;
+  adjustedBy: string;
+  adjustedAt: IsoDateString;
+};
+
+export type CreateBalanceAdjustmentInput = {
+  houseId: string;
+  amount: MoneyYen;
+  reason: string;
+  adjustedBy: string;
+  adjustedAt: IsoDateString;
+};
+
+export type BalanceAdjustmentListResponse = ApiSuccessResponse<BalanceAdjustmentRecord[]>;
+export type BalanceAdjustmentCreateResponse = ApiSuccessResponse<BalanceAdjustmentRecord>;
 
 export type Notice = {
   id: string;
