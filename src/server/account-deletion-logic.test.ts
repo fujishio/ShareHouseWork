@@ -33,7 +33,9 @@ test("getHouseScopedCollections: 削除対象コレクションを返す", () =>
   const collections = getHouseScopedCollections();
   assert.ok(collections.includes("tasks"));
   assert.ok(collections.includes("expenses"));
+  assert.ok(collections.includes("balanceAdjustments"));
   assert.ok(collections.includes("contributionSettings"));
+  assert.ok(collections.includes("task_pending_states"));
 });
 
 test("buildHouseExitPatch: member/host から UID を除去し owner を移譲", () => {

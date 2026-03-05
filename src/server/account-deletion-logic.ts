@@ -32,12 +32,14 @@ export function getHouseScopedCollections(): string[] {
   return [
     "taskCompletions",
     "expenses",
+    "balanceAdjustments",
     "shoppingItems",
     "rules",
     "notices",
     "auditLogs",
     "tasks",
     "contributionSettings",
+    "task_pending_states",
   ];
 }
 
