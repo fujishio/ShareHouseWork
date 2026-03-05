@@ -7,29 +7,27 @@ import {
   handlePatchShoppingItem,
 } from "./shopping-api.ts";
 import { encodeDateIdCursor } from "./cursor-pagination.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, ShoppingItem } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
+function buildDeps(options?: { actor?: typeof defaultActor | null; items?: ShoppingItem[] }) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const items = options?.items ?? [];
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
-
-  const verifyRequest = async () => {
-    if (!actor) throw new Error("unauthorized");
-    return actor;
-  };
-
-  const resolveActorHouseId = async () => "house-id-001";
+  const verifyRequest = createVerifyRequest(actor);
+  const resolveActorHouseId = createResolveActorHouseId();
 
   return {
     getDeps: {
       readShoppingItems: async () => items,
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     createDeps: {
       appendShoppingItem: async (input: Omit<ShoppingItem, "id">) => ({ id: "s-new", ...input }),
@@ -39,7 +37,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     patchDeps: {
@@ -60,7 +58,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
@@ -75,7 +73,7 @@ function buildDeps(options?: { actor?: Actor | null; items?: ShoppingItem[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     auditLogs,

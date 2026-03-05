@@ -1,9 +1,9 @@
-import type { Notice, CreateNoticeInput, FirestoreNoticeDoc } from "@/types";
+import type { Notice, CreateNoticeInput, FirestoreNoticeDoc } from "../types/index.ts";
 import {
   addCollectionDoc,
   readCollection,
   updateCollectionDocConditionally,
-} from "@/server/store-utils";
+} from "./store-utils.ts";
 
 const COLLECTION = "notices";
 
@@ -21,8 +21,12 @@ function docToNotice(id: string, data: FirestoreNoticeDoc): Notice {
   };
 }
 
-export async function listNotices(houseId: string): Promise<Notice[]> {
+export async function listNotices(
+  houseId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<Notice[]> {
   return readCollection({
+    db,
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "postedAt", direction: "desc" },
@@ -30,21 +34,26 @@ export async function listNotices(houseId: string): Promise<Notice[]> {
   });
 }
 
-export async function createNotice(input: CreateNoticeInput): Promise<Notice> {
+export async function createNotice(
+  input: CreateNoticeInput,
+  db?: FirebaseFirestore.Firestore
+): Promise<Notice> {
   const data: FirestoreNoticeDoc = {
     ...input,
     deletedAt: null,
     deletedBy: null,
   };
-  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToNotice });
+  return addCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToNotice });
 }
 
 export async function updateNoticeDeletion(
   noticeId: string,
   deletedBy: string,
-  deletedAt: string
+  deletedAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<Notice | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: noticeId,
     shouldUpdate: (data) => !data.deletedAt,

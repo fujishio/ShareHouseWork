@@ -233,3 +233,34 @@ rg -n --hidden -S "(api[_-]?key|apikey|secret|token|private[_-]?key|client[_-]?s
 
 - Phase 1 は **完了**（チェック 14/14 完了）
 - 備考: `audit-logs` / `settings/contribution` / `exports/monthly.csv` の Route 直書き認証を `src/server/api` へ移管済み
+
+## 12. Phase 4 進捗レビュー（2026-03-05）
+
+### 12.1 テスト再編
+
+- [x] `src/server/api/test-helpers.ts` を追加し、主要 API テストの認証セットアップを共通化
+- [x] 重複していた `verifyRequest` / `unauthorizedResponse` / `resolveActorHouseId` の記述を削減
+
+### 12.2 失敗系補完
+
+- [x] `401`（未認証）を `audit-logs` / `rules` / `notices` / `houses join` に追加
+- [x] `429`（レート制限）を `houses join` に追加
+- [x] `403` / `404` / `409` の既存主要ケースが継続して通ることを確認
+- [x] `422` の採用方針を API 全体で明文化（現状は `400 VALIDATION_ERROR` を継続）
+
+### 12.3 Rules / Store
+
+- [x] `firestore.rules.test.ts` の初期化重複をヘルパー化
+- [x] Rules で認証済みクライアント書き込み拒否テストを追加
+- [x] Store 補助ユーティリティとして `month-range` の単体テストを追加
+- [x] `store-utils` の単体テストを追加（`read/list/create/update`）
+- [x] `task-store` / `expense-store` の単体テストを追加（read/list/create/update）
+- [x] `notice-store` / `rule-store` / `shopping-store` / `task-completions-store` の単体テストを追加
+- [x] `audit-log` / `balance-adjustment` / `user` / `house` / `contribution-settings` store の単体テストを追加
+
+### 12.4 検証
+
+- [x] `node --test --experimental-strip-types "src/server/api/*.test.ts"` が成功（71/71）
+- [x] `npm test` が成功（167/167）
+- [x] `npm run lint` が成功
+- [x] `npm run typecheck` が成功

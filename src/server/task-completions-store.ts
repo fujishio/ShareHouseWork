@@ -1,9 +1,9 @@
-import type { TaskCompletionRecord, FirestoreTaskCompletionDoc } from "@/types";
+import type { TaskCompletionRecord, FirestoreTaskCompletionDoc } from "../types/index.ts";
 import {
   addCollectionDoc,
   readCollection,
   updateCollectionDocConditionally,
-} from "@/server/store-utils";
+} from "./store-utils.ts";
 
 const COLLECTION = "taskCompletions";
 
@@ -23,8 +23,12 @@ function docToRecord(id: string, data: FirestoreTaskCompletionDoc): TaskCompleti
   };
 }
 
-export async function listTaskCompletions(houseId: string): Promise<TaskCompletionRecord[]> {
+export async function listTaskCompletions(
+  houseId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<TaskCompletionRecord[]> {
   return readCollection({
+    db,
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "completedAt", direction: "desc" },
@@ -33,7 +37,8 @@ export async function listTaskCompletions(houseId: string): Promise<TaskCompleti
 }
 
 export async function createTaskCompletion(
-  record: Omit<TaskCompletionRecord, "id">
+  record: Omit<TaskCompletionRecord, "id">,
+  db?: FirebaseFirestore.Firestore
 ): Promise<TaskCompletionRecord> {
   const data: FirestoreTaskCompletionDoc = {
     ...record,
@@ -41,16 +46,18 @@ export async function createTaskCompletion(
     canceledBy: record.canceledBy ?? null,
     cancelReason: record.cancelReason ?? null,
   };
-  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
+  return addCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToRecord });
 }
 
 export async function updateTaskCompletionCancellation(
   completionId: string,
   canceledBy: string,
   cancelReason: string,
-  canceledAt: string
+  canceledAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<TaskCompletionRecord | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: completionId,
     shouldUpdate: (data) => !data.canceledAt,

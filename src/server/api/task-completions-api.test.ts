@@ -6,18 +6,16 @@ import {
   handleGetTaskCompletions,
 } from "./task-completions-api.ts";
 import { encodeDateIdCursor } from "./cursor-pagination.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, Task, TaskCompletionRecord } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-
-const defaultActor: Actor = {
-  uid: "u1",
-  name: "あなた",
-  email: "you@example.com",
-};
-
 function buildDeps(options?: {
-  actor?: Actor | null;
+  actor?: typeof defaultActor | null;
   tasks?: Task[];
   completions?: TaskCompletionRecord[];
 }) {
@@ -33,6 +31,7 @@ function buildDeps(options?: {
   const tasks = options?.tasks ?? [];
   const completions = options?.completions ?? [];
   const actor = options?.actor === undefined ? defaultActor : options.actor;
+  const verifyRequest = createVerifyRequest(actor);
 
   return {
     deps: {
@@ -57,14 +56,9 @@ function buildDeps(options?: {
         auditLogs.push(record);
         return { id: `audit-${auditLogs.length}`, ...record };
       },
-      resolveActorHouseId: async () => "house-id-001",
-      verifyRequest: async () => {
-        if (!actor) {
-          throw new Error("unauthorized");
-        }
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      resolveActorHouseId: createResolveActorHouseId(),
+      verifyRequest,
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     auditLogs,

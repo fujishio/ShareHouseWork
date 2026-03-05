@@ -3,12 +3,12 @@ import type {
   CreateShoppingItemInput,
   CheckShoppingItemInput,
   FirestoreShoppingItemDoc,
-} from "@/types";
+} from "../types/index.ts";
 import {
   addCollectionDoc,
   readCollection,
   updateCollectionDocConditionally,
-} from "@/server/store-utils";
+} from "./store-utils.ts";
 
 const COLLECTION = "shoppingItems";
 
@@ -29,8 +29,12 @@ function docToItem(id: string, data: FirestoreShoppingItemDoc): ShoppingItem {
   };
 }
 
-export async function listShoppingItems(houseId: string): Promise<ShoppingItem[]> {
+export async function listShoppingItems(
+  houseId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<ShoppingItem[]> {
   return readCollection({
+    db,
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "addedAt", direction: "desc" },
@@ -38,7 +42,10 @@ export async function listShoppingItems(houseId: string): Promise<ShoppingItem[]
   });
 }
 
-export async function createShoppingItem(input: CreateShoppingItemInput): Promise<ShoppingItem> {
+export async function createShoppingItem(
+  input: CreateShoppingItemInput,
+  db?: FirebaseFirestore.Firestore
+): Promise<ShoppingItem> {
   const data: FirestoreShoppingItemDoc = {
     ...input,
     category: input.category ?? null,
@@ -47,15 +54,17 @@ export async function createShoppingItem(input: CreateShoppingItemInput): Promis
     canceledAt: null,
     canceledBy: null,
   };
-  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToItem });
+  return addCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToItem });
 }
 
 export async function updateShoppingItemChecked(
   itemId: string,
   input: CheckShoppingItemInput,
-  checkedAt: string
+  checkedAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<ShoppingItem | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: itemId,
     shouldUpdate: (data) => !data.checkedAt && !data.canceledAt,
@@ -65,8 +74,12 @@ export async function updateShoppingItemChecked(
   });
 }
 
-export async function updateShoppingItemUnchecked(itemId: string): Promise<ShoppingItem | null> {
+export async function updateShoppingItemUnchecked(
+  itemId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<ShoppingItem | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: itemId,
     shouldUpdate: () => true,
@@ -79,9 +92,11 @@ export async function updateShoppingItemUnchecked(itemId: string): Promise<Shopp
 export async function updateShoppingItemCanceled(
   itemId: string,
   canceledBy: string,
-  canceledAt: string
+  canceledAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<ShoppingItem | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: itemId,
     shouldUpdate: (data) => !data.canceledAt,

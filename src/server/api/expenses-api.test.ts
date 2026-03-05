@@ -5,28 +5,32 @@ import {
   handleDeleteExpense,
   handleGetExpenses,
 } from "./expenses-api.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, ExpenseRecord } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] }) {
+function buildDeps(options?: {
+  actor?: typeof defaultActor | null;
+  expenses?: ExpenseRecord[];
+}) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const expenses = options?.expenses ?? [];
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
   const cancelCalls: Array<{ id: string; reason: string; canceledBy: string; canceledAt: string }> = [];
 
-  const resolveActorHouseId = async () => "house-id-001";
+  const resolveActorHouseId = createResolveActorHouseId();
+  const verifyRequest = createVerifyRequest(actor);
 
   return {
     getDeps: {
       readExpenses: async (_houseId: string, _month?: string) => expenses,
       resolveActorHouseId,
-      verifyRequest: async () => {
-        if (!actor) throw new Error("unauthorized");
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      verifyRequest,
+      unauthorizedResponse,
     },
     createDeps: {
       appendExpense: async (input: Omit<ExpenseRecord, "id">) => ({ id: "e-new", ...input }),
@@ -35,11 +39,8 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
         return { id: `a-${auditLogs.length}`, ...record };
       },
       resolveActorHouseId,
-      verifyRequest: async () => {
-        if (!actor) throw new Error("unauthorized");
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      verifyRequest,
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
@@ -59,11 +60,8 @@ function buildDeps(options?: { actor?: Actor | null; expenses?: ExpenseRecord[] 
       },
       readExpenses: async (_houseId: string, _month?: string) => expenses,
       resolveActorHouseId,
-      verifyRequest: async () => {
-        if (!actor) throw new Error("unauthorized");
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      verifyRequest,
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     auditLogs,

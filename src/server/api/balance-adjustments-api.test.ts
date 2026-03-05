@@ -4,27 +4,31 @@ import {
   handleCreateBalanceAdjustment,
   handleGetBalanceAdjustments,
 } from "./balance-adjustments-api.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, BalanceAdjustmentRecord } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; adjustments?: BalanceAdjustmentRecord[] }) {
+function buildDeps(options?: {
+  actor?: typeof defaultActor | null;
+  adjustments?: BalanceAdjustmentRecord[];
+}) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const adjustments = options?.adjustments ?? [];
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
 
-  const resolveActorHouseId = async () => "house-id-001";
+  const resolveActorHouseId = createResolveActorHouseId();
+  const verifyRequest = createVerifyRequest(actor);
 
   return {
     getDeps: {
       readBalanceAdjustments: async (_houseId: string, _month?: string) => adjustments,
       resolveActorHouseId,
-      verifyRequest: async () => {
-        if (!actor) throw new Error("unauthorized");
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      verifyRequest,
+      unauthorizedResponse,
     },
     createDeps: {
       appendBalanceAdjustment: async (
@@ -36,11 +40,8 @@ function buildDeps(options?: { actor?: Actor | null; adjustments?: BalanceAdjust
       },
       now: () => "2026-03-02T00:00:00.000Z",
       resolveActorHouseId,
-      verifyRequest: async () => {
-        if (!actor) throw new Error("unauthorized");
-        return actor;
-      },
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      verifyRequest,
+      unauthorizedResponse,
     },
     auditLogs,
   };

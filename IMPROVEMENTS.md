@@ -13,6 +13,7 @@
 | N | 低 | PWA/オフライン対応 | 未着手 |
 | R0 | 中 | Phase 0 ベースライン固定（rules test ポート競合対応） | 一部完了 |
 | R1 | 中 | Phase 1 API 境界統一（テンプレート横展開） | 完了 |
+| R4 | 中 | Phase 4 テスト再編と不足補完（API/Rules/Store） | 完了 |
 
 ## 完了済みタスク一覧
 
@@ -129,7 +130,7 @@
 
 ## R3. Phase 3 Store 層の一貫性改善
 
-**状態:** 一部完了（2026-03-05）
+**状態:** 完了（2026-03-05）
 
 `REFACTOR.md` の Phase 3 に沿って、Store の命名とクエリ組み立てを共通化。
 
@@ -170,6 +171,46 @@
 
 **残タスク**
 - なし（Phase 3 完了）
+
+---
+
+## R4. Phase 4 テスト再編と不足補完
+
+**状態:** 一部完了（2026-03-05）
+
+`REFACTOR.md` の Phase 4 に沿って、Server API テストの共通化と失敗系補完を実施。
+
+**対応内容**
+- `src/server/api/test-helpers.ts` を新規追加
+  - 共通 `defaultActor`
+  - 共通 `createVerifyRequest()`
+  - 共通 `unauthorizedResponse()`
+  - 共通 `createResolveActorHouseId()`
+- 主要 API テストで共通ヘルパーへ移行
+  - 対象: `tasks`, `expenses`, `balance-adjustments`, `audit-logs`, `rules`, `notices`, `shopping`, `task-completions`, `houses`
+- 失敗系テストを補強
+  - `429`: `POST /api/houses/join` のレート制限ケースを追加
+  - `401`: `audit-logs`, `rules`, `notices`, `houses/join` の未認証ケースを追加
+- Rules テストの共通初期化を追加
+  - `src/server/test-helpers/firestore-rules-test-env.ts` を新規追加
+  - `firestore.rules.test.ts` から rules 読み込み・初期化・cleanup 重複を排除
+  - 認証済みクライアント書き込み拒否テストを追加
+- Store 補助ユーティリティのテスト追加
+  - `src/server/month-range.test.ts` を追加し、月範囲変換（正常系/境界/異常系）を検証
+  - `src/server/store-utils.test.ts` を追加し、`read/list/create/update` の基本動作を DI で検証
+  - `src/server/store-utils.ts` に `db` 注入オプションを追加し、実Firestore依存なしで単体テスト可能にした
+  - `src/server/task-store.test.ts` / `src/server/expense-store.test.ts` を追加し、Store 本体の read/list/create/update ケースを検証
+  - `src/server/notice-store.test.ts` / `src/server/rule-store.test.ts` / `src/server/shopping-store.test.ts` / `src/server/task-completions-store.test.ts` を追加
+  - `src/server/test-helpers/fake-firestore-db.ts` を追加し、Store テスト用の擬似 Firestore を共通化
+
+**検証結果（2026-03-05）**
+- `node --test --experimental-strip-types "src/server/api/*.test.ts"`: PASS（71 passed / 0 failed）
+- `npm test`: PASS（167 passed / 0 failed）
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
+**残タスク**
+- なし（Phase 4 完了）
 
 ---
 

@@ -6,29 +6,31 @@ import {
   handleGetTasks,
   handleUpdateTask,
 } from "./tasks-api.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { Task } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; tasks?: Task[]; houseId?: string }) {
+function buildDeps(options?: {
+  actor?: typeof defaultActor | null;
+  tasks?: Task[];
+  houseId?: string;
+}) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const tasks = options?.tasks ?? [];
   const houseId = options?.houseId ?? "house-id-001";
-
-  const verifyRequest = async () => {
-    if (!actor) throw new Error("unauthorized");
-    return actor;
-  };
-
-  const resolveActorHouseId = async () => houseId;
+  const verifyRequest = createVerifyRequest(actor);
+  const resolveActorHouseId = createResolveActorHouseId(houseId);
 
   return {
     getDeps: {
       readTasks: async () => tasks,
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     createDeps: {
       createTask: async (input: Omit<Task, "id" | "deletedAt">) => ({
@@ -37,7 +39,7 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[]; houseId?: s
       }),
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     updateDeps: {
       readTask: async (id: string) => tasks.find((item) => item.id === id) ?? null,
@@ -47,7 +49,7 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[]; houseId?: s
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     deleteDeps: {
       readTask: async (id: string) => tasks.find((item) => item.id === id) ?? null,
@@ -57,7 +59,7 @@ function buildDeps(options?: { actor?: Actor | null; tasks?: Task[]; houseId?: s
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
   };

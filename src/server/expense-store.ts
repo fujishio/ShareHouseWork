@@ -3,13 +3,13 @@ import type {
   CreateExpenseInput,
   CancelExpenseInput,
   FirestoreExpenseDoc,
-} from "@/types";
+} from "../types/index.ts";
 import {
   createCollectionDoc,
   listCollection,
   updateCollectionDoc,
-} from "@/server/store-utils";
-import { monthToDateRange } from "@/server/month-range";
+} from "./store-utils.ts";
+import { monthToDateRange } from "./month-range.ts";
 
 const COLLECTION = "expenses";
 
@@ -28,7 +28,11 @@ function docToRecord(id: string, data: FirestoreExpenseDoc): ExpenseRecord {
   };
 }
 
-export async function listExpenses(houseId: string, month?: string): Promise<ExpenseRecord[]> {
+export async function listExpenses(
+  houseId: string,
+  month?: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<ExpenseRecord[]> {
   const where: { field: string; op: FirebaseFirestore.WhereFilterOp; value: unknown }[] = [
     { field: "houseId", op: "==", value: houseId },
   ];
@@ -43,6 +47,7 @@ export async function listExpenses(houseId: string, month?: string): Promise<Exp
   }
 
   return listCollection({
+    db,
     collection: COLLECTION,
     where,
     orderBy: [{ field: "purchasedAt", direction: "desc" }],
@@ -50,22 +55,27 @@ export async function listExpenses(houseId: string, month?: string): Promise<Exp
   });
 }
 
-export async function createExpense(input: CreateExpenseInput): Promise<ExpenseRecord> {
+export async function createExpense(
+  input: CreateExpenseInput,
+  db?: FirebaseFirestore.Firestore
+): Promise<ExpenseRecord> {
   const data: FirestoreExpenseDoc = {
     ...input,
     canceledAt: null,
     canceledBy: null,
     cancelReason: null,
   };
-  return createCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRecord });
+  return createCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToRecord });
 }
 
 export async function updateExpenseCancellation(
   expenseId: string,
   input: CancelExpenseInput,
-  canceledAt: string
+  canceledAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<ExpenseRecord | null> {
   return updateCollectionDoc({
+    db,
     collection: COLLECTION,
     id: expenseId,
     shouldUpdate: (data) => !data.canceledAt,

@@ -1,5 +1,5 @@
-import type { AuditLogRecord, FirestoreAuditLogDoc } from "@/types";
-import { createCollectionDoc, listCollection } from "@/server/store-utils";
+import type { AuditLogRecord, FirestoreAuditLogDoc } from "../types/index.ts";
+import { createCollectionDoc, listCollection } from "./store-utils.ts";
 import { FieldPath } from "firebase-admin/firestore";
 
 const COLLECTION = "auditLogs";
@@ -45,7 +45,8 @@ function decodeCursor(cursor: string): AuditLogCursorPayload | null {
 
 export async function listAuditLogs(
   houseId: string,
-  options: ReadAuditLogsOptions = {}
+  options: ReadAuditLogsOptions = {},
+  db?: FirebaseFirestore.Firestore
 ): Promise<AuditLogRecord[]> {
   const { from, to, action, limit = 100, cursor } = options;
   const where: { field: string; op: FirebaseFirestore.WhereFilterOp; value: unknown }[] = [
@@ -65,6 +66,7 @@ export async function listAuditLogs(
   const cursorPayload = cursor ? decodeCursor(cursor) : null;
 
   return listCollection({
+    db,
     collection: COLLECTION,
     where,
     orderBy: [
@@ -78,13 +80,15 @@ export async function listAuditLogs(
 }
 
 export async function createAuditLog(
-  record: Omit<AuditLogRecord, "id">
+  record: Omit<AuditLogRecord, "id">,
+  db?: FirebaseFirestore.Firestore
 ): Promise<AuditLogRecord> {
   const data: FirestoreAuditLogDoc = {
     ...record,
     details: record.details ?? {},
   };
   return createCollectionDoc({
+    db,
     collection: COLLECTION,
     data,
     mapDoc: docToRecord,

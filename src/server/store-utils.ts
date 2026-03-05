@@ -1,4 +1,4 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { getAdminFirestore } from "../lib/firebase-admin.ts";
 
 type OrderBy = {
   field: string | FirebaseFirestore.FieldPath;
@@ -21,6 +21,7 @@ export async function readCollection<T, TDoc extends FirebaseFirestore.DocumentD
   mapDoc: (id: string, data: TDoc) => T;
   orderBy?: OrderBy;
   whereEquals?: WhereEquals[];
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T[]> {
   return listCollection<T, TDoc>({
     collection: options.collection,
@@ -31,6 +32,7 @@ export async function readCollection<T, TDoc extends FirebaseFirestore.DocumentD
       op: "==",
       value: clause.value,
     })),
+    db: options.db,
   });
 }
 
@@ -41,8 +43,9 @@ export async function listCollection<T, TDoc extends FirebaseFirestore.DocumentD
   orderBy?: OrderBy[];
   limit?: number;
   startAfter?: unknown[];
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T[]> {
-  const db = getAdminFirestore();
+  const db = options.db ?? getAdminFirestore();
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db.collection(
     options.collection
@@ -72,6 +75,7 @@ export async function addCollectionDoc<T, TDoc extends FirebaseFirestore.Documen
   collection: string;
   data: TDoc;
   mapDoc: (id: string, data: TDoc) => T;
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T> {
   return createCollectionDoc(options);
 }
@@ -80,8 +84,9 @@ export async function createCollectionDoc<T, TDoc extends FirebaseFirestore.Docu
   collection: string;
   data: TDoc;
   mapDoc: (id: string, data: TDoc) => T;
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T> {
-  const db = getAdminFirestore();
+  const db = options.db ?? getAdminFirestore();
   const ref = await db.collection(options.collection).add(options.data);
   return options.mapDoc(ref.id, options.data);
 }
@@ -95,6 +100,7 @@ export async function updateCollectionDocConditionally<T, TDoc extends FirebaseF
     | ((data: TDoc) => FirebaseFirestore.UpdateData<TDoc>);
   mapDoc: (id: string, data: TDoc) => T;
   onGuardFail?: "return-null" | "return-existing";
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T | null> {
   return updateCollectionDoc(options);
 }
@@ -108,8 +114,9 @@ export async function updateCollectionDoc<T, TDoc extends FirebaseFirestore.Docu
     | ((data: TDoc) => FirebaseFirestore.UpdateData<TDoc>);
   mapDoc: (id: string, data: TDoc) => T;
   onGuardFail?: "return-null" | "return-existing";
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T | null> {
-  const db = getAdminFirestore();
+  const db = options.db ?? getAdminFirestore();
   const ref = db.collection(options.collection).doc(options.id);
   const doc = await ref.get();
   if (!doc.exists) return null;
@@ -131,8 +138,9 @@ export async function readCollectionDoc<T, TDoc extends FirebaseFirestore.Docume
   collection: string;
   id: string;
   mapDoc: (id: string, data: TDoc) => T;
+  db?: FirebaseFirestore.Firestore;
 }): Promise<T | null> {
-  const db = getAdminFirestore();
+  const db = options.db ?? getAdminFirestore();
   const doc = await db.collection(options.collection).doc(options.id).get();
   if (!doc.exists) return null;
   return options.mapDoc(doc.id, doc.data() as TDoc);

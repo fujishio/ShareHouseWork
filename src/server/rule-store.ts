@@ -1,10 +1,10 @@
-import type { Rule, CreateRuleInput, UpdateRuleInput, FirestoreRuleDoc } from "@/types";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import type { Rule, CreateRuleInput, UpdateRuleInput, FirestoreRuleDoc } from "../types/index.ts";
+import { getAdminFirestore } from "../lib/firebase-admin.ts";
 import {
   addCollectionDoc,
   readCollection,
   updateCollectionDocConditionally,
-} from "@/server/store-utils";
+} from "./store-utils.ts";
 
 const COLLECTION = "rules";
 
@@ -24,8 +24,12 @@ function docToRule(id: string, data: FirestoreRuleDoc): Rule {
   };
 }
 
-export async function listRules(houseId: string): Promise<Rule[]> {
+export async function listRules(
+  houseId: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<Rule[]> {
   return readCollection({
+    db,
     collection: COLLECTION,
     whereEquals: [{ field: "houseId", value: houseId }],
     orderBy: { field: "createdAt", direction: "desc" },
@@ -33,7 +37,10 @@ export async function listRules(houseId: string): Promise<Rule[]> {
   });
 }
 
-export async function createRule(input: CreateRuleInput): Promise<Rule> {
+export async function createRule(
+  input: CreateRuleInput,
+  db?: FirebaseFirestore.Firestore
+): Promise<Rule> {
   const data: FirestoreRuleDoc = {
     ...input,
     updatedAt: null,
@@ -41,11 +48,16 @@ export async function createRule(input: CreateRuleInput): Promise<Rule> {
     deletedAt: null,
     deletedBy: null,
   };
-  return addCollectionDoc({ collection: COLLECTION, data, mapDoc: docToRule });
+  return addCollectionDoc({ db, collection: COLLECTION, data, mapDoc: docToRule });
 }
 
-export async function updateRule(ruleId: string, input: UpdateRuleInput): Promise<Rule | null> {
+export async function updateRule(
+  ruleId: string,
+  input: UpdateRuleInput,
+  db?: FirebaseFirestore.Firestore
+): Promise<Rule | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: ruleId,
     shouldUpdate: (data) => !data.deletedAt,
@@ -55,9 +67,13 @@ export async function updateRule(ruleId: string, input: UpdateRuleInput): Promis
   });
 }
 
-export async function acknowledgeRule(ruleId: string, memberName: string): Promise<Rule | null> {
-  const db = getAdminFirestore();
-  const ref = db.collection(COLLECTION).doc(ruleId);
+export async function acknowledgeRule(
+  ruleId: string,
+  memberName: string,
+  db?: FirebaseFirestore.Firestore
+): Promise<Rule | null> {
+  const firestore = db ?? getAdminFirestore();
+  const ref = firestore.collection(COLLECTION).doc(ruleId);
   const doc = await ref.get();
   const data = doc.data() as FirestoreRuleDoc | undefined;
   if (!doc.exists || !data || data.deletedAt) return null;
@@ -73,9 +89,11 @@ export async function acknowledgeRule(ruleId: string, memberName: string): Promi
 export async function updateRuleDeletion(
   ruleId: string,
   deletedBy: string,
-  deletedAt: string
+  deletedAt: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<Rule | null> {
   return updateCollectionDocConditionally({
+    db,
     collection: COLLECTION,
     id: ruleId,
     shouldUpdate: (data) => !data.deletedAt,

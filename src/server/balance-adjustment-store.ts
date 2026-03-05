@@ -2,9 +2,9 @@ import type {
   BalanceAdjustmentRecord,
   CreateBalanceAdjustmentInput,
   FirestoreBalanceAdjustmentDoc,
-} from "@/types";
-import { createCollectionDoc, listCollection } from "@/server/store-utils";
-import { monthToDateRange } from "@/server/month-range";
+} from "../types/index.ts";
+import { createCollectionDoc, listCollection } from "./store-utils.ts";
+import { monthToDateRange } from "./month-range.ts";
 
 const COLLECTION = "balanceAdjustments";
 
@@ -24,7 +24,8 @@ function docToRecord(
 
 export async function listBalanceAdjustments(
   houseId: string,
-  month?: string
+  month?: string,
+  db?: FirebaseFirestore.Firestore
 ): Promise<BalanceAdjustmentRecord[]> {
   const where: { field: string; op: FirebaseFirestore.WhereFilterOp; value: unknown }[] = [
     { field: "houseId", op: "==", value: houseId },
@@ -40,6 +41,7 @@ export async function listBalanceAdjustments(
   }
 
   return listCollection({
+    db,
     collection: COLLECTION,
     where,
     orderBy: [{ field: "adjustedAt", direction: "desc" }],
@@ -48,10 +50,12 @@ export async function listBalanceAdjustments(
 }
 
 export async function createBalanceAdjustment(
-  input: CreateBalanceAdjustmentInput
+  input: CreateBalanceAdjustmentInput,
+  db?: FirebaseFirestore.Firestore
 ): Promise<BalanceAdjustmentRecord> {
   const data: FirestoreBalanceAdjustmentDoc = input;
   return createCollectionDoc({
+    db,
     collection: COLLECTION,
     data,
     mapDoc: docToRecord,

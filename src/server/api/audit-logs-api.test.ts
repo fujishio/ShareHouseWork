@@ -1,22 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleGetAuditLogs } from "./audit-logs-api.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; logs?: AuditLogRecord[] }) {
+function buildDeps(options?: { actor?: typeof defaultActor | null; logs?: AuditLogRecord[] }) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const logs = options?.logs ?? [];
   let receivedOptions:
     | { from?: Date; to?: Date; action?: string; cursor?: string; limit?: number }
     | null = null;
-
-  const verifyRequest = async () => {
-    if (!actor) throw new Error("unauthorized");
-    return actor;
-  };
+  const verifyRequest = createVerifyRequest(actor);
 
   return {
     deps: {
@@ -29,13 +28,23 @@ function buildDeps(options?: { actor?: Actor | null; logs?: AuditLogRecord[] }) 
       },
       createAuditLogCursor: (record: Pick<AuditLogRecord, "id" | "createdAt">) =>
         `cursor:${record.createdAt}:${record.id}`,
-      resolveActorHouseId: async () => "house-id-001",
+      resolveActorHouseId: createResolveActorHouseId(),
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     getReceivedOptions: () => receivedOptions,
   };
 }
+
+test("GET audit-logs: 未認証は401", async () => {
+  const { deps } = buildDeps({ actor: null });
+  const response = await handleGetAuditLogs(
+    new Request("http://localhost/api/audit-logs"),
+    deps
+  );
+
+  assert.equal(response.status, 401);
+});
 
 test("GET audit-logs: クエリとcursorがStoreへ渡され、nextCursorが返る", async () => {
   const logs: AuditLogRecord[] = [

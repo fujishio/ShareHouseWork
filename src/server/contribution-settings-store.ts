@@ -1,11 +1,12 @@
-import { getAdminFirestore } from "@/lib/firebase-admin";
-import { getHouse } from "@/server/house-store";
-import { toJstMonthKey } from "@/shared/lib/time";
+import { getAdminFirestore } from "../lib/firebase-admin.ts";
+import { getHouse } from "./house-store.ts";
+import { toJstMonthKey } from "../shared/lib/time.ts";
 import type {
   ContributionSettings,
   ContributionSettingsHistoryRecord,
   FirestoreContributionSettingsDoc,
-} from "@/types";
+  House,
+} from "../types/index.ts";
 
 const COLLECTION = "contributionSettings";
 
@@ -42,11 +43,19 @@ function docToContributionSettingsHistoryRecord(
   };
 }
 
+type ContributionStoreDeps = {
+  db?: FirebaseFirestore.Firestore;
+  monthKey?: string;
+  getHouseById?: (houseId: string, db?: FirebaseFirestore.Firestore) => Promise<House | null>;
+};
+
 export async function listContributionSettingsHistory(
-  houseId: string
+  houseId: string,
+  deps: ContributionStoreDeps = {}
 ): Promise<ContributionSettingsHistoryRecord[]> {
-  const db = getAdminFirestore();
-  const house = await getHouse(houseId);
+  const db = deps.db ?? getAdminFirestore();
+  const getHouseById = deps.getHouseById ?? getHouse;
+  const house = await getHouseById(houseId, db);
   const currentMemberCount = house?.memberUids.length ?? FALLBACK_MEMBER_COUNT;
   const initialSettings = buildInitialSettings(currentMemberCount);
   const snapshot = await db
@@ -115,18 +124,20 @@ export function resolveContributionSettingsAtMonth(
 }
 
 export async function readCurrentContributionSettings(
-  houseId: string
+  houseId: string,
+  deps: ContributionStoreDeps = {}
 ): Promise<ContributionSettings> {
-  const history = await listContributionSettingsHistory(houseId);
-  return resolveContributionSettingsAtMonth(history, toJstMonthKey());
+  const history = await listContributionSettingsHistory(houseId, deps);
+  return resolveContributionSettingsAtMonth(history, deps.monthKey ?? toJstMonthKey());
 }
 
 export async function updateContributionSettingsForCurrentMonth(
   houseId: string,
-  settings: ContributionSettings
+  settings: ContributionSettings,
+  deps: ContributionStoreDeps = {}
 ): Promise<void> {
-  const db = getAdminFirestore();
-  const effectiveMonth = toJstMonthKey();
+  const db = deps.db ?? getAdminFirestore();
+  const effectiveMonth = deps.monthKey ?? toJstMonthKey();
   await db
     .collection(COLLECTION)
     .doc(docId(houseId, effectiveMonth))
@@ -135,10 +146,11 @@ export async function updateContributionSettingsForCurrentMonth(
 
 export async function updateContributionMemberCountForCurrentMonth(
   houseId: string,
-  memberCount: number
+  memberCount: number,
+  deps: ContributionStoreDeps = {}
 ): Promise<void> {
-  const db = getAdminFirestore();
-  const effectiveMonth = toJstMonthKey();
+  const db = deps.db ?? getAdminFirestore();
+  const effectiveMonth = deps.monthKey ?? toJstMonthKey();
   const normalizedMemberCount = Math.max(FALLBACK_MEMBER_COUNT, memberCount);
   const ref = db.collection(COLLECTION).doc(docId(houseId, effectiveMonth));
   const doc = await ref.get();
@@ -159,7 +171,7 @@ export async function updateContributionMemberCountForCurrentMonth(
     return;
   }
 
-  const current = await readCurrentContributionSettings(houseId);
+  const current = await readCurrentContributionSettings(houseId, deps);
   await ref.set({
     houseId,
     effectiveMonth,

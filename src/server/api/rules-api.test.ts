@@ -8,29 +8,27 @@ import {
   handleUpdateRule,
 } from "./rules-api.ts";
 import { encodeDateIdCursor } from "./cursor-pagination.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, Rule } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
+function buildDeps(options?: { actor?: typeof defaultActor | null; rules?: Rule[] }) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const rules = options?.rules ?? [];
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
-
-  const verifyRequest = async () => {
-    if (!actor) throw new Error("unauthorized");
-    return actor;
-  };
-
-  const resolveActorHouseId = async () => "house-id-001";
+  const verifyRequest = createVerifyRequest(actor);
+  const resolveActorHouseId = createResolveActorHouseId();
 
   return {
     getDeps: {
       readRules: async () => rules,
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     createDeps: {
       appendRule: async (input: Omit<Rule, "id">) => ({ id: "r-new", ...input }),
@@ -40,7 +38,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     updateDeps: {
@@ -54,7 +52,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     acknowledgeDeps: {
@@ -68,7 +66,7 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
@@ -82,12 +80,18 @@ function buildDeps(options?: { actor?: Actor | null; rules?: Rule[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     auditLogs,
   };
 }
+
+test("GET rules: 未認証は401", async () => {
+  const { getDeps } = buildDeps({ actor: null });
+  const response = await handleGetRules(new Request("http://localhost/api/rules"), getDeps);
+  assert.equal(response.status, 401);
+});
 
 test("GET rules: deletedAt ありを除外", async () => {
   const rules: Rule[] = [

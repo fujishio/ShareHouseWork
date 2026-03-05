@@ -6,29 +6,27 @@ import {
   handleGetNotices,
 } from "./notices-api.ts";
 import { encodeDateIdCursor } from "./cursor-pagination.ts";
+import {
+  createResolveActorHouseId,
+  createVerifyRequest,
+  defaultActor,
+  unauthorizedResponse,
+} from "./test-helpers.ts";
 import type { AuditLogRecord, Notice } from "../../types/index.ts";
 
-type Actor = { uid: string; name: string; email: string };
-const defaultActor: Actor = { uid: "u1", name: "あなた", email: "you@example.com" };
-
-function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
+function buildDeps(options?: { actor?: typeof defaultActor | null; notices?: Notice[] }) {
   const actor = options?.actor === undefined ? defaultActor : options.actor;
   const notices = options?.notices ?? [];
   const auditLogs: Array<Omit<AuditLogRecord, "id">> = [];
-
-  const verifyRequest = async () => {
-    if (!actor) throw new Error("unauthorized");
-    return actor;
-  };
-
-  const resolveActorHouseId = async () => "house-id-001";
+  const verifyRequest = createVerifyRequest(actor);
+  const resolveActorHouseId = createResolveActorHouseId();
 
   return {
     getDeps: {
       readNotices: async () => notices,
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
     },
     createDeps: {
       appendNotice: async (input: Omit<Notice, "id" | "deletedAt" | "deletedBy">) => ({
@@ -41,7 +39,7 @@ function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     deleteDeps: {
@@ -55,12 +53,18 @@ function buildDeps(options?: { actor?: Actor | null; notices?: Notice[] }) {
       },
       resolveActorHouseId,
       verifyRequest,
-      unauthorizedResponse: () => Response.json({ error: "Unauthorized" }, { status: 401 }),
+      unauthorizedResponse,
       now: () => "2026-03-02T00:00:00.000Z",
     },
     auditLogs,
   };
 }
+
+test("GET notices: 未認証は401", async () => {
+  const { getDeps } = buildDeps({ actor: null });
+  const response = await handleGetNotices(new Request("http://localhost/api/notices"), getDeps);
+  assert.equal(response.status, 401);
+});
 
 test("GET notices: deletedAt ありを除外", async () => {
   const notices: Notice[] = [
