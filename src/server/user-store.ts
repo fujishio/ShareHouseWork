@@ -51,3 +51,8 @@ export async function upsertUser(uid: string, data: { name: string; color: strin
   await db.collection(COLLECTION).doc(uid).set(data, { merge: true });
   return { id: uid, ...data };
 }
+
+export async function deleteUser(uid: string): Promise<void> {
+  const db = getAdminFirestore();
+  await db.collection(COLLECTION).doc(uid).delete();
+}

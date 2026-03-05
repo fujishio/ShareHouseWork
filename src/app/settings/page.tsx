@@ -17,6 +17,8 @@ import { ContributionSettingsSection } from "@/components/sections/settings/Cont
 import { ProfileColorSection } from "@/components/sections/settings/ProfileColorSection";
 import { TaskManagementSection } from "@/components/sections/settings/TaskManagementSection";
 import { MemberManagementSection } from "@/components/sections/settings/MemberManagementSection";
+import { apiFetch } from "@/shared/lib/fetch-client";
+import { submitApiAction } from "@/shared/lib/submit-api-action";
 
 function SettingsToggle({
   title,
@@ -68,6 +70,7 @@ export default function SettingsPage() {
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const { user, signOut } = useAuth();
   const currentUserName = user?.displayName ?? HOUSE_MEMBERS[0].name;
@@ -95,6 +98,28 @@ export default function SettingsPage() {
       showToast({ level: "error", message: "ログアウトに失敗しました" });
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "退会するとアカウントは削除され、操作履歴の投稿者名は「退会済みユーザー」に匿名化されます。ホストの場合は管理しているハウスと関連データも削除されます。この操作は取り消せません。実行しますか？"
+    );
+    if (!confirmed) return;
+
+    setDeletingAccount(true);
+    try {
+      await submitApiAction({
+        request: () => apiFetch("/api/profile", { method: "DELETE" }),
+        successMessage: "退会処理が完了しました",
+        fallbackErrorMessage: "退会処理に失敗しました",
+        onSuccess: async () => {
+          await signOut().catch(() => undefined);
+          router.replace("/register");
+        },
+      });
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -180,7 +205,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {signingOut && <LoadingNotice message="ログアウト中..." />}
+      {(signingOut || deletingAccount) && (
+        <LoadingNotice message={deletingAccount ? "退会処理中..." : "ログアウト中..."} />
+      )}
 
       <div className="rounded-2xl border border-stone-200/60 bg-white p-4">
         <h3 className="text-sm font-bold text-stone-800">アカウント</h3>
@@ -190,10 +217,21 @@ export default function SettingsPage() {
           onClick={() => {
             void handleSignOut();
           }}
-          disabled={signingOut}
+          disabled={signingOut || deletingAccount}
           className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
         >
           {signingOut ? "ログアウト中…" : "ログアウト"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            void handleDeleteAccount();
+          }}
+          disabled={deletingAccount || signingOut}
+          className="mt-2 w-full rounded-xl border border-red-300 bg-white py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60"
+        >
+          {deletingAccount ? "退会処理中…" : "アカウントを退会する"}
         </button>
       </div>
     </div>

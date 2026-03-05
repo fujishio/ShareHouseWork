@@ -3,6 +3,7 @@ import { getUser, upsertUser } from "@/server/user-store";
 import { z } from "zod";
 import { isPresetColor } from "@/shared/constants/house";
 import { errorJson, successJson } from "@/shared/lib/api-response";
+import { deleteAccountAndAnonymize } from "@/server/account-deletion-service";
 
 export const runtime = "nodejs";
 
@@ -50,4 +51,31 @@ export async function PATCH(request: Request) {
   });
 
   return successJson(updated);
+}
+
+export async function DELETE(request: Request) {
+  let actor;
+  try {
+    actor = await verifyRequest(request);
+  } catch {
+    return unauthorizedResponse();
+  }
+
+  const existing = await getUser(actor.uid);
+  const displayName = existing?.name ?? actor.name;
+
+  try {
+    const result = await deleteAccountAndAnonymize({
+      uid: actor.uid,
+      displayName,
+    });
+    return successJson(result);
+  } catch (_error) {
+    return errorJson(
+      "退会処理に失敗しました",
+      "ACCOUNT_DELETE_FAILED",
+      500,
+      { uid: actor.uid }
+    );
+  }
 }
