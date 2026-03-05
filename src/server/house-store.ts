@@ -2,6 +2,8 @@ import { getAdminFirestore } from "@/lib/firebase-admin";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import type { House } from "@/types";
+import { TASK_CATEGORIES } from "@/shared/constants/task";
+import { TASK_DEFINITIONS } from "@/domain/tasks/task-definitions";
 
 const scryptAsync = promisify(scrypt);
 
@@ -20,6 +22,7 @@ async function verifyJoinPassword(password: string, stored: string): Promise<boo
 }
 
 const COLLECTION = "houses";
+const TASKS_COLLECTION = "tasks";
 
 type CreateHouseInput = {
   name: string;
@@ -40,6 +43,19 @@ function docToHouse(id: string, data: FirebaseFirestore.DocumentData): House {
   };
 }
 
+function buildDefaultTasks(houseId: string): FirebaseFirestore.DocumentData[] {
+  return TASK_CATEGORIES.flatMap((category) =>
+    TASK_DEFINITIONS[category].map((task) => ({
+      houseId,
+      name: task.name,
+      category,
+      points: task.points,
+      frequencyDays: task.frequencyDays,
+      deletedAt: null,
+    }))
+  );
+}
+
 export async function createHouse(input: CreateHouseInput): Promise<House> {
   const db = getAdminFirestore();
   const memberUids = input.ownerUid ? [input.ownerUid] : [];
@@ -56,8 +72,18 @@ export async function createHouse(input: CreateHouseInput): Promise<House> {
     // Store as scrypt hash, never as plaintext
     data.joinPasswordHash = await hashJoinPassword(input.joinPassword);
   }
-  const ref = await db.collection(COLLECTION).add(data);
-  return docToHouse(ref.id, data);
+
+  const houseRef = db.collection(COLLECTION).doc();
+  const batch = db.batch();
+  batch.set(houseRef, data);
+
+  const defaultTasks = buildDefaultTasks(houseRef.id);
+  defaultTasks.forEach((task) => {
+    batch.set(db.collection(TASKS_COLLECTION).doc(), task);
+  });
+
+  await batch.commit();
+  return docToHouse(houseRef.id, data);
 }
 
 export async function getHouse(houseId: string): Promise<House | null> {
