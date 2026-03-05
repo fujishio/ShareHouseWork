@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import type { PrioritizedTask } from "@/types";
+import { apiFetch } from "@/shared/lib/fetch-client";
 
 type TaskCard = Omit<PrioritizedTask, "lastCompletedAt"> & {
   lastCompletedAtIso: string | null;
@@ -63,26 +64,82 @@ export default function RecentTasksWidget({ tasks, houseId }: Props) {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!storageKey) {
+    if (!houseId || !storageKey) {
       setPendingIds([]);
       return;
     }
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw) {
-        setPendingIds([]);
-        return;
+    let mounted = true;
+
+    const readPendingIdsFromLocal = () => {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((value): value is string => typeof value === "string");
+      } catch {
+        return [];
       }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setPendingIds([]);
-        return;
+    };
+
+    const savePendingIdsToLocal = (ids: string[]) => {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(ids));
+      } catch {
+        // noop
       }
-      setPendingIds(parsed.filter((value): value is string => typeof value === "string"));
-    } catch {
-      setPendingIds([]);
+    };
+
+    async function loadPending() {
+      try {
+        const response = await apiFetch("/api/task-pending");
+        if (!response.ok) {
+          if (mounted) {
+            setPendingIds([]);
+          }
+          return;
+        }
+        const payload = (await response.json()) as {
+          data?: { pendingTaskIds?: unknown };
+        };
+        const rawIds = payload.data?.pendingTaskIds;
+        if (!Array.isArray(rawIds)) {
+          if (mounted) {
+            setPendingIds([]);
+          }
+          return;
+        }
+        const validIds = rawIds.filter((value): value is string => typeof value === "string");
+        if (validIds.length === 0) {
+          const localIds = readPendingIdsFromLocal();
+          if (localIds.length > 0) {
+            if (mounted) {
+              setPendingIds(localIds);
+            }
+            await apiFetch("/api/task-pending", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pendingTaskIds: localIds }),
+            }).catch(() => undefined);
+            return;
+          }
+        }
+        if (mounted) {
+          setPendingIds(validIds);
+          savePendingIdsToLocal(validIds);
+        }
+      } catch {
+        if (mounted) {
+          setPendingIds(readPendingIdsFromLocal());
+        }
+      }
     }
-  }, [storageKey]);
+
+    void loadPending();
+    return () => {
+      mounted = false;
+    };
+  }, [houseId, storageKey]);
 
   const visibleTasks = useMemo(() => {
     if (!pendingIds.length) return tasks;

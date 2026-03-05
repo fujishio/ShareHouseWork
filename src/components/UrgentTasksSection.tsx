@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock, Star } from "lucide-react";
 import type { PrioritizedTask } from "@/types/tasks";
 import { formatRelativeTime } from "@/shared/lib/time";
 import { apiFetch } from "@/shared/lib/fetch-client";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
+import { showToast } from "@/shared/lib/toast";
 
 type PriorityTaskCard = Omit<PrioritizedTask, "lastCompletedAt"> & {
   lastCompletedAtIso: string | null;
@@ -90,38 +91,90 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const storageKey = useMemo(() => `tasks:pending:${houseId}`, [houseId]);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
-  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
+  const [isPendingLoaded, setIsPendingLoaded] = useState(false);
   const [actionTargetId, setActionTargetId] = useState<string | null>(null);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [updatingPendingId, setUpdatingPendingId] = useState<string | null>(null);
   const [isPendingOpen, setIsPendingOpen] = useState(false);
 
-  useEffect(() => {
+  const readPendingIdsFromLocal = useCallback(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
-      if (!raw) {
-        setPendingIds([]);
-        setIsStorageLoaded(true);
-        return;
-      }
+      if (!raw) return [];
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setPendingIds([]);
-        setIsStorageLoaded(true);
-        return;
-      }
-      const validIds = parsed.filter((value): value is string => typeof value === "string");
-      setPendingIds(validIds);
-      setIsStorageLoaded(true);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((value): value is string => typeof value === "string");
     } catch {
-      setPendingIds([]);
-      setIsStorageLoaded(true);
+      return [];
+    }
+  }, [storageKey]);
+
+  const savePendingIdsToLocal = useCallback((ids: string[]) => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(ids));
+    } catch {
+      // noop
     }
   }, [storageKey]);
 
   useEffect(() => {
-    if (!isStorageLoaded) return;
-    window.localStorage.setItem(storageKey, JSON.stringify(pendingIds));
-  }, [isStorageLoaded, pendingIds, storageKey]);
+    let mounted = true;
+
+    async function loadPending() {
+      try {
+        const response = await apiFetch("/api/task-pending");
+        if (!response.ok) {
+          if (mounted) {
+            setPendingIds([]);
+          }
+          return;
+        }
+        const payload = (await response.json()) as {
+          data?: { pendingTaskIds?: unknown };
+        };
+        const rawIds = payload.data?.pendingTaskIds;
+        if (!Array.isArray(rawIds)) {
+          if (mounted) {
+            setPendingIds([]);
+          }
+          return;
+        }
+        const validIds = rawIds.filter((value): value is string => typeof value === "string");
+        if (validIds.length === 0) {
+          const localIds = readPendingIdsFromLocal();
+          if (localIds.length > 0) {
+            if (mounted) {
+              setPendingIds(localIds);
+            }
+            await apiFetch("/api/task-pending", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pendingTaskIds: localIds }),
+            }).catch(() => undefined);
+            return;
+          }
+        }
+        if (mounted) {
+          setPendingIds(validIds);
+          savePendingIdsToLocal(validIds);
+        }
+      } catch {
+        if (mounted) {
+          const localIds = readPendingIdsFromLocal();
+          setPendingIds(localIds);
+        }
+      } finally {
+        if (mounted) {
+          setIsPendingLoaded(true);
+        }
+      }
+    }
+
+    void loadPending();
+    return () => {
+      mounted = false;
+    };
+  }, [houseId, readPendingIdsFromLocal, savePendingIdsToLocal]);
 
   const pendingSet = useMemo(() => new Set(pendingIds), [pendingIds]);
   const urgentTasks = useMemo(
@@ -133,13 +186,43 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
     [initialPriorityTasks, pendingSet]
   );
 
+  const syncPendingIds = async (nextIds: string[], taskId: string) => {
+    setUpdatingPendingId(taskId);
+    try {
+      const response = await apiFetch("/api/task-pending", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingTaskIds: nextIds }),
+      });
+      if (!response.ok) {
+        showToast({ level: "error", message: "保留タスクの更新に失敗しました" });
+        router.refresh();
+      } else {
+        savePendingIdsToLocal(nextIds);
+      }
+    } catch {
+      showToast({ level: "error", message: "保留タスクの更新に失敗しました" });
+      router.refresh();
+    } finally {
+      setUpdatingPendingId(null);
+    }
+  };
+
   const holdTask = (taskId: string) => {
-    setPendingIds((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    setPendingIds((prev) => {
+      const nextIds = prev.includes(taskId) ? prev : [...prev, taskId];
+      void syncPendingIds(nextIds, taskId);
+      return nextIds;
+    });
     setActionTargetId(null);
   };
 
   const resumeTask = (taskId: string) => {
-    setPendingIds((prev) => prev.filter((id) => id !== taskId));
+    setPendingIds((prev) => {
+      const nextIds = prev.filter((id) => id !== taskId);
+      void syncPendingIds(nextIds, taskId);
+      return nextIds;
+    });
   };
 
   const completeTask = async (taskId: string) => {
@@ -188,7 +271,7 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
                     onClick={() => {
                       void completeTask(task.id);
                     }}
-                    disabled={Boolean(completingTaskId)}
+                    disabled={Boolean(completingTaskId) || Boolean(updatingPendingId)}
                     className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     {isCompleting ? "完了中..." : "完了する"}
@@ -198,7 +281,7 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
                     onClick={() => {
                       holdTask(task.id);
                     }}
-                    disabled={Boolean(completingTaskId)}
+                    disabled={Boolean(completingTaskId) || Boolean(updatingPendingId)}
                     className="rounded-md border border-stone-300 px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100 disabled:opacity-60"
                   >
                     保留する
@@ -208,7 +291,7 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
                     onClick={() => {
                       setActionTargetId(null);
                     }}
-                    disabled={Boolean(completingTaskId)}
+                    disabled={Boolean(completingTaskId) || Boolean(updatingPendingId)}
                     className="rounded-md border border-stone-300 px-2 py-1 text-xs font-semibold text-stone-500 hover:bg-stone-100 disabled:opacity-60"
                   >
                     閉じる
@@ -236,7 +319,7 @@ export default function UrgentTasksSection({ initialPriorityTasks, nowIso, house
         >
           <h4 className="text-sm font-semibold text-stone-700">保留中のタスク</h4>
           <span className="text-xs font-semibold text-stone-500">
-            {pendingTasks.length}件 {isPendingOpen ? "▲" : "▼"}
+            {isPendingLoaded ? `${pendingTasks.length}件` : "読込中..."} {isPendingOpen ? "▲" : "▼"}
           </span>
         </button>
         {isPendingOpen && (

@@ -8,6 +8,7 @@ import RecentTasksWidget from "@/components/RecentTasksWidget";
 import { getPrioritizedTasks, getLatestCompletionByTask } from "@/domain/tasks";
 import { calculateMonthlyExpenseSummary } from "@/domain/expenses/calculate-monthly-expense-summary";
 import { readTaskCompletions } from "@/server/task-completions-store";
+import { readTasks } from "@/server/task-store";
 import { readExpenses } from "@/server/expense-store";
 import { readBalanceAdjustments } from "@/server/balance-adjustment-store";
 import { readContributionSettingsHistory } from "@/server/contribution-settings-store";
@@ -78,8 +79,9 @@ export default async function HomePage() {
   const house = houseId ? await getHouse(houseId) : null;
   const carryoverStartMonthKey = toMonthKeyFromIsoDateTime(house?.createdAt);
 
-  const [completions, allExpenses, balanceAdjustments, contributionHistory, allNotices, users] = await Promise.all([
+  const [completions, tasks, allExpenses, balanceAdjustments, contributionHistory, allNotices, users] = await Promise.all([
     readTaskCompletions(houseId),
+    readTasks(houseId),
     readExpenses(houseId),
     readBalanceAdjustments(houseId),
     readContributionSettingsHistory(houseId),
@@ -88,7 +90,7 @@ export default async function HomePage() {
   ]);
 
   const latestByTask = getLatestCompletionByTask(completions);
-  const priorityTasks = getPrioritizedTasks(latestByTask, now);
+  const priorityTasks = getPrioritizedTasks(latestByTask, now, tasks.length, tasks);
   const priorityTaskCards = priorityTasks.map((task) => ({
     ...task,
     lastCompletedAtIso: task.lastCompletedAt ? task.lastCompletedAt.toISOString() : null,
