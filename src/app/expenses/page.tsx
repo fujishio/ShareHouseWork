@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { toJstMonthKey } from "@/shared/lib/time";
+import { addOneMonth, subtractOneMonth } from "@/shared/lib/month-utils";
 import { Wallet } from "lucide-react";
 import { readExpenses } from "@/server/expense-store";
 import { readBalanceAdjustments } from "@/server/balance-adjustment-store";
@@ -18,22 +19,6 @@ function toLabelFromMonthKey(monthKey: string): string {
   if (!MONTH_KEY_REGEX.test(monthKey)) return monthKey;
   const [year, month] = monthKey.split("-");
   return `${year}年${Number(month)}月`;
-}
-
-function subtractOneMonth(monthKey: string): string {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (month === 1) return `${year - 1}-12`;
-  return `${year}-${String(month - 1).padStart(2, "0")}`;
-}
-
-function addOneMonth(monthKey: string): string {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (month === 12) return `${year + 1}-01`;
-  return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
 function toMonthKeyFromIsoDateTime(value: string | undefined): string | undefined {

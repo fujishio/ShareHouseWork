@@ -5,20 +5,12 @@ import type { ShoppingItem } from "@/types";
 import { EXPENSE_CATEGORIES } from "@/domain/expenses/expense-categories";
 import { LoadingNotice } from "./RequestStatus";
 import { useShoppingSection } from "@/hooks/useShoppingSection";
+import { formatMonthDay } from "@/shared/lib/time";
 
 type Props = {
   initialItems: ShoppingItem[];
   currentMonth: string;
 };
-
-function formatDate(value: string): string {
-  const datePart = value.slice(0, 10);
-  const [monthLike, dayLike] = datePart.split("-").slice(1);
-  if (!monthLike || !dayLike) {
-    return value;
-  }
-  return `${Number(monthLike)}/${Number(dayLike)}`;
-}
 
 export default function ShoppingSection({ initialItems, currentMonth }: Props) {
   const {
@@ -144,7 +136,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                   </div>
                   {item.memo && <p className="mt-0.5 text-xs text-stone-400">{item.memo}</p>}
                   <p className="mt-0.5 text-xs text-stone-300">
-                    {item.addedBy} · {formatDate(item.addedAt)}
+                    {item.addedBy} · {formatMonthDay(item.addedAt)}
                   </p>
                 </div>
                 <button
@@ -186,7 +178,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-stone-400">
-                    {item.checkedBy} · {item.checkedAt ? formatDate(item.checkedAt) : ""}
+                    {item.checkedBy} · {item.checkedAt ? formatMonthDay(item.checkedAt) : ""}
                   </p>
                 </div>
                 <button
@@ -229,7 +221,7 @@ export default function ShoppingSection({ initialItems, currentMonth }: Props) {
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-stone-400">
-                          {item.checkedBy} · {item.checkedAt ? formatDate(item.checkedAt) : ""}
+                          {item.checkedBy} · {item.checkedAt ? formatMonthDay(item.checkedAt) : ""}
                         </p>
                       </div>
                       <button

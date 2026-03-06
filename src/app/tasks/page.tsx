@@ -7,17 +7,12 @@ import UrgentTasksSection from "@/components/UrgentTasksSection";
 import { readTaskCompletions } from "@/server/task-completions-store";
 import { readTasks } from "@/server/task-store";
 import { resolveRequestHouseId } from "@/server/request-house";
-
-function toMonthKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
+import { toJstMonthKey } from "@/shared/lib/time";
 
 function getRecentMonthKeys(now: Date, length: number): string[] {
   return Array.from({ length }, (_, index) => {
     const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-    return toMonthKey(date);
+    return toJstMonthKey(date);
   });
 }
 

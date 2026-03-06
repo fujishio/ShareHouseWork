@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { BalanceAdjustmentRecord, ExpenseRecord } from "@/types";
 import { LoadingNotice } from "./RequestStatus";
 import { useExpenseSection } from "@/hooks/useExpenseSection";
+import { formatMonthDay } from "@/shared/lib/time";
 
 const ExpenseCategoryChart = dynamic(() => import("./ExpenseCategoryChart"), {
   loading: () => (
@@ -22,14 +23,6 @@ type Props = {
   initialMonthlyContribution: number;
 };
 
-function formatPurchaseDateLabel(purchasedAt: string): string {
-  const datePart = purchasedAt.slice(0, 10);
-  const [monthLike, dayLike] = datePart.split("-").slice(1);
-  if (!monthLike || !dayLike) {
-    return purchasedAt;
-  }
-  return `${Number(monthLike)}/${Number(dayLike)}`;
-}
 
 export default function ExpenseSection({
   initialExpenses,
@@ -87,7 +80,7 @@ export default function ExpenseSection({
           <ul className="space-y-2">
             {visibleHistory.map((expense) => {
               const isCanceled = !!expense.canceledAt;
-              const dateStr = formatPurchaseDateLabel(expense.purchasedAt);
+              const dateStr = formatMonthDay(expense.purchasedAt);
 
               return (
                 <li
@@ -272,7 +265,7 @@ export default function ExpenseSection({
         ) : (
           <ul className="space-y-2">
             {visibleAdjustments.map((adjustment) => {
-              const dateStr = formatPurchaseDateLabel(adjustment.adjustedAt);
+              const dateStr = formatMonthDay(adjustment.adjustedAt);
               const sign = adjustment.amount >= 0 ? "+" : "";
               return (
                 <li

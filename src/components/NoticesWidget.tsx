@@ -10,8 +10,6 @@ type Props = {
 };
 
 export default function NoticesWidget({ notices }: Props) {
-  const filteredNotices = notices;
-
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-stone-200/60 p-4">
       <div className="flex items-center justify-between mb-3">
@@ -32,13 +30,13 @@ export default function NoticesWidget({ notices }: Props) {
         </div>
       </div>
 
-      {filteredNotices.length === 0 ? (
+      {notices.length === 0 ? (
         <p className="text-sm text-stone-400 py-2 text-center">
           お知らせはありません
         </p>
       ) : (
         <ul className="space-y-1">
-          {filteredNotices.map((notice) => (
+          {notices.map((notice) => (
             <li
               key={notice.id}
               className="flex items-start gap-3 py-2.5 border-b border-stone-100/60 last:border-0"

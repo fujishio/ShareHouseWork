@@ -3,24 +3,12 @@ import type {
   ContributionSettingsHistoryRecord,
   ExpenseRecord,
 } from "@/types";
+import { addOneMonth } from "@/shared/lib/month-utils";
 
 const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
 
 function compareMonthKey(a: string, b: string): number {
   return a.localeCompare(b);
-}
-
-function addOneMonth(monthKey: string): string {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    return monthKey;
-  }
-  if (month === 12) {
-    return `${year + 1}-01`;
-  }
-  return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
 function firstMonthOfYear(monthKey: string): string {

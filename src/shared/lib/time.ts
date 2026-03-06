@@ -46,6 +46,13 @@ export function toLocalDateInputValue(date: Date = new Date()): string {
   return local.toISOString().slice(0, 10);
 }
 
+export function formatMonthDay(dateString: string): string {
+  const datePart = dateString.slice(0, 10);
+  const [, monthLike, dayLike] = datePart.split("-");
+  if (!monthLike || !dayLike) return dateString;
+  return `${Number(monthLike)}/${Number(dayLike)}`;
+}
+
 export function formatRelativeTime(date: Date, now: Date = new Date()): string {
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
