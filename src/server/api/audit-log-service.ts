@@ -13,6 +13,7 @@ export async function logAppAuditEvent(
     houseId: string;
     action: AuditLogRecord["action"];
     actor: string;
+    actorUid: string;
     details: AuditLogRecord["details"];
     createdAt?: string;
   }
@@ -21,6 +22,7 @@ export async function logAppAuditEvent(
     houseId: input.houseId,
     action: input.action,
     actor: input.actor,
+    actorUid: input.actorUid,
     source: "app",
     createdAt: input.createdAt ?? deps.now(),
     details: input.details,

@@ -121,6 +121,7 @@ export async function handleCreateBalanceAdjustment(
     houseId: context.houseId,
     action: "balance_adjustment_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: {
       adjustmentId: created.id,
       amount: created.amount,

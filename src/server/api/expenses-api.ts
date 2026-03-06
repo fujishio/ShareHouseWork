@@ -161,6 +161,7 @@ export async function handleCreateExpense(
     houseId: context.houseId,
     action: "expense_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: {
       expenseId: created.id,
       title: created.title,
@@ -221,6 +222,7 @@ export async function handleDeleteExpense(
       houseId: context.houseId,
       action: "expense_canceled",
       actor: context.actor.name,
+    actorUid: context.actor.uid,
       createdAt: canceledAt,
       details: {
         expenseId: updated.id,

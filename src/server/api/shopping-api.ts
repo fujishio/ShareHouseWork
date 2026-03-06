@@ -179,6 +179,7 @@ export async function handleCreateShoppingItem(
     houseId: context.houseId,
     action: "shopping_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: {
       shoppingItemId: created.id,
       name: created.name,
@@ -226,6 +227,7 @@ export async function handlePatchShoppingItem(
         houseId: context.houseId,
         action: "shopping_unchecked",
         actor: context.actor.name,
+    actorUid: context.actor.uid,
         details: {
           shoppingItemId: updated.id,
           name: updated.name,
@@ -251,6 +253,7 @@ export async function handlePatchShoppingItem(
       houseId: context.houseId,
       action: "shopping_checked",
       actor: context.actor.name,
+    actorUid: context.actor.uid,
       details: {
         shoppingItemId: updated.id,
         name: updated.name,
@@ -289,6 +292,7 @@ export async function handleDeleteShoppingItem(
       houseId: context.houseId,
       action: "shopping_canceled",
       actor: context.actor.name,
+    actorUid: context.actor.uid,
       details: {
         shoppingItemId: updated.id,
         name: updated.name,

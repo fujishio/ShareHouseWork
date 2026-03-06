@@ -133,6 +133,7 @@ export async function handleCreateNotice(request: Request, deps: CreateNoticeDep
     houseId: context.houseId,
     action: "notice_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: { noticeId: created.id, title: created.title, isImportant: created.isImportant },
   });
 
@@ -168,6 +169,7 @@ export async function handleDeleteNotice(
     houseId: context.houseId,
     action: "notice_deleted",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: { noticeId: id, title: updated.title },
   });
 

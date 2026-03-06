@@ -22,6 +22,7 @@ export type AuditLogRecord = {
   houseId: string;
   action: AuditAction;
   actor: string;
+  actorUid: string;
   source: "app" | "system";
   createdAt: IsoDateTimeString;
   details: Record<string, string | number | boolean | null>;

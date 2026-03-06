@@ -114,6 +114,7 @@ export type FirestoreAuditLogDoc = {
   houseId: string;
   action: AuditAction;
   actor: string;
+  actorUid: string;
   source: "app" | "system";
   createdAt: string;
   details: Record<string, string | number | boolean | null>;

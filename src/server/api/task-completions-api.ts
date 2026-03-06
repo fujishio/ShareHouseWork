@@ -215,6 +215,7 @@ export async function handleCreateTaskCompletion(
     houseId: context.houseId,
     action: "task_completion_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: {
       taskId: created.taskId,
       taskName: created.taskName,
@@ -275,6 +276,7 @@ export async function handleCancelTaskCompletion(
     houseId: authContext.houseId,
     action: "task_completion_canceled",
     actor: authContext.actor.name,
+    actorUid: authContext.actor.uid,
     createdAt: canceledAt,
     details: {
       completionId: updated.id,

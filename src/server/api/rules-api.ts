@@ -173,6 +173,7 @@ export async function handleCreateRule(request: Request, deps: CreateRuleDeps) {
     houseId: context.houseId,
     action: "rule_created",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: {
       ruleId: created.id,
       title: created.title,
@@ -225,6 +226,7 @@ export async function handleUpdateRule(
     houseId: context.houseId,
     action: "rule_updated",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: { ruleId: id, title: updated.title, category: requestBody.category },
   });
 
@@ -258,6 +260,7 @@ export async function handleAcknowledgeRule(
     houseId: context.houseId,
     action: "rule_acknowledged",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: { ruleId: id, title: updated.title },
   });
 
@@ -293,6 +296,7 @@ export async function handleDeleteRule(
     houseId: context.houseId,
     action: "rule_deleted",
     actor: context.actor.name,
+    actorUid: context.actor.uid,
     details: { ruleId: id, title: updated.title },
   });
 

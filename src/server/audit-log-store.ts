@@ -10,6 +10,7 @@ function docToRecord(id: string, data: FirestoreAuditLogDoc): AuditLogRecord {
     houseId: data.houseId,
     action: data.action,
     actor: data.actor,
+    actorUid: data.actorUid,
     source: data.source,
     createdAt: data.createdAt,
     details: data.details ?? {},
