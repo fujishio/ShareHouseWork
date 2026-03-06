@@ -8,6 +8,7 @@ import { apiFetch, readJson } from "@/shared/lib/fetch-client";
 import { isDataObjectResponse } from "@/shared/lib/response-guards";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
 import { showToast } from "@/shared/lib/toast";
+import { useItemAction } from "@/hooks/useItemAction";
 
 const RECENT_PURCHASED_MONTHS = 2;
 
@@ -39,8 +40,8 @@ type UseShoppingSectionOptions = {
 
 export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSectionOptions) {
   const [items, setItems] = useState<ShoppingItem[]>(initialItems);
-  const [checkingId, setCheckingId] = useState<string | null>(null);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const checking = useItemAction();
+  const canceling = useItemAction();
   const [showArchivedPurchasedItems, setShowArchivedPurchasedItems] = useState(false);
   const [pendingCheckItem, setPendingCheckItem] = useState<ShoppingItem | null>(null);
   const [pendingAmount, setPendingAmount] = useState("");
@@ -96,10 +97,9 @@ export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSe
     if (!pendingCheckItem) return;
     const item = pendingCheckItem;
     setPendingCheckItem(null);
-    setCheckingId(item.id);
 
-    let checkedAtDate: string | null = null;
-    try {
+    await checking.execute(item.id, async () => {
+      let checkedAtDate: string | null = null;
       const checked = await submitApiAction({
         request: () =>
           apiFetch(`/api/shopping/${item.id}`, {
@@ -140,15 +140,12 @@ export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSe
       if (!createdExpense) {
         showToast({ level: "success", message: "購入済みへの更新は完了しています" });
       }
-    } finally {
-      setCheckingId(null);
-      setPendingAmount("");
-    }
-  }, [pendingAmount, pendingCategory, pendingCheckItem]);
+    });
+    setPendingAmount("");
+  }, [checking, pendingAmount, pendingCategory, pendingCheckItem]);
 
   const uncheckItem = useCallback(async (item: ShoppingItem) => {
-    setCheckingId(item.id);
-    try {
+    await checking.execute(item.id, async () => {
       await submitApiAction({
         request: () =>
           apiFetch(`/api/shopping/${item.id}`, {
@@ -166,14 +163,11 @@ export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSe
           setItems((prev) => prev.map((entry) => (entry.id === item.id ? json.data : entry)));
         },
       });
-    } finally {
-      setCheckingId(null);
-    }
-  }, []);
+    });
+  }, [checking]);
 
   const cancelItem = useCallback(async (item: ShoppingItem) => {
-    setCancelingId(item.id);
-    try {
+    await canceling.execute(item.id, async () => {
       await submitApiAction({
         request: () => apiFetch(`/api/shopping/${item.id}`, { method: "DELETE" }),
         successMessage: "項目を削除しました",
@@ -186,10 +180,8 @@ export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSe
           setItems((prev) => prev.map((entry) => (entry.id === item.id ? json.data : entry)));
         },
       });
-    } finally {
-      setCancelingId(null);
-    }
-  }, []);
+    });
+  }, [canceling]);
 
   return {
     activeItems,
@@ -197,8 +189,8 @@ export function useShoppingSection({ initialItems, currentMonth }: UseShoppingSe
     recentCheckedItems,
     archivedCheckedItems,
     thisMonthCheckedCount,
-    checkingId,
-    cancelingId,
+    checkingId: checking.activeId,
+    cancelingId: canceling.activeId,
     showArchivedPurchasedItems,
     pendingCheckItem,
     pendingAmount,

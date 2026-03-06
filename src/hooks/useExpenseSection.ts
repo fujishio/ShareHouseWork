@@ -6,6 +6,8 @@ import { isDataObjectResponse } from "@/shared/lib/response-guards";
 import { showToast } from "@/shared/lib/toast";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
 import { toLocalDateInputValue } from "@/shared/lib/time";
+import { useItemAction } from "@/hooks/useItemAction";
+import { useExpandableList } from "@/hooks/useExpandableList";
 
 type UseExpenseSectionOptions = {
   initialExpenses: ExpenseRecord[];
@@ -31,9 +33,7 @@ export function useExpenseSection({
   const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustmentRecord[]>(
     initialBalanceAdjustments
   );
-  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [isAdjustmentHistoryExpanded, setIsAdjustmentHistoryExpanded] = useState(false);
-  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const canceling = useItemAction();
   const [adjustMode, setAdjustMode] = useState<"rewrite" | "amount">("rewrite");
   const [balanceInput, setBalanceInput] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
@@ -60,8 +60,8 @@ export function useExpenseSection({
     [balanceAdjustments, monthPrefix]
   );
 
-  const visibleHistory = isHistoryExpanded ? monthHistoryExpenses : monthHistoryExpenses.slice(0, 5);
-  const visibleAdjustments = isAdjustmentHistoryExpanded ? monthAdjustments : monthAdjustments.slice(0, 5);
+  const historyList = useExpandableList(monthHistoryExpenses);
+  const adjustmentList = useExpandableList(monthAdjustments);
 
   const currentMonthSpent = currentMonthExpenses.reduce((sum, entry) => sum + entry.amount, 0);
   const currentMonthAdjustment = monthAdjustments.reduce((sum, entry) => sum + entry.amount, 0);
@@ -69,8 +69,7 @@ export function useExpenseSection({
     initialCarryover + initialMonthlyContribution - currentMonthSpent + currentMonthAdjustment;
 
   const cancelExpense = useCallback(async (expense: ExpenseRecord) => {
-    setCancelingId(expense.id);
-    try {
+    await canceling.execute(expense.id, async () => {
       await submitApiAction({
         request: () =>
           apiFetch(`/api/expenses/${expense.id}`, {
@@ -88,10 +87,8 @@ export function useExpenseSection({
           setExpenses((prev) => prev.map((entry) => (entry.id === expense.id ? json.data : entry)));
         },
       });
-    } finally {
-      setCancelingId(null);
-    }
-  }, []);
+    });
+  }, [canceling]);
 
   const submitAdjustment = useCallback(async () => {
     const normalized = balanceInput.replace(/[,\s]/g, "");
@@ -146,20 +143,20 @@ export function useExpenseSection({
   return {
     currentMonthExpenses,
     monthHistoryExpenses,
-    visibleHistory,
+    visibleHistory: historyList.visibleItems,
     monthAdjustments,
-    visibleAdjustments,
+    visibleAdjustments: adjustmentList.visibleItems,
     currentBalance,
-    cancelingId,
-    isHistoryExpanded,
-    isAdjustmentHistoryExpanded,
+    cancelingId: canceling.activeId,
+    isHistoryExpanded: historyList.isExpanded,
+    isAdjustmentHistoryExpanded: adjustmentList.isExpanded,
     adjustMode,
     balanceInput,
     adjustReason,
     adjustDate,
     isAdjusting,
-    setIsHistoryExpanded,
-    setIsAdjustmentHistoryExpanded,
+    setIsHistoryExpanded: historyList.setIsExpanded,
+    setIsAdjustmentHistoryExpanded: adjustmentList.setIsExpanded,
     setAdjustMode,
     setBalanceInput,
     setAdjustReason,

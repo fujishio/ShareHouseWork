@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { Notice } from "@/types";
 import { apiFetch } from "@/shared/lib/fetch-client";
 import { submitApiAction } from "@/shared/lib/submit-api-action";
+import { useItemAction } from "@/hooks/useItemAction";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -11,7 +12,7 @@ function isOld(postedAt: string): boolean {
 
 export function useNoticesSection(initialNotices: Notice[]) {
   const [notices, setNotices] = useState<Notice[]>(initialNotices);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleting = useItemAction();
   const [oldExpanded, setOldExpanded] = useState(false);
 
   const recentNotices = useMemo(
@@ -33,8 +34,7 @@ export function useNoticesSection(initialNotices: Notice[]) {
   );
 
   const deleteNotice = useCallback(async (notice: Notice) => {
-    setDeletingId(notice.id);
-    try {
+    await deleting.execute(notice.id, async () => {
       await submitApiAction({
         request: () => apiFetch(`/api/notices/${notice.id}`, { method: "DELETE" }),
         successMessage: "お知らせを削除しました",
@@ -43,13 +43,11 @@ export function useNoticesSection(initialNotices: Notice[]) {
           setNotices((prev) => prev.filter((entry) => entry.id !== notice.id));
         },
       });
-    } finally {
-      setDeletingId(null);
-    }
-  }, []);
+    });
+  }, [deleting]);
 
   return {
-    deletingId,
+    deletingId: deleting.activeId,
     oldExpanded,
     importantNotices,
     regularNotices,
